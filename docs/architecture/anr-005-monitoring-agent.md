@@ -104,7 +104,7 @@ GCP VM (Amaia)
     2. Busca preços e notícias
     3. Chama Claude API
     4. Persiste alertas no Supabase
-    5. Envia email/webhook se severity >= warning
+    5. Envia WhatsApp se severity >= warning (ver ANR-006)
 ```
 
 Nos fins de semana o agente não roda (mercado fechado). Pode ser habilitado sob demanda para monitorar eventos internacionais (ex. Fed meeting em sábado).

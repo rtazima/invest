@@ -9,13 +9,14 @@ Ver `docs/product/prd-invest.md` para o PRD principal.
 
 ## Titulares e contas
 
-| Titular | Corretoras/Bancos |
-|---|---|
-| Rodrigo | XP, BTG, Nomad |
-| Esposa | XP, BTG |
-| Filhos | XP |
+| Titular | Corretoras/Bancos | Perfil | Obs |
+|---|---|---|---|
+| Rodrigo | XP, BTG, Nomad | Arrojado | Conta USD no Nomad |
+| Grasi (esposa) | XP, BTG | Conservador | Liquidez máx 30 dias |
+| Amora (filha, 6 anos) | XP | Moderado/arrojado | Meta: R$12k/mês renda passiva aos 18 |
+| Benicio (filho, 1 ano) | XP | Arrojado | Mesma meta da Amora, 17 anos de horizonte |
 
-Cada titular tem estratégia independente configurada em `docs/product/estrategias-por-titular.md`.
+Estratégias detalhadas em `docs/product/estrategias-por-titular.md`.
 
 ## Tech Stack
 
@@ -24,7 +25,9 @@ Cada titular tem estratégia independente configurada em `docs/product/estrategi
 - Banco de dados: Supabase PostgreSQL
 - Auth: Supabase Auth (magic link + MFA)
 - AI: Claude API (Anthropic) — modelos por agente definidos abaixo
-- Sync bancário: Pluggy API (XP, BTG) + Plaid API (Nomad) + CSV import (fallback)
+- Sync bancário: Pluggy API (XP, BTG) + Plaid API (Nomad direto) + CSV import (fallback)
+- Notificações: Evolution API (WhatsApp, self-hosted na VM GCP) + email como fallback
+- Câmbio USD/BRL: inserção manual pelo usuário (cotação Nomad/Avenue)
 - Scheduler: cron na VM GCP (Amaia) — 2x/dia para o agente de monitoramento
 - Deploy frontend: Vercel
 - Deploy backend: Supabase + GCP VM (Amaia) para jobs scheduled
@@ -126,16 +129,18 @@ scripts/            ← bootstrap, pre-commit, ci
 | Decisão | ANR | Status |
 |---|---|---|
 | Hosting: Vercel + GCP VM + Supabase | ANR-001 | aprovado |
-| Sync bancário via Pluggy + Plaid | ANR-002 | aprovado |
+| Sync bancário via Pluggy + Plaid (Nomad direto) | ANR-002 | aprovado |
 | Tech stack Next.js 15 + Supabase | ANR-003 | aprovado |
 | Dados financeiros isolados por tenant | ANR-004 | aprovado |
 | Agente de monitoramento 2x/dia via cron GCP | ANR-005 | aprovado |
+| Notificações WhatsApp via Evolution API | ANR-006 | aprovado |
+| Design system via Claude Design | ANR-007 | aprovado |
 
 ## Gotchas
 
 - Pluggy tem rate limit de 1 req/seg por item. Sync de múltiplas contas precisa de fila.
 - XP e BTG às vezes exigem re-autenticação MFA — tratar expiração de consent graciosamente.
-- Nomad é banco americano — valores em USD, converter com cotação do dia (API BCB ou OpenExchangeRates).
+- Nomad é banco americano — valores em USD. Câmbio inserido manualmente pelo usuário (cotação Nomad/Avenue). Sem API de câmbio automática.
 - Dados de menores (filhos) exigem atenção extra de LGPD — consentimento parental documentado.
 - Tesouro Direto: preços intraday variam, valor de mercado diverge do valor investido — deixar claro no UI.
 - Fundos de investimento têm cota D+1 ou D+2 — não mostrar valor de hoje como definitivo.
@@ -146,3 +151,14 @@ scripts/            ← bootstrap, pre-commit, ci
 - Busca: `python memory/query.py "query"`
 - Incremental: `python memory/index.py --incremental`
 - Config: `memory/config.yaml`
+
+## Design
+
+Design flow: **Claude Design** (ver ANR-007)
+
+- Gerar PROMPT.md no claude.ai/design antes de implementar qualquer tela
+- Salvar em `docs/design/<slug>-PROMPT.md`
+- `/implement` detecta o PROMPT.md automaticamente
+- Conflito: PRD > CLAUDE.md > PROMPT.md (PROMPT.md nunca sobrescreve decisões de produto)
+- Componentes-base: shadcn/ui + Tailwind v4, gráficos com Recharts, tabelas com TanStack Table
+- Dark mode como padrão; números negativos em vermelho, positivos em verde, monoespaçado em colunas financeiras

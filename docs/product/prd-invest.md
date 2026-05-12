@@ -137,8 +137,8 @@ Rodrigo tem investimentos em XP, BTG e Nomad, distribuídos entre contas própri
 
 **Delivery:**
 - Dashboard (sempre, com badge de não-lido)
-- Email (para `WARNING` e `CRITICAL`)
-- Webhook configurável (para integração futura com Telegram ou Slack)
+- WhatsApp (para `WARNING` e `CRITICAL`) via Evolution API — ver ANR-006
+- Email (fallback se WhatsApp offline, e para `CRITICAL` como redundância)
 
 **Critérios de aceite:**
 - Alertas não lidos visíveis no topo do dashboard
@@ -151,12 +151,24 @@ Rodrigo tem investimentos em XP, BTG e Nomad, distribuídos entre contas própri
 
 **O que é:** documento de estratégia de cada titular, usado pelo agente de recomendação
 
-**Campos:**
+**Titulares e estratégias já definidos:**
+
+| Titular | Perfil | Objetivo |
+|---|---|---|
+| Rodrigo | Arrojado | Renda passiva para complementar gastos mensais |
+| Grasi | Conservador | Reserva de emergência + suporte saúde do pai; liquidez máx 30d |
+| Amora (6 anos) | Moderado/arrojado | R$12k/mês de renda passiva aos 18 anos |
+| Benicio (1 ano) | Arrojado | Mesmo da Amora, 17 anos de horizonte |
+
+Ver `docs/product/estrategias-por-titular.md` para alocações-alvo detalhadas.
+
+**Campos da estratégia (editáveis na plataforma):**
 - Perfil de risco (conservador / moderado / arrojado)
 - Horizonte de investimento
-- Objetivo principal (ex. aposentadoria, educação dos filhos, renda passiva)
+- Objetivo principal e meta quantitativa (ex. R$12k/mês aos 18 anos)
 - Alocação-alvo por classe (% em renda fixa, variável, internacional, liquidez)
 - Liquidez mínima obrigatória
+- Threshold de desvio de alocação para disparo de alerta (padrão 5%, configurável por titular)
 - Ativos ou setores a evitar
 
 **Critérios de aceite:**
@@ -188,10 +200,12 @@ Rodrigo tem investimentos em XP, BTG e Nomad, distribuídos entre contas própri
 
 ---
 
-## Perguntas abertas para revisão
+## Decisões tomadas (era perguntas abertas)
 
-1. **Nomad**: preferir Plaid ou CSV manual como mecanismo de sync? Plaid exige integração e aprovação, CSV é mais simples mas manual.
-2. **Push notification**: email basta para `CRITICAL`, ou quer Telegram/WhatsApp também?
-3. **Estratégia dos filhos**: é diferente de "perfil conservador padrão"? Precisa documentar.
-4. **Câmbio**: usar cotação do BCB (grátis, D-1) ou API em tempo real paga?
-5. **Threshold de desvio de alocação**: qual % de desvio dispara `WARNING`? Sugestão: 5%.
+| # | Pergunta | Decisão |
+|---|---|---|
+| 1 | Nomad: Plaid ou CSV? | Plaid direto desde a Fase 2. CSV como fallback. Iniciar aprovação Plaid Production após MVP. |
+| 2 | Notificação push | WhatsApp via Evolution API (self-hosted na Amaia). Email como fallback. Ver ANR-006. |
+| 3 | Estratégia dos filhos | Documentada por filho (Amora e Benicio individualmente). Ver `estrategias-por-titular.md`. |
+| 4 | Câmbio USD/BRL | Manual — usuário insere a cotação do Nomad/Avenue no momento do aporte. |
+| 5 | Threshold de desvio | 5% padrão, configurável por titular na plataforma. Grasi: 3%. |

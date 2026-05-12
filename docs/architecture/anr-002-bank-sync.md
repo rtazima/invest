@@ -1,6 +1,6 @@
 # ANR-002 — Sincronização bancária: Pluggy + Plaid + CSV
 
-**Status:** aprovado  
+**Status:** aprovado (atualizado 2026-05-11)  
 **Data:** 2026-05-11  
 **Autor:** Rodrigo Tazima
 
@@ -8,17 +8,17 @@
 
 ## Decisão
 
-Usar Pluggy para XP e BTG (Open Finance Brasil), Plaid para Nomad (Open Banking EUA), e CSV import como fallback universal.
+Usar Pluggy para XP e BTG (Open Finance Brasil), Plaid para Nomad (integração direta desde a Fase 2), e CSV import como fallback universal.
 
 ---
 
 ## Contexto
 
-XP, BTG e Nomad não têm APIs públicas diretas para clientes pessoa física. O acesso aos dados de portfólio precisa passar por um agregador financeiro regulado ou por exportação manual.
+XP, BTG e Nomad não têm APIs públicas diretas para clientes pessoa física. O acesso a dados de portfólio precisa passar por um agregador financeiro regulado ou por exportação manual.
 
 ---
 
-## Opções de integração por instituição
+## Integração por instituição
 
 ### XP Investimentos
 
@@ -43,44 +43,62 @@ XP, BTG e Nomad não têm APIs públicas diretas para clientes pessoa física. O
 
 | Opção | Viabilidade | Observações |
 |---|---|---|
-| Plaid API | Média | Nomad suporta Plaid. Requer aprovação de conta Plaid Development/Production. |
-| CSV manual | Alta | Nomad exporta extrato CSV facilmente |
-| Open Finance EUA | N/A | Não aplicável para conta estrangeira no Brasil |
+| Plaid API | Alta | Nomad suporta Plaid. Requer aprovação de conta Development → Production. |
+| CSV manual | Alta | Nomad exporta extrato CSV facilmente — usado como fallback |
 
-**Escolha: CSV manual no MVP. Integrar Plaid na Fase 2 se o processo de aprovação for viável.**
+**Escolha: Plaid integrado desde a Fase 2 (junto com Pluggy). CSV como fallback.**
+
+**Ação imediata:** iniciar processo de aprovação da conta Plaid Production assim que o MVP estiver funcionando — o processo de revisão leva 1–4 semanas.
 
 ---
 
-## Pluggy — decisão de detalhe
+## Câmbio USD/BRL
+
+A cotação é inserida manualmente pelo usuário no momento do aporte, consultando Nomad ou Avenue. Não há API de câmbio automática — decisão intencional para refletir a taxa real utilizada na operação.
+
+O campo de câmbio aparece em:
+- Tela de importação CSV (Nomad)
+- Tela de novo aporte em conta internacional
+- Posições em USD exibidas com a cotação do último aporte registrado + nota de que pode estar desatualizada
+
+---
+
+## Pluggy — detalhes
 
 **Por que Pluggy e não Belvo ou Open Finance direto?**
 
-- Belvo: bom produto, mas foco maior em crédito/banking. Cobertura de investimentos no Brasil é menor que Pluggy.
-- Open Finance direto (Banco Central): possível, mas requer cadastro de instituição participante — inviável para uso pessoal.
-- Pluggy: foco em investimentos, suporte a XP e BTG confirmado, SDK bem documentado, usado por fintechs brasileiras de referência.
+- Belvo: foco maior em crédito/banking, cobertura de investimentos no Brasil menor que Pluggy
+- Open Finance direto (BCB): requer cadastro de instituição participante — inviável para uso pessoal
+- Pluggy: foco em investimentos, suporte a XP e BTG confirmado, SDK TypeScript bem documentado
 
 **Limitações do Pluggy:**
-- Rate limit: 1 requisição/segundo por item (conta conectada). Com 5 itens (Rodrigo XP, Rodrigo BTG, Esposa XP, Esposa BTG, Filhos XP), sync sequencial leva ~5s mínimo — aceitável.
-- Consent tem validade (geralmente 12 meses). Re-autenticação via redirect OAuth — o app precisa tratar graciosamente.
-- Custo por item conectado — ver ANR-001 para estimativa.
+- Rate limit: 1 req/s por item. Com 5 itens (Rodrigo XP, Rodrigo BTG, Grasi XP, Grasi BTG, Filhos XP), sync sequencial leva ~5s mínimo — aceitável.
+- Consent com validade (~12 meses). Re-autenticação via redirect OAuth — tratar expiração graciosamente.
+- Custo por item conectado (ver ANR-001).
 
 ---
 
 ## Modelo de dados do sync
 
-```
+```sql
 sync_jobs
   id, titular_id, institution, status, started_at, finished_at, error
 
 portfolio_snapshots
-  id, titular_id, institution, synced_at, raw_data (JSONB)
+  id, titular_id, institution, synced_at, raw_data JSONB
 
 positions
-  id, snapshot_id, ticker, name, quantity, avg_price, current_price,
-  asset_class, maturity_date, indexer, liquidity_days, currency
+  id, snapshot_id, ticker, name, quantity,
+  avg_price NUMERIC(18,4), current_price NUMERIC(18,4),
+  asset_class, maturity_date, indexer, liquidity_days,
+  currency, exchange_rate_used NUMERIC(10,6)
+
+exchange_rate_entries
+  id, titular_id, currency_pair, rate NUMERIC(10,6),
+  source, registered_at, registered_by
 ```
 
-Snapshot salva o raw da API para auditoria. Posições são derivadas do raw.
+`exchange_rate_entries` registra cada cotação informada manualmente pelo usuário.
 
 ---
 
@@ -89,31 +107,32 @@ Snapshot salva o raw da API para auditoria. Posições são derivadas do raw.
 | Falha | Comportamento |
 |---|---|
 | Consent expirado | Notificação ao usuário, dashboard mostra última posição com timestamp |
-| Rate limit atingido | Retry com exponential backoff, máx 3 tentativas |
-| Timeout da API Pluggy | Log de erro, continua com outras contas |
+| Rate limit Pluggy | Retry com exponential backoff, máx 3 tentativas |
+| Timeout API Pluggy/Plaid | Log de erro, continua com outras contas |
 | Conta com MFA pendente | Notificação, não bloqueia outras contas |
-| Plaid indisponível | Usa último CSV importado como referência |
+| Plaid indisponível | Usa último CSV importado como referência, alerta info |
 
 ---
 
 ## Segurança
 
 - Tokens Pluggy e Plaid nunca vão para o frontend
-- Armazenados como secrets no Supabase (env vars de Edge Functions) e na VM GCP
-- Raw data do portfólio armazenado com RLS por titular — nenhum registro cruzado entre titulares
-- Logs de sync não incluem valores ou tickers em plaintext
+- Armazenados como secrets no Supabase (Edge Functions env) e na VM GCP
+- Raw data com RLS por titular — sem acesso cruzado entre titulares
+- Logs de sync sem valores ou tickers em plaintext
 
 ---
 
 ## Consequências
 
-- Precisamos de conta Pluggy (plano pago) antes da Fase 2
-- Plaid requer processo de aprovação (pode levar semanas) — iniciar cedo se quiser para Nomad
-- CSV import precisa de parsers para os formatos específicos de XP, BTG e Nomad (documentar em `docs/runbooks/csv-import.md`)
-- Webhook Pluggy (push de eventos) é uma melhoria futura — reduz latência do sync
+- Abrir conta Pluggy (plano pago) antes de iniciar a Fase 2
+- Iniciar aprovação Plaid Production assim que MVP estiver no ar
+- CSV parsers para XP, BTG e Nomad documentados em `docs/runbooks/csv-import.md`
+- Tela de importação CSV deve incluir campo de câmbio para posições Nomad
+- Webhook Pluggy (push de eventos) é melhoria futura para reduzir latência do sync
 
 ---
 
 ## Revisão
 
-Verificar cobertura exata do Pluggy para XP (tipos de produto: ações, FIIs, fundos, renda fixa) antes de contratar.
+Verificar cobertura exata do Pluggy para XP antes de contratar (ações, FIIs, fundos, renda fixa — todos precisam estar cobertos).
