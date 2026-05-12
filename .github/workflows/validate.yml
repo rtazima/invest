@@ -1,0 +1,108 @@
+name: Validate Blueprint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required files exist
+        run: |
+          echo "Checking required files..."
+          files=(
+            "CLAUDE.md"
+            "README.md"
+            "LICENSE"
+            "CONTRIBUTING.md"
+            ".gitignore"
+            ".claude/settings.json"
+            ".claude/hooks.json"
+            "scripts/bootstrap.sh"
+            "scripts/lint-check.sh"
+            "scripts/security-check.sh"
+            "docs/specs/README.md"
+            "docs/product/vision.md"
+            "docs/product/_template-prd.md"
+            "docs/architecture/adr-000-template.md"
+            "docs/runbooks/deploy.md"
+          )
+          
+          missing=0
+          for f in "${files[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "❌ Missing: $f"
+              missing=$((missing + 1))
+            else
+              echo "✅ Found: $f"
+            fi
+          done
+          
+          if [ $missing -gt 0 ]; then
+            echo "::error::$missing required files missing"
+            exit 1
+          fi
+
+      - name: Check spec modules have README
+        run: |
+          echo "Checking spec modules..."
+          missing=0
+          for dir in docs/specs/*/; do
+            if [ ! -f "${dir}README.md" ]; then
+              echo "❌ Missing README.md in $dir"
+              missing=$((missing + 1))
+            else
+              echo "✅ ${dir}README.md"
+            fi
+          done
+          
+          if [ $missing -gt 0 ]; then
+            echo "::error::$missing spec modules missing README.md"
+            exit 1
+          fi
+
+      - name: Check skills have SKILL.md
+        run: |
+          echo "Checking skills..."
+          missing=0
+          for dir in .claude/skills/*/; do
+            if [ ! -f "${dir}SKILL.md" ]; then
+              echo "❌ Missing SKILL.md in $dir"
+              missing=$((missing + 1))
+            else
+              echo "✅ ${dir}SKILL.md"
+            fi
+          done
+          
+          if [ $missing -gt 0 ]; then
+            echo "::error::$missing skills missing SKILL.md"
+            exit 1
+          fi
+
+      - name: Validate bootstrap script
+        run: |
+          chmod +x scripts/bootstrap.sh
+          bash -n scripts/bootstrap.sh
+          echo "✅ bootstrap.sh syntax OK"
+
+      - name: Validate memory module (Python syntax)
+        run: |
+          python3 -m py_compile memory/index.py && echo "✅ memory/index.py OK"
+          python3 -m py_compile memory/query.py && echo "✅ memory/query.py OK"
+
+      - name: Count blueprint contents
+        run: |
+          echo "📊 Blueprint summary:"
+          echo "  Files: $(find . -type f -not -path './.git/*' | wc -l)"
+          echo "  Skills: $(find .claude/skills -name 'SKILL.md' | wc -l)"
+          echo "  Commands: $(find .claude/commands -name '*.md' | wc -l)"
+          echo "  Agents: $(find .claude/agents -name '*.md' | wc -l)"
+          echo "  Spec modules: $(find docs/specs -maxdepth 1 -type d | tail -n +2 | wc -l)"
+          echo "  Templates: $(find . -name '_template-*' -o -name 'adr-000-*' | wc -l)"
+          echo "  [SPEC] markers: $(grep -r '\[SPEC\]' --include='*.md' | wc -l)"
+          echo "  Memory: $([ -f 'memory/index.py' ] && echo 'Ready' || echo 'Not found')"

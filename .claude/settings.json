@@ -1,0 +1,25 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Read:*",
+      "Write:*",
+      "Edit",
+      "MultiEdit",
+      "Bash(git:*)",
+      "Bash(npm:*)",
+      "Bash(pnpm:*)",
+      "Bash(python3:*)",
+      "WebFetch",
+      "TodoWrite"
+    ],
+    "deny": [
+      "Read:env:*",
+      "Bash:sudo:*",
+      "Bash:rm:-rf:*",
+      "Write:*:.env*"
+    ]
+  }
+}
