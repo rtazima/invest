@@ -46,6 +46,7 @@ desktop.ini
 node_modules/
 dist/
 .next/
+tsconfig.tsbuildinfo
 
 # =============================================================================
 # Python [SPEC] remove if not using Python

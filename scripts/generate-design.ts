@@ -254,7 +254,7 @@ Princípios inegociáveis:
   });
 
   const content = response.content[0];
-  if (content.type !== "text") {
+  if (!content || content.type !== "text") {
     throw new Error("Resposta inesperada da API");
   }
 
