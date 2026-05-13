@@ -156,8 +156,9 @@ scripts/            ← bootstrap, pre-commit, ci
 
 Design flow: **Claude Design** (ver ANR-007)
 
-- Gerar PROMPT.md no claude.ai/design antes de implementar qualquer tela
-- Salvar em `docs/design/<slug>-PROMPT.md`
+- Gerar PROMPT.md antes de implementar qualquer tela: `pnpm tsx scripts/generate-design.ts --screen <tela>`
+- Gerar todas as telas de uma vez: `pnpm tsx scripts/generate-design.ts --all`
+- Salvo automaticamente em `docs/design/<slug>-PROMPT.md`
 - `/implement` detecta o PROMPT.md automaticamente
 - Conflito: PRD > CLAUDE.md > PROMPT.md (PROMPT.md nunca sobrescreve decisões de produto)
 - Componentes-base: shadcn/ui + Tailwind v4, gráficos com Recharts, tabelas com TanStack Table

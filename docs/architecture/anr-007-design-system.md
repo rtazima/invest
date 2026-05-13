@@ -30,16 +30,29 @@ Requereria um designer ou tempo de Rodrigo no Figma. Para um projeto solo, o flu
 
 ---
 
-## Fluxo de trabalho
+## Fluxo de trabalho (automatizado)
+
+Claude Design (claude.ai/design) não tem API pública. O fluxo usa o script `scripts/generate-design.ts` que chama a Claude API diretamente e produz o mesmo output: um `PROMPT.md` com tokens de design e specs de componentes.
+
+```bash
+# Gerar design para uma tela específica
+pnpm tsx scripts/generate-design.ts --screen dashboard
+
+# Gerar todas as telas de uma vez
+pnpm tsx scripts/generate-design.ts --all
+```
 
 ```
-1. Rodrigo acessa claude.ai/design
-2. Carrega: PRD, CLAUDE.md, referências visuais (dashboards financeiros de referência)
-3. Claude Design gera: paleta, tipografia, componentes-chave
-4. Rodrigo revisa e exporta → salvo em docs/design/<slug>-PROMPT.md
-5. `/implement` detecta o PROMPT.md e usa como contexto de UI
-6. Conflito de decisão: PRD > CLAUDE.md > PROMPT.md
+1. Script lê: CLAUDE.md + PRD + ANR-007 (contexto com cache)
+2. Chama Claude API (claude-opus-4-5) com prompt específico por tela
+3. Salva output em docs/design/<slug>-PROMPT.md
+4. `/implement` detecta o PROMPT.md e usa como contexto de UI
+5. Conflito de decisão: PRD > CLAUDE.md > PROMPT.md
 ```
+
+Telas configuradas: `dashboard`, `alertas`, `estrategia`, `importar`
+
+Adicionar nova tela: incluir entrada em `SCREEN_PROMPTS` no script.
 
 ---
 
