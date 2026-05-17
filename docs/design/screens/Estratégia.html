@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=1640, initial-scale=1" />
+    <title>Invest — Estratégia · Rodrigo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+        --font-mono: "Geist Mono", ui-monospace, "JetBrains Mono", monospace;
+
+        --color-bg: oklch(0.135 0 0);
+        --color-bg-2: oklch(0.175 0 0);
+        --color-bg-3: oklch(0.208 0 0);
+        --color-line: oklch(0.272 0 0);
+        --color-line-2: oklch(0.235 0 0);
+        --color-text: oklch(0.985 0 0);
+        --color-text-2: oklch(0.708 0 0);
+        --color-text-3: oklch(0.50 0 0);
+        --color-text-4: oklch(0.38 0 0);
+
+        --color-brand: oklch(0.62 0.20 277);
+        --color-brand-hi: oklch(0.70 0.20 277);
+
+        --color-cons: oklch(0.72 0.13 232);     /* blue */
+        --color-mod:  oklch(0.74 0.13 175);     /* teal */
+        --color-aggr: oklch(0.80 0.15 60);      /* amber */
+        --color-gain: oklch(0.76 0.16 152);
+        --color-loss: oklch(0.68 0.20 24);
+      }
+
+      html, body { background: var(--color-bg); color: var(--color-text); }
+      body { font-family: var(--font-sans); font-feature-settings: "ss01","cv11"; -webkit-font-smoothing: antialiased; }
+      .num, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
+      .hairline { box-shadow: inset 0 -1px 0 var(--color-line-2); }
+
+      /* ---- Pills ---- */
+      .pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 3px 9px; border-radius: 999px;
+        font-size: 11px; font-weight: 500;
+        line-height: 16px;
+        border: 1px solid var(--color-line);
+        color: var(--color-text-2);
+        background: var(--color-bg);
+      }
+      .pill .dot { width: 5px; height: 5px; border-radius: 999px; background: currentColor; }
+
+      .risk-pill {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 5px 11px 5px 9px;
+        border-radius: 999px;
+        font-size: 12px; font-weight: 500;
+        letter-spacing: -0.005em;
+        border: 1px solid;
+      }
+      .risk-cons {
+        color: var(--color-cons);
+        background: color-mix(in oklch, var(--color-cons) 14%, var(--color-bg));
+        border-color: color-mix(in oklch, var(--color-cons) 35%, var(--color-line));
+      }
+      .risk-mod {
+        color: var(--color-mod);
+        background: color-mix(in oklch, var(--color-mod) 14%, var(--color-bg));
+        border-color: color-mix(in oklch, var(--color-mod) 35%, var(--color-line));
+      }
+      .risk-aggr {
+        color: var(--color-aggr);
+        background: color-mix(in oklch, var(--color-aggr) 14%, var(--color-bg));
+        border-color: color-mix(in oklch, var(--color-aggr) 35%, var(--color-line));
+      }
+
+      /* ---- Buttons ---- */
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        height: 30px; padding: 0 12px;
+        font-size: 12.5px; font-weight: 500;
+        border-radius: 7px;
+        transition: background .15s ease, color .15s ease, border-color .15s ease, transform .05s ease;
+        cursor: pointer; letter-spacing: -0.005em;
+      }
+      .btn-primary {
+        background: var(--color-brand); color: white;
+        border: 1px solid color-mix(in oklch, var(--color-brand) 60%, white);
+        box-shadow: 0 1px 0 oklch(1 0 0 / 0.18) inset, 0 1px 2px oklch(0 0 0 / 0.4);
+      }
+      .btn-primary:hover { background: var(--color-brand-hi); }
+      .btn-primary:active { transform: translateY(0.5px); }
+      .btn-ghost {
+        background: var(--color-bg-2); color: var(--color-text-2);
+        border: 1px solid var(--color-line);
+      }
+      .btn-ghost:hover { color: var(--color-text); background: var(--color-bg-3); }
+      .btn-bare {
+        background: transparent; color: var(--color-text-3); border: 1px solid transparent;
+      }
+      .btn-bare:hover { color: var(--color-text); background: var(--color-bg-2); }
+
+      .kbd { font-family: var(--font-mono); font-size: 10.5px; padding: 1px 5px; border: 1px solid var(--color-line); border-bottom-width: 2px; border-radius: 4px; color: var(--color-text-2); background: var(--color-bg-2); }
+
+      /* ---- Info card ---- */
+      .info-card {
+        background: var(--color-bg-2);
+        border: 1px solid var(--color-line-2);
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+      .info-label {
+        font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em;
+        color: var(--color-text-4); font-weight: 500;
+      }
+
+      /* ---- Inputs ---- */
+      .input {
+        width: 100%; height: 34px; padding: 0 11px;
+        background: oklch(0.155 0 0);
+        border: 1px solid var(--color-line);
+        border-radius: 7px;
+        color: var(--color-text);
+        font-size: 13px;
+        transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+        outline: none;
+      }
+      .input::placeholder { color: var(--color-text-4); }
+      .input:focus {
+        border-color: var(--color-brand);
+        box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-brand) 22%, transparent);
+        background: oklch(0.165 0 0);
+      }
+      .input.mono { font-family: var(--font-mono); }
+
+      .select {
+        appearance: none;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'><path d='m2 3 2 2 2-2' stroke='%23999' stroke-width='1.3' fill='none' stroke-linecap='round'/></svg>");
+        background-repeat: no-repeat;
+        background-position: right 11px center;
+        padding-right: 28px;
+      }
+
+      .input-suffix-wrap { position: relative; }
+      .input-suffix-wrap .suffix {
+        position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+        font-size: 11.5px; color: var(--color-text-3);
+        font-family: var(--font-mono);
+        pointer-events: none;
+      }
+      .input-suffix-wrap input { padding-right: 28px; }
+
+      /* ---- Allocation table ---- */
+      .alloc-table {
+        width: 100%; border-collapse: collapse;
+      }
+      .alloc-table th {
+        text-align: left; padding: 10px 12px;
+        font-size: 10.5px; font-weight: 500;
+        text-transform: uppercase; letter-spacing: 0.08em;
+        color: var(--color-text-4);
+        border-bottom: 1px solid var(--color-line-2);
+      }
+      .alloc-table td {
+        padding: 12px;
+        font-size: 13px;
+        border-bottom: 1px solid var(--color-line-2);
+        vertical-align: middle;
+      }
+      .alloc-table tr:last-child td { border-bottom: 0; }
+      .alloc-table tbody tr:hover { background: oklch(0.155 0 0); }
+
+      .asset-ico {
+        width: 22px; height: 22px;
+        border-radius: 5px;
+        display: grid; place-items: center;
+        font-size: 11px; font-weight: 600;
+        font-family: var(--font-mono);
+        color: oklch(0.135 0 0);
+        letter-spacing: -0.01em;
+        flex-shrink: 0;
+      }
+
+      /* Progress bar */
+      .bar {
+        position: relative;
+        height: 6px;
+        border-radius: 999px;
+        background: oklch(0.20 0 0);
+        overflow: hidden;
+      }
+      .bar > .fill {
+        position: absolute; left: 0; top: 0; bottom: 0;
+        border-radius: 999px;
+        background: var(--bar-color, var(--color-brand));
+      }
+      .bar > .actual {
+        position: absolute; top: -2px; bottom: -2px;
+        width: 2px;
+        background: var(--color-text);
+        border-radius: 1px;
+        box-shadow: 0 0 0 2px var(--color-bg-2);
+      }
+      .bar > .tol {
+        position: absolute; top: 0; bottom: 0;
+        background: color-mix(in oklch, var(--bar-color, var(--color-brand)) 18%, transparent);
+        border-left: 1px dashed color-mix(in oklch, var(--bar-color) 50%, transparent);
+        border-right: 1px dashed color-mix(in oklch, var(--bar-color) 50%, transparent);
+      }
+
+      /* Number input small for table */
+      .num-input {
+        width: 64px; height: 28px;
+        padding: 0 8px;
+        background: oklch(0.155 0 0);
+        border: 1px solid var(--color-line);
+        border-radius: 6px;
+        color: var(--color-text);
+        font-family: var(--font-mono); font-size: 12.5px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        outline: none;
+        transition: border-color .15s ease, box-shadow .15s ease;
+      }
+      .num-input:focus {
+        border-color: var(--color-brand);
+        box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-brand) 22%, transparent);
+      }
+      .num-input.warn-edge { border-color: color-mix(in oklch, var(--color-aggr) 50%, var(--color-line)); }
+
+      .tag {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 3px 8px;
+        border-radius: 5px;
+        background: oklch(0.18 0 0);
+        border: 1px solid var(--color-line-2);
+        font-size: 11.5px;
+        color: var(--color-text-2);
+        font-family: var(--font-mono);
+        letter-spacing: 0.01em;
+      }
+      .tag.removable .x { color: var(--color-text-3); margin-left: 2px; cursor: pointer; }
+      .tag.removable:hover .x { color: var(--color-text); }
+
+      /* Mode label */
+      .mode-label {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 4px 9px 4px 8px;
+        font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em;
+        font-weight: 500;
+        border-radius: 6px;
+        border: 1px solid var(--color-line-2);
+      }
+      .mode-view { color: var(--color-text-3); background: var(--color-bg-2); }
+      .mode-edit {
+        color: var(--color-brand-hi);
+        background: color-mix(in oklch, var(--color-brand) 12%, var(--color-bg));
+        border-color: color-mix(in oklch, var(--color-brand) 35%, var(--color-line));
+      }
+
+      /* Sum totals row */
+      .sum-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 110px 110px 78px;
+        gap: 0;
+        padding: 12px 12px;
+        border-top: 1px solid var(--color-line);
+        background: oklch(0.155 0 0);
+        font-size: 12.5px;
+        align-items: center;
+      }
+      .sum-ok { color: var(--color-gain); }
+      .sum-bad { color: var(--color-loss); }
+
+      .check {
+        appearance: none;
+        width: 14px; height: 14px;
+        border-radius: 4px;
+        border: 1px solid var(--color-line);
+        background: var(--color-bg);
+        position: relative;
+        cursor: pointer;
+        transition: border-color .15s ease, background .15s ease;
+        flex-shrink: 0;
+      }
+      .check:checked {
+        background: var(--color-brand);
+        border-color: var(--color-brand);
+      }
+      .check:checked::after {
+        content: ""; position: absolute;
+        left: 3px; top: 0.5px; width: 6px; height: 9px;
+        border: solid white; border-width: 0 1.5px 1.5px 0;
+        transform: rotate(45deg);
+      }
+
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-thumb { background: oklch(0.3 0 0); border-radius: 8px; border: 2px solid var(--color-bg); }
+      ::-webkit-scrollbar-track { background: transparent; }
+    </style>
+  </head>
+
+  <body class="min-h-screen" data-screen-label="Estratégia">
+    <!-- ============ LEFT RAIL ============ -->
+    <aside class="fixed inset-y-0 left-0 w-14 border-r border-[var(--color-line-2)] bg-[var(--color-bg)] flex flex-col items-center py-3 z-20">
+      <div class="size-8 rounded-md bg-[var(--color-text)] text-[var(--color-bg)] grid place-items-center font-semibold text-[14px] mb-4">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 12 L6 4 L8 8 L12 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <nav class="flex-1 flex flex-col items-center gap-1">
+        <a href="Dashboard.html" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)]" title="Dashboard">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/></svg>
+        </a>
+        <a href="Alertas.html" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)]" title="Alertas">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 12V7a5 5 0 0 1 10 0v5l1 1H2l1-1Z" stroke="currentColor" stroke-width="1.3"/><path d="M6.5 14a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1.3"/></svg>
+        </a>
+        <a href="#" class="size-9 grid place-items-center rounded-md bg-[var(--color-bg-3)] text-[var(--color-text)]" title="Estratégia">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="1.3"/></svg>
+        </a>
+        <a href="Importar%20CSV.html" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)]" title="Importar">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0 3-3m-3 3L5 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="1.3"/></svg>
+        </a>
+        <a href="Família.html" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)]" title="Família">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="6" r="2.4" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="6" r="2.4" stroke="currentColor" stroke-width="1.4"/><path d="M1.5 13.5a3.5 3.5 0 0 1 7 0M7.5 13.5a3.5 3.5 0 0 1 7 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        </a>
+      </nav>
+      <div class="size-7 rounded-full bg-gradient-to-br from-zinc-600 to-zinc-800 grid place-items-center text-[10.5px] font-semibold text-[var(--color-text)] ring-1 ring-[var(--color-line)]">RT</div>
+    </aside>
+
+    <!-- ============ MAIN WRAPPER ============ -->
+    <div class="pl-14">
+      <!-- Topbar -->
+      <header class="h-12 flex items-center px-6 hairline sticky top-0 z-10 bg-[var(--color-bg)]/95 backdrop-blur">
+        <div class="flex items-center gap-2 text-[13px]">
+          <a href="#" class="text-[var(--color-text-3)] hover:text-[var(--color-text)]">Família Tazima</a>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="text-[var(--color-text-4)]"><path d="M4.5 2.5 8 6 4.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          <a href="#" class="text-[var(--color-text-3)] hover:text-[var(--color-text)]">Titulares</a>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="text-[var(--color-text-4)]"><path d="M4.5 2.5 8 6 4.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          <a href="#" class="text-[var(--color-text-3)] hover:text-[var(--color-text)]">Rodrigo</a>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="text-[var(--color-text-4)]"><path d="M4.5 2.5 8 6 4.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          <span class="font-medium">Estratégia</span>
+        </div>
+        <div class="ml-auto flex items-center gap-2">
+          <button class="btn btn-bare">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="5.5" cy="5.5" r="3.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 8l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <span class="text-[var(--color-text-3)]">Buscar</span>
+            <span class="kbd ml-1">⌘K</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ============ Page header ============ -->
+      <div class="px-10 pt-9 pb-5 max-w-[1480px] mx-auto">
+        <div class="flex items-end justify-between">
+          <div>
+            <div class="text-[11.5px] uppercase tracking-[0.12em] text-[var(--color-text-4)] mb-2">Estratégia · Rodrigo</div>
+            <div class="flex items-center gap-3">
+              <div class="size-9 rounded-full grid place-items-center text-[15px] font-medium" style="background: oklch(0.78 0.13 277); color: oklch(0.135 0 0);">R</div>
+              <h1 class="text-[26px] font-medium tracking-[-0.02em] leading-none">Rodrigo Tazima</h1>
+              <span class="risk-pill risk-aggr">
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1c1 2 2.5 2 2.5 4.5S7 9 6 11c-1-2-2.5-3-2.5-5.5S5 3 6 1Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="currentColor" fill-opacity="0.15"/></svg>
+                arrojado
+              </span>
+            </div>
+            <p class="text-[13px] text-[var(--color-text-2)] leading-relaxed mt-2 max-w-[600px]">
+              Estratégia ativa desde <span class="num">março/2024</span>. Última revisão há <span class="num">23 dias</span>.
+              Patrimônio sob esta política: <span class="num text-[var(--color-text)]">R$ 687.142</span>.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <a href="#" class="text-[12.5px] text-[var(--color-text-3)] hover:text-[var(--color-text)] inline-flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.3"/><path d="M6 3v3l2 1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              Histórico (4)
+            </a>
+            <button class="btn btn-ghost">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5 4.5 9 10 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Validar
+            </button>
+            <button class="btn btn-ghost">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 2.5h6L10.5 4v6a.5.5 0 0 1-.5.5H2A.5.5 0 0 1 1.5 10V4L3 2.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M1.5 4.5h9" stroke="currentColor" stroke-width="1.3"/></svg>
+              Exportar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ TWO COLUMN: VIEW + EDIT ============ -->
+      <main class="px-10 pb-14 max-w-[1480px] mx-auto">
+        <div class="grid grid-cols-2 gap-6">
+
+          <!-- =================== VIEW MODE =================== -->
+          <section>
+            <div class="flex items-center justify-between mb-3 px-1">
+              <div class="flex items-center gap-2.5">
+                <span class="mode-label mode-view">
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M1 6s2-3.5 5-3.5S11 6 11 6s-2 3.5-5 3.5S1 6 1 6Z" stroke="currentColor" stroke-width="1.3"/><circle cx="6" cy="6" r="1.5" stroke="currentColor" stroke-width="1.3"/></svg>
+                  Modo visualização
+                </span>
+                <span class="text-[11px] text-[var(--color-text-4)]">somente leitura</span>
+              </div>
+              <button class="btn btn-ghost">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8.5 1.5 10.5 3.5 4 10H2v-2l6.5-6.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                Editar
+              </button>
+            </div>
+
+            <div class="rounded-xl border border-[var(--color-line-2)] bg-[var(--color-bg-2)] overflow-hidden">
+
+              <!-- Info cards 2-col grid -->
+              <div class="grid grid-cols-2 gap-px bg-[var(--color-line-2)] p-px">
+                <div class="info-card rounded-none border-0 bg-[var(--color-bg-2)]">
+                  <div class="info-label mb-2">Objetivo</div>
+                  <div class="text-[13.5px] leading-relaxed">
+                    Crescimento real de patrimônio, com foco em renda variável BR e ETFs de equity global. Tolera volatilidade até 18% a.a.
+                  </div>
+                </div>
+                <div class="info-card rounded-none border-0 bg-[var(--color-bg-2)]">
+                  <div class="info-label mb-2">Horizonte</div>
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-[24px] font-medium num leading-none">15</span>
+                    <span class="text-[13px] text-[var(--color-text-2)]">anos</span>
+                  </div>
+                  <div class="text-[11.5px] text-[var(--color-text-3)] mt-1">aposentadoria em 2041</div>
+                </div>
+                <div class="info-card rounded-none border-0 bg-[var(--color-bg-2)]">
+                  <div class="info-label mb-2">Liquidez mínima</div>
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-[24px] font-medium num leading-none">8</span>
+                    <span class="text-[13px] text-[var(--color-text-2)]">%</span>
+                    <span class="ml-auto text-[11px] num pill" style="color: var(--color-loss); border-color: color-mix(in oklch, var(--color-loss) 35%, var(--color-line)); background: color-mix(in oklch, var(--color-loss) 10%, transparent);">atual 3,2%</span>
+                  </div>
+                  <div class="text-[11.5px] text-[var(--color-text-3)] mt-1">6 meses de despesas em caixa</div>
+                </div>
+                <div class="info-card rounded-none border-0 bg-[var(--color-bg-2)]">
+                  <div class="info-label mb-2">Threshold de desvio</div>
+                  <div class="flex items-baseline gap-2">
+                    <span class="text-[24px] font-medium num leading-none">±3</span>
+                    <span class="text-[13px] text-[var(--color-text-2)]">pp</span>
+                  </div>
+                  <div class="text-[11.5px] text-[var(--color-text-3)] mt-1">por classe · gera alerta warning</div>
+                </div>
+              </div>
+
+              <!-- Allocation table -->
+              <div class="px-1">
+                <div class="px-5 pt-5 pb-2 flex items-baseline justify-between">
+                  <h3 class="text-[13.5px] font-medium tracking-tight">Alocação alvo</h3>
+                  <div class="flex items-center gap-3 text-[10.5px] text-[var(--color-text-3)]">
+                    <span class="inline-flex items-center gap-1.5">
+                      <span class="w-2.5 h-0.5 rounded-full bg-[var(--color-brand)]"></span>meta
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                      <span class="w-0.5 h-2.5 rounded-full bg-[var(--color-text)]"></span>atual
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                      <span class="w-2.5 h-2.5 rounded-sm" style="background: color-mix(in oklch, var(--color-brand) 22%, transparent); border: 1px dashed color-mix(in oklch, var(--color-brand) 50%, transparent);"></span>tolerância
+                    </span>
+                  </div>
+                </div>
+                <table class="alloc-table">
+                  <thead>
+                    <tr>
+                      <th class="pl-5">Classe</th>
+                      <th class="text-right pr-3">Meta</th>
+                      <th class="text-right pr-3">Tol.</th>
+                      <th class="text-right pr-5">Atual</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- Equity BR -->
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 240);">EB</span>
+                          <div>
+                            <div class="font-medium">Ações BR</div>
+                            <div class="text-[11px] text-[var(--color-text-3)]">stocks domésticas, ETFs IBOV</div>
+                          </div>
+                        </div>
+                        <div class="bar mt-2" style="--bar-color: oklch(0.72 0.14 240);">
+                          <div class="tol" style="left: 28%; width: 9%;"></div>
+                          <div class="fill" style="width: 32%; opacity: .45;"></div>
+                          <div class="actual" style="left: 35%;"></div>
+                        </div>
+                      </td>
+                      <td class="text-right num pr-3 align-top pt-3.5">32%</td>
+                      <td class="text-right num pr-3 align-top pt-3.5 text-[var(--color-text-3)]">±3</td>
+                      <td class="text-right num pr-5 align-top pt-3.5 font-medium">35,1%</td>
+                    </tr>
+                    <!-- Equity Intl -->
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 60);">EI</span>
+                          <div>
+                            <div class="font-medium">Ações internacionais</div>
+                            <div class="text-[11px] text-[var(--color-text-3)]">VOO, VT, BDRs</div>
+                          </div>
+                        </div>
+                        <div class="bar mt-2" style="--bar-color: oklch(0.78 0.13 60);">
+                          <div class="tol" style="left: 21%; width: 9%;"></div>
+                          <div class="fill" style="width: 25%; opacity: .45;"></div>
+                          <div class="actual" style="left: 24%;"></div>
+                        </div>
+                      </td>
+                      <td class="text-right num pr-3 align-top pt-3.5">25%</td>
+                      <td class="text-right num pr-3 align-top pt-3.5 text-[var(--color-text-3)]">±3</td>
+                      <td class="text-right num pr-5 align-top pt-3.5 font-medium">24,0%</td>
+                    </tr>
+                    <!-- Fixed income -->
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 150);">RF</span>
+                          <div>
+                            <div class="font-medium">Renda fixa</div>
+                            <div class="text-[11px] text-[var(--color-text-3)]">Tesouro, CDB, debêntures</div>
+                          </div>
+                        </div>
+                        <div class="bar mt-2" style="--bar-color: oklch(0.78 0.13 150);">
+                          <div class="tol" style="left: 16%; width: 9%;"></div>
+                          <div class="fill" style="width: 20%; opacity: .45;"></div>
+                          <div class="actual" style="left: 18%;"></div>
+                        </div>
+                      </td>
+                      <td class="text-right num pr-3 align-top pt-3.5">20%</td>
+                      <td class="text-right num pr-3 align-top pt-3.5 text-[var(--color-text-3)]">±3</td>
+                      <td class="text-right num pr-5 align-top pt-3.5 font-medium">17,8%</td>
+                    </tr>
+                    <!-- FIIs -->
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 30);">FI</span>
+                          <div>
+                            <div class="font-medium">FIIs</div>
+                            <div class="text-[11px] text-[var(--color-text-3)]">fundos imobiliários listados</div>
+                          </div>
+                        </div>
+                        <div class="bar mt-2" style="--bar-color: oklch(0.80 0.15 30);">
+                          <div class="tol" style="left: 7%; width: 6%;"></div>
+                          <div class="fill" style="width: 10%; opacity: .45;"></div>
+                          <div class="actual" style="left: 14.2%;"></div>
+                        </div>
+                      </td>
+                      <td class="text-right num pr-3 align-top pt-3.5">10%</td>
+                      <td class="text-right num pr-3 align-top pt-3.5 text-[var(--color-text-3)]">±2</td>
+                      <td class="text-right num pr-5 align-top pt-3.5 font-medium" style="color: var(--color-aggr);">14,2% ▲</td>
+                    </tr>
+                    <!-- ETF setoriais -->
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 300);">ET</span>
+                          <div>
+                            <div class="font-medium">ETFs setoriais</div>
+                            <div class="text-[11px] text-[var(--color-text-3)]">tech, healthcare, emerging</div>
+                          </div>
+                        </div>
+                        <div class="bar mt-2" style="--bar-color: oklch(0.78 0.13 300);">
+                          <div class="tol" style="left: 3%; width: 6%;"></div>
+                          <div class="fill" style="width: 6%; opacity: .45;"></div>
+                          <div class="actual" style="left: 5.5%;"></div>
+                        </div>
+                      </td>
+                      <td class="text-right num pr-3 align-top pt-3.5">6%</td>
+                      <td class="text-right num pr-3 align-top pt-3.5 text-[var(--color-text-3)]">±2</td>
+                      <td class="text-right num pr-5 align-top pt-3.5 font-medium">5,7%</td>
+                    </tr>
+                    <!-- Liquidez -->
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 200);">LQ</span>
+                          <div>
+                            <div class="font-medium">Liquidez</div>
+                            <div class="text-[11px] text-[var(--color-text-3)]">caixa, selic, LFT</div>
+                          </div>
+                        </div>
+                        <div class="bar mt-2" style="--bar-color: oklch(0.78 0.13 200);">
+                          <div class="tol" style="left: 5%; width: 4%;"></div>
+                          <div class="fill" style="width: 7%; opacity: .45;"></div>
+                          <div class="actual" style="left: 3.2%;"></div>
+                        </div>
+                      </td>
+                      <td class="text-right num pr-3 align-top pt-3.5">7%</td>
+                      <td class="text-right num pr-3 align-top pt-3.5 text-[var(--color-text-3)]">±1</td>
+                      <td class="text-right num pr-5 align-top pt-3.5 font-medium" style="color: var(--color-loss);">3,2% ▼</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- Total row (view) -->
+                <div class="sum-row">
+                  <span class="font-medium uppercase tracking-[0.08em] text-[10.5px] text-[var(--color-text-3)]">Total</span>
+                  <span class="text-right num pr-3 sum-ok font-medium">100%</span>
+                  <span></span>
+                  <span class="text-right num pr-5 font-medium">100%</span>
+                </div>
+              </div>
+
+              <!-- Restricted assets -->
+              <div class="px-5 py-5 border-t border-[var(--color-line-2)]">
+                <div class="info-label mb-2.5">Ativos restritos</div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="tag">crypto</span>
+                  <span class="tag">derivativos</span>
+                  <span class="tag">microcaps</span>
+                  <span class="tag">FIDC</span>
+                  <span class="text-[11.5px] text-[var(--color-text-4)] ml-1">4 categorias</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- =================== EDIT MODE =================== -->
+          <section>
+            <div class="flex items-center justify-between mb-3 px-1">
+              <div class="flex items-center gap-2.5">
+                <span class="mode-label mode-edit">
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M8.5 1.5 10.5 3.5 4 10H2v-2l6.5-6.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+                  Modo edição
+                </span>
+                <span class="text-[11px] text-[var(--color-text-4)]">3 alterações não salvas</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button class="btn btn-bare">Cancelar</button>
+                <button class="btn btn-primary">
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="m2.5 6 2.5 2.5L9.5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Salvar
+                </button>
+              </div>
+            </div>
+
+            <div class="rounded-xl border border-[var(--color-line-2)] bg-[var(--color-bg-2)] overflow-hidden"
+                 style="box-shadow: 0 0 0 1px color-mix(in oklch, var(--color-brand) 28%, transparent), 0 8px 24px -12px oklch(0 0 0 / 0.5);">
+
+              <!-- Risk profile (full-width edit) -->
+              <div class="p-5 border-b border-[var(--color-line-2)]">
+                <label class="info-label mb-2.5 block">Perfil de risco</label>
+                <div class="grid grid-cols-3 gap-2">
+                  <button class="risk-pill risk-cons justify-center !rounded-lg !py-2.5" style="opacity: .55;">
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1.5 12 4v3.5C12 10.5 7 12.5 7 12.5S2 10.5 2 7.5V4l5-2.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="currentColor" fill-opacity="0.12"/></svg>
+                    Conservador
+                  </button>
+                  <button class="risk-pill risk-mod justify-center !rounded-lg !py-2.5" style="opacity: .55;">
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 11h10M7 11V3M3 6h8L7 3 3 6Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="currentColor" fill-opacity="0.12"/></svg>
+                    Moderado
+                  </button>
+                  <button class="risk-pill risk-aggr justify-center !rounded-lg !py-2.5"
+                          style="box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-aggr) 50%, transparent);">
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1.5c1 2.3 3 2.3 3 5s-1.7 4-3 5.5c-1.3-1.5-3-2.8-3-5.5s2-2.7 3-5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" fill="currentColor" fill-opacity="0.18"/></svg>
+                    Arrojado
+                  </button>
+                </div>
+              </div>
+
+              <!-- Info fields 2x2 -->
+              <div class="grid grid-cols-2 gap-px bg-[var(--color-line-2)]">
+                <div class="bg-[var(--color-bg-2)] p-4">
+                  <label class="info-label mb-2 block">Objetivo</label>
+                  <textarea class="input" rows="3" style="height: 72px; padding: 8px 11px; resize: none; line-height: 1.5;">Crescimento real de patrimônio, com foco em renda variável BR e ETFs de equity global. Tolera volatilidade até 18% a.a.</textarea>
+                </div>
+                <div class="bg-[var(--color-bg-2)] p-4">
+                  <label class="info-label mb-2 block">Horizonte (anos)</label>
+                  <div class="input-suffix-wrap">
+                    <input class="input mono" value="15" />
+                    <span class="suffix">anos</span>
+                  </div>
+                  <div class="text-[11px] text-[var(--color-text-4)] mt-2 leading-relaxed">
+                    Mín. recomendado para perfil arrojado: 7 anos.
+                  </div>
+                </div>
+                <div class="bg-[var(--color-bg-2)] p-4">
+                  <label class="info-label mb-2 block">Liquidez mínima</label>
+                  <div class="input-suffix-wrap">
+                    <input class="input mono" value="8" />
+                    <span class="suffix">%</span>
+                  </div>
+                  <div class="text-[11px] mt-2 leading-relaxed" style="color: var(--color-aggr);">
+                    ⚠ Carteira atual está em 3,2% — gerará alerta crítico ao salvar.
+                  </div>
+                </div>
+                <div class="bg-[var(--color-bg-2)] p-4">
+                  <label class="info-label mb-2 block">Threshold de desvio</label>
+                  <div class="input-suffix-wrap">
+                    <input class="input mono" value="3" />
+                    <span class="suffix">±pp</span>
+                  </div>
+                  <div class="text-[11px] text-[var(--color-text-4)] mt-2 leading-relaxed">
+                    Desvios acima geram alerta warning automático.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Editable allocation table -->
+              <div class="px-1">
+                <div class="px-5 pt-5 pb-2 flex items-baseline justify-between">
+                  <h3 class="text-[13.5px] font-medium tracking-tight">Alocação alvo</h3>
+                  <button class="text-[11.5px] text-[var(--color-text-3)] hover:text-[var(--color-text)] inline-flex items-center gap-1">
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                    Adicionar classe
+                  </button>
+                </div>
+                <table class="alloc-table">
+                  <thead>
+                    <tr>
+                      <th class="pl-5">Classe</th>
+                      <th class="text-right pr-3">Meta %</th>
+                      <th class="text-right pr-3">Tol. ±%</th>
+                      <th class="pr-5"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 240);">EB</span>
+                          <span class="font-medium">Ações BR</span>
+                        </div>
+                      </td>
+                      <td class="text-right pr-3"><input class="num-input" value="30" /></td>
+                      <td class="text-right pr-3"><input class="num-input" value="3" /></td>
+                      <td class="text-right pr-5"><button class="text-[var(--color-text-4)] hover:text-[var(--color-loss)]"><svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 4h8M5.5 4V2.8h3V4M5 6.5v4M9 6.5v4M3.8 4l.6 7.4a.6.6 0 0 0 .6.6h4a.6.6 0 0 0 .6-.6L10.2 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
+                    </tr>
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 60);">EI</span>
+                          <span class="font-medium">Ações internacionais</span>
+                        </div>
+                      </td>
+                      <td class="text-right pr-3"><input class="num-input" value="25" /></td>
+                      <td class="text-right pr-3"><input class="num-input" value="3" /></td>
+                      <td class="text-right pr-5"><button class="text-[var(--color-text-4)] hover:text-[var(--color-loss)]"><svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 4h8M5.5 4V2.8h3V4M5 6.5v4M9 6.5v4M3.8 4l.6 7.4a.6.6 0 0 0 .6.6h4a.6.6 0 0 0 .6-.6L10.2 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
+                    </tr>
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 150);">RF</span>
+                          <span class="font-medium">Renda fixa</span>
+                        </div>
+                      </td>
+                      <td class="text-right pr-3"><input class="num-input warn-edge" value="22" style="background: color-mix(in oklch, var(--color-brand) 10%, oklch(0.155 0 0));" /></td>
+                      <td class="text-right pr-3"><input class="num-input" value="3" /></td>
+                      <td class="text-right pr-5"><button class="text-[var(--color-text-4)] hover:text-[var(--color-loss)]"><svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 4h8M5.5 4V2.8h3V4M5 6.5v4M9 6.5v4M3.8 4l.6 7.4a.6.6 0 0 0 .6.6h4a.6.6 0 0 0 .6-.6L10.2 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
+                    </tr>
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 30);">FI</span>
+                          <span class="font-medium">FIIs</span>
+                        </div>
+                      </td>
+                      <td class="text-right pr-3"><input class="num-input" value="8" style="background: color-mix(in oklch, var(--color-brand) 10%, oklch(0.155 0 0));" /></td>
+                      <td class="text-right pr-3"><input class="num-input" value="2" /></td>
+                      <td class="text-right pr-5"><button class="text-[var(--color-text-4)] hover:text-[var(--color-loss)]"><svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 4h8M5.5 4V2.8h3V4M5 6.5v4M9 6.5v4M3.8 4l.6 7.4a.6.6 0 0 0 .6.6h4a.6.6 0 0 0 .6-.6L10.2 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
+                    </tr>
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 300);">ET</span>
+                          <span class="font-medium">ETFs setoriais</span>
+                        </div>
+                      </td>
+                      <td class="text-right pr-3"><input class="num-input" value="6" /></td>
+                      <td class="text-right pr-3"><input class="num-input" value="2" /></td>
+                      <td class="text-right pr-5"><button class="text-[var(--color-text-4)] hover:text-[var(--color-loss)]"><svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 4h8M5.5 4V2.8h3V4M5 6.5v4M9 6.5v4M3.8 4l.6 7.4a.6.6 0 0 0 .6.6h4a.6.6 0 0 0 .6-.6L10.2 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
+                    </tr>
+                    <tr>
+                      <td class="pl-5">
+                        <div class="flex items-center gap-2.5">
+                          <span class="asset-ico" style="background: oklch(0.78 0.13 200);">LQ</span>
+                          <span class="font-medium">Liquidez</span>
+                        </div>
+                      </td>
+                      <td class="text-right pr-3"><input class="num-input" value="10" style="background: color-mix(in oklch, var(--color-brand) 10%, oklch(0.155 0 0));" /></td>
+                      <td class="text-right pr-3"><input class="num-input" value="1" /></td>
+                      <td class="text-right pr-5"><button class="text-[var(--color-text-4)] hover:text-[var(--color-loss)]"><svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 4h8M5.5 4V2.8h3V4M5 6.5v4M9 6.5v4M3.8 4l.6 7.4a.6.6 0 0 0 .6.6h4a.6.6 0 0 0 .6-.6L10.2 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- Total: live validation -->
+                <div class="sum-row">
+                  <span class="font-medium uppercase tracking-[0.08em] text-[10.5px] text-[var(--color-text-3)]">Total</span>
+                  <span class="text-right num pr-3 sum-bad font-medium">101%</span>
+                  <span class="text-right num pr-3 text-[var(--color-text-3)]"></span>
+                  <span class="text-right pr-5">
+                    <span class="pill" style="color: var(--color-loss); border-color: color-mix(in oklch, var(--color-loss) 40%, var(--color-line)); background: color-mix(in oklch, var(--color-loss) 10%, transparent);">+1pp</span>
+                  </span>
+                </div>
+
+                <!-- Inline validation -->
+                <div class="px-5 py-3 border-t border-[var(--color-line-2)] flex items-start gap-2.5 text-[12px] leading-relaxed"
+                     style="background: color-mix(in oklch, var(--color-loss) 6%, transparent);">
+                  <span class="size-4 rounded-full grid place-items-center mt-px" style="background: color-mix(in oklch, var(--color-loss) 25%, transparent); color: var(--color-loss);">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1.6 9 8.4H1L5 1.6Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M5 4.5v1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                  </span>
+                  <div class="flex-1">
+                    <span class="text-[var(--color-text)]">Soma deve totalizar exatamente 100%.</span>
+                    <span class="text-[var(--color-text-3)]"> Atual: 101% — ajuste uma das classes em -1pp ou clique em <a href="#" class="underline underline-offset-2 text-[var(--color-text-2)]">balancear automaticamente</a>.</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Restricted assets (edit) -->
+              <div class="px-5 py-5 border-t border-[var(--color-line-2)]">
+                <div class="info-label mb-2.5">Ativos restritos</div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="tag removable">crypto<span class="x">×</span></span>
+                  <span class="tag removable">derivativos<span class="x">×</span></span>
+                  <span class="tag removable">microcaps<span class="x">×</span></span>
+                  <span class="tag removable">FIDC<span class="x">×</span></span>
+                  <input class="input mono" placeholder="adicionar..." style="width: 140px; height: 28px; font-size: 11.5px;" />
+                </div>
+              </div>
+
+              <!-- Footer (edit) -->
+              <div class="px-5 py-4 border-t border-[var(--color-line-2)] flex items-center justify-between text-[11.5px]"
+                   style="background: oklch(0.155 0 0);">
+                <div class="flex items-center gap-2 text-[var(--color-text-3)]">
+                  <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" class="check" checked />
+                    Notificar Grasi sobre mudanças
+                  </label>
+                </div>
+                <div class="text-[var(--color-text-4)]">
+                  Próxima revisão: <span class="text-[var(--color-text-2)] num">jun/2026</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Compare / changeset summary footer -->
+        <section class="mt-8 rounded-xl border border-[var(--color-line-2)] bg-[var(--color-bg-2)] p-5">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="info-label">Diff · view → edit</span>
+            <span class="text-[11px] text-[var(--color-text-4)]">3 campos alterados</span>
+          </div>
+          <div class="grid grid-cols-4 gap-3">
+            <div class="rounded-lg border border-[var(--color-line-2)] p-3">
+              <div class="text-[11px] text-[var(--color-text-3)] mb-1.5">Ações BR · meta</div>
+              <div class="flex items-baseline gap-2 num">
+                <span class="text-[var(--color-text-4)] line-through">32%</span>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" class="text-[var(--color-text-3)]"><path d="m4 2 3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                <span class="text-[var(--color-text)] font-medium">30%</span>
+                <span class="ml-auto text-[10.5px]" style="color: var(--color-loss);">-2pp</span>
+              </div>
+            </div>
+            <div class="rounded-lg border border-[var(--color-line-2)] p-3">
+              <div class="text-[11px] text-[var(--color-text-3)] mb-1.5">Renda fixa · meta</div>
+              <div class="flex items-baseline gap-2 num">
+                <span class="text-[var(--color-text-4)] line-through">20%</span>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" class="text-[var(--color-text-3)]"><path d="m4 2 3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                <span class="text-[var(--color-text)] font-medium">22%</span>
+                <span class="ml-auto text-[10.5px]" style="color: var(--color-gain);">+2pp</span>
+              </div>
+            </div>
+            <div class="rounded-lg border border-[var(--color-line-2)] p-3">
+              <div class="text-[11px] text-[var(--color-text-3)] mb-1.5">FIIs · meta</div>
+              <div class="flex items-baseline gap-2 num">
+                <span class="text-[var(--color-text-4)] line-through">10%</span>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" class="text-[var(--color-text-3)]"><path d="m4 2 3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                <span class="text-[var(--color-text)] font-medium">8%</span>
+                <span class="ml-auto text-[10.5px]" style="color: var(--color-loss);">-2pp</span>
+              </div>
+            </div>
+            <div class="rounded-lg border border-[var(--color-line-2)] p-3">
+              <div class="text-[11px] text-[var(--color-text-3)] mb-1.5">Liquidez · meta</div>
+              <div class="flex items-baseline gap-2 num">
+                <span class="text-[var(--color-text-4)] line-through">7%</span>
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" class="text-[var(--color-text-3)]"><path d="m4 2 3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                <span class="text-[var(--color-text)] font-medium">10%</span>
+                <span class="ml-auto text-[10.5px]" style="color: var(--color-gain);">+3pp</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Footer area -->
+        <footer class="mt-10 pt-6 border-t border-[var(--color-line-2)]">
+          <div class="flex items-center justify-between">
+            <div class="text-[11.5px] text-[var(--color-text-3)] leading-relaxed">
+              Estratégias são versionadas. <a href="#" class="underline underline-offset-2 hover:text-[var(--color-text)]">Comparar com versão anterior (abr/2026)</a>
+            </div>
+            <span class="text-[11px] text-[var(--color-text-4)] mono">last sync 14:03 · v2.4.1</span>
+          </div>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

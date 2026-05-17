@@ -122,6 +122,7 @@ export function Sidebar({ unreadCount }: Props) {
               {"badge" in item ? BELL_ICON : item.icon}
               {"badge" in item && unreadCount > 0 && (
                 <span
+                  className="badge-pulse"
                   style={{
                     position: "absolute",
                     top: "6px",

@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=1440, initial-scale=1" />
+    <title>Invest — Família</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+      @theme {
+        --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+        --font-mono: "Geist Mono", ui-monospace, "JetBrains Mono", monospace;
+
+        --color-bg: oklch(0.135 0 0);
+        --color-bg-2: oklch(0.175 0 0);
+        --color-bg-3: oklch(0.208 0 0);
+        --color-line: oklch(0.272 0 0);
+        --color-line-2: oklch(0.235 0 0);
+        --color-text: oklch(0.985 0 0);
+        --color-text-2: oklch(0.708 0 0);
+        --color-text-3: oklch(0.50 0 0);
+        --color-text-4: oklch(0.38 0 0);
+
+        --color-brand: oklch(0.62 0.20 277);
+        --color-brand-hi: oklch(0.70 0.20 277);
+        --color-gain: oklch(0.76 0.16 152);
+        --color-warn: oklch(0.80 0.15 82);
+        --color-loss: oklch(0.68 0.20 24);
+      }
+
+      html, body { background: var(--color-bg); color: var(--color-text); }
+      body { font-family: var(--font-sans); font-feature-settings: "ss01","cv11"; -webkit-font-smoothing: antialiased; }
+      .num, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
+      .hairline { box-shadow: inset 0 -1px 0 var(--color-line-2); }
+
+      /* Inputs */
+      .label {
+        display: block; font-size: 12.5px; font-weight: 500;
+        color: var(--color-text-2); margin-bottom: 6px; letter-spacing: -0.005em;
+      }
+      .label-row { display: flex; align-items: center; justify-content: space-between; }
+      .label-row .hint { font-size: 11px; color: var(--color-text-4); font-weight: 400; }
+
+      .input {
+        width: 100%; height: 36px; padding: 0 12px;
+        background: oklch(0.135 0 0);
+        border: 1px solid var(--color-line);
+        border-radius: 8px;
+        color: var(--color-text);
+        font-size: 13.5px;
+        font-family: var(--font-sans);
+        transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+        outline: none;
+      }
+      .input::placeholder { color: var(--color-text-4); }
+      .input:hover { border-color: oklch(0.32 0 0); }
+      .input:focus, .input.focused {
+        border-color: var(--color-brand);
+        box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-brand) 22%, transparent);
+        background: oklch(0.155 0 0);
+      }
+      .input.mono { font-family: var(--font-mono); letter-spacing: 0.02em; }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        height: 32px; padding: 0 12px;
+        font-size: 12.5px; font-weight: 500;
+        border-radius: 7px;
+        transition: background .15s ease, transform .05s ease, color .15s ease;
+        cursor: pointer; letter-spacing: -0.005em;
+      }
+      .btn-primary {
+        background: var(--color-brand); color: white;
+        border: 1px solid color-mix(in oklch, var(--color-brand) 60%, white);
+        box-shadow: 0 1px 0 oklch(1 0 0 / 0.18) inset, 0 1px 2px oklch(0 0 0 / 0.4);
+      }
+      .btn-primary:hover { background: var(--color-brand-hi); }
+      .btn-primary:active { transform: translateY(0.5px); }
+
+      .btn-ghost {
+        background: var(--color-bg-2); color: var(--color-text-2);
+        border: 1px solid var(--color-line);
+      }
+      .btn-ghost:hover { color: var(--color-text); background: var(--color-bg-3); }
+
+      .btn-bare {
+        background: transparent; color: var(--color-text-3); border: 1px solid transparent;
+      }
+      .btn-bare:hover { color: var(--color-text); background: var(--color-bg-2); }
+
+      /* Pills */
+      .pill {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 2px 8px; border-radius: 999px;
+        font-size: 10.5px; font-weight: 500;
+        line-height: 16px;
+        border: 1px solid var(--color-line);
+        color: var(--color-text-2);
+        background: var(--color-bg);
+        letter-spacing: 0.01em;
+      }
+      .pill .dot { width: 5px; height: 5px; border-radius: 999px; background: currentColor; }
+      .pill-owner {
+        color: var(--color-brand-hi);
+        border-color: color-mix(in oklch, var(--color-brand) 40%, var(--color-line));
+        background: color-mix(in oklch, var(--color-brand) 10%, var(--color-bg));
+      }
+      .pill-member {
+        color: var(--color-gain);
+        border-color: color-mix(in oklch, var(--color-gain) 35%, var(--color-line));
+        background: color-mix(in oklch, var(--color-gain) 8%, var(--color-bg));
+      }
+      .pill-pending {
+        color: var(--color-warn);
+        border-color: color-mix(in oklch, var(--color-warn) 35%, var(--color-line));
+        background: color-mix(in oklch, var(--color-warn) 8%, var(--color-bg));
+      }
+
+      .kbd { font-family: var(--font-mono); font-size: 10.5px; padding: 1px 5px; border: 1px solid var(--color-line); border-bottom-width: 2px; border-radius: 4px; color: var(--color-text-2); background: var(--color-bg-2); }
+
+      /* Settings nav */
+      .nav-link {
+        display: flex; align-items: center; gap: 8px;
+        padding: 5px 10px; border-radius: 6px;
+        font-size: 12.5px; color: var(--color-text-2);
+        line-height: 22px;
+      }
+      .nav-link:hover { background: var(--color-bg-2); color: var(--color-text); }
+      .nav-link.active { background: var(--color-bg-2); color: var(--color-text); font-weight: 500; box-shadow: inset 2px 0 0 var(--color-brand); }
+
+      .nav-section {
+        font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em;
+        color: var(--color-text-4); padding: 14px 10px 6px;
+      }
+
+      /* Holder row */
+      .holder {
+        display: flex; align-items: center; gap: 14px;
+        padding: 14px 16px;
+        transition: background .15s ease;
+      }
+      .holder:hover { background: oklch(0.16 0 0); }
+      .holder + .holder { border-top: 1px solid var(--color-line-2); }
+
+      .avatar {
+        width: 36px; height: 36px; border-radius: 999px;
+        display: grid; place-items: center;
+        font-size: 14px; font-weight: 500;
+        flex-shrink: 0;
+        color: oklch(0.135 0 0);
+        box-shadow: 0 0 0 1px oklch(1 0 0 / 0.08) inset, 0 1px 2px oklch(0 0 0 / 0.3);
+      }
+
+      /* Checkbox */
+      .check {
+        appearance: none;
+        width: 14px; height: 14px;
+        border-radius: 4px;
+        border: 1px solid var(--color-line);
+        background: var(--color-bg);
+        position: relative;
+        cursor: pointer;
+        transition: border-color .15s ease, background .15s ease;
+        flex-shrink: 0;
+      }
+      .check:hover { border-color: oklch(0.36 0 0); }
+      .check:checked {
+        background: var(--color-brand);
+        border-color: var(--color-brand);
+      }
+      .check:checked::after {
+        content: ""; position: absolute;
+        left: 3px; top: 0.5px; width: 6px; height: 9px;
+        border: solid white; border-width: 0 1.5px 1.5px 0;
+        transform: rotate(45deg);
+      }
+
+      /* Error inline */
+      .err-block {
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid color-mix(in oklch, var(--color-loss) 35%, var(--color-line));
+        background: color-mix(in oklch, var(--color-loss) 10%, transparent);
+        border-radius: 8px;
+        font-size: 12.5px;
+        color: var(--color-text);
+      }
+      .err-block .ico {
+        flex-shrink: 0; width: 16px; height: 16px;
+        border-radius: 999px; display: grid; place-items: center;
+        background: color-mix(in oklch, var(--color-loss) 25%, transparent);
+        color: var(--color-loss);
+        margin-top: 1px;
+      }
+
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-thumb { background: oklch(0.3 0 0); border-radius: 8px; border: 2px solid var(--color-bg); }
+      ::-webkit-scrollbar-track { background: transparent; }
+    </style>
+  </head>
+
+  <body class="min-h-screen" data-screen-label="Família">
+    <!-- ============ LEFT RAIL ============ -->
+    <aside class="fixed inset-y-0 left-0 w-14 border-r border-[var(--color-line-2)] bg-[var(--color-bg)] flex flex-col items-center py-3 z-20">
+      <div class="size-8 rounded-md bg-[var(--color-text)] text-[var(--color-bg)] grid place-items-center font-semibold text-[14px] mb-4">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M2 12 L6 4 L8 8 L12 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <nav class="flex-1 flex flex-col items-center gap-1">
+        <a href="#" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)]" title="Dashboard">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/></svg>
+        </a>
+        <a href="#" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)]" title="Alertas">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 12V7a5 5 0 0 1 10 0v5l1 1H2l1-1Z" stroke="currentColor" stroke-width="1.3"/><path d="M6.5 14a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1.3"/></svg>
+        </a>
+        <a href="#" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)]" title="Estratégia">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="1.3"/></svg>
+        </a>
+        <a href="#" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)]" title="Importar">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0 3-3m-3 3L5 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="1.3"/></svg>
+        </a>
+        <a href="#" class="size-9 grid place-items-center rounded-md bg-[var(--color-bg-3)] text-[var(--color-text)]" title="Configurações">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M13 8.5v-1l1.2-.9-.9-1.6-1.4.4-.9-.5-.3-1.4h-1.8l-.3 1.4-.9.5-1.4-.4-.9 1.6L4.7 7.5v1l-1.2.9.9 1.6 1.4-.4.9.5.3 1.4h1.8l.3-1.4.9-.5 1.4.4.9-1.6L13 8.5Z" stroke="currentColor" stroke-width="1.2"/></svg>
+        </a>
+      </nav>
+      <div class="size-7 rounded-full bg-gradient-to-br from-zinc-600 to-zinc-800 grid place-items-center text-[10.5px] font-semibold text-[var(--color-text)] ring-1 ring-[var(--color-line)]">RT</div>
+    </aside>
+
+    <!-- ============ MAIN WRAPPER ============ -->
+    <div class="pl-14">
+      <!-- Topbar -->
+      <header class="h-12 flex items-center px-6 hairline sticky top-0 z-10 bg-[var(--color-bg)]/95 backdrop-blur">
+        <div class="flex items-center gap-2 text-[13px]">
+          <a href="#" class="text-[var(--color-text-3)] hover:text-[var(--color-text)]">Família Tazima</a>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="text-[var(--color-text-4)]"><path d="M4.5 2.5 8 6 4.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          <a href="#" class="text-[var(--color-text-3)] hover:text-[var(--color-text)]">Configurações</a>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="text-[var(--color-text-4)]"><path d="M4.5 2.5 8 6 4.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          <span class="font-medium">Família</span>
+        </div>
+        <div class="ml-auto flex items-center gap-2">
+          <button class="btn btn-bare">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="5.5" cy="5.5" r="3.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 8l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <span class="text-[var(--color-text-3)]">Buscar</span>
+            <span class="kbd ml-1">⌘K</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ============ TWO COLUMN: SETTINGS NAV + CONTENT ============ -->
+      <div class="flex">
+        <!-- Settings sub-nav -->
+        <aside class="w-[220px] shrink-0 border-r border-[var(--color-line-2)] min-h-[calc(100vh-48px)] px-3 py-5">
+          <div class="px-2.5 mb-3">
+            <div class="text-[10.5px] uppercase tracking-[0.1em] text-[var(--color-text-4)] mb-1">Workspace</div>
+            <div class="text-[13.5px] font-medium tracking-tight">Família Tazima</div>
+            <div class="text-[11px] text-[var(--color-text-3)] num mt-0.5">4 titulares · plano Família</div>
+          </div>
+
+          <div class="nav-section">Conta</div>
+          <nav class="space-y-0.5">
+            <a href="#" class="nav-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.4"/><path d="M2.5 14a5.5 5.5 0 0 1 11 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Perfil</a>
+            <a href="#" class="nav-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="3" y="6" width="10" height="8" rx="1.4" stroke="currentColor" stroke-width="1.4"/><path d="M5 6V4a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.4"/></svg>Segurança</a>
+            <a href="#" class="nav-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 5h12v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5Z" stroke="currentColor" stroke-width="1.4"/><path d="M2 5l6 5 6-5" stroke="currentColor" stroke-width="1.4"/></svg>Notificações</a>
+          </nav>
+
+          <div class="nav-section">Workspace</div>
+          <nav class="space-y-0.5">
+            <a href="#" class="nav-link active">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="6" r="2.4" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="6" r="2.4" stroke="currentColor" stroke-width="1.4"/><path d="M1.5 13.5a3.5 3.5 0 0 1 7 0M7.5 13.5a3.5 3.5 0 0 1 7 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              Família
+              <span class="ml-auto pill num text-[10px]">4</span>
+            </a>
+            <a href="#" class="nav-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="10" rx="1.4" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12" stroke="currentColor" stroke-width="1.4"/></svg>Instituições</a>
+            <a href="#" class="nav-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.4"/></svg>Estratégias</a>
+            <a href="#" class="nav-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2.5 8L5 5.5 7.5 8l3-3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Câmbio &amp; USD</a>
+          </nav>
+
+          <div class="nav-section">Avançado</div>
+          <nav class="space-y-0.5">
+            <a href="#" class="nav-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2.5" y="2.5" width="11" height="11" rx="1.4" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7.5h5M5.5 10.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>API &amp; webhooks</a>
+            <a href="#" class="nav-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Exportar dados</a>
+          </nav>
+        </aside>
+
+        <!-- ============ CONTENT ============ -->
+        <main class="flex-1 px-10 py-10">
+          <div class="max-w-[640px]">
+
+            <!-- Page header -->
+            <header class="mb-8">
+              <div class="flex items-center justify-between mb-1.5">
+                <h1 class="text-[24px] font-medium tracking-[-0.02em] leading-tight">Família</h1>
+                <span class="pill"><span class="dot"></span>Você é o owner</span>
+              </div>
+              <p class="text-[13.5px] text-[var(--color-text-2)] leading-relaxed max-w-[560px]">
+                Cada titular tem sua própria estratégia, posição consolidada e regra de liquidez.
+                Membros pendentes começam a aparecer no dashboard assim que aceitam o convite.
+              </p>
+            </header>
+
+            <!-- ================ SECTION 1: MEMBERS ================ -->
+            <section class="mb-10">
+              <div class="flex items-baseline justify-between mb-3">
+                <h2 class="text-[13.5px] font-medium tracking-tight">Membros</h2>
+                <span class="text-[11.5px] text-[var(--color-text-3)] num">4 titulares · R$ 1.183.420 consolidado</span>
+              </div>
+
+              <div class="rounded-xl border border-[var(--color-line-2)] bg-[var(--color-bg-2)] overflow-hidden">
+
+                <!-- Member: Rodrigo (owner) -->
+                <article class="holder">
+                  <span class="avatar" style="background: oklch(0.78 0.13 277);">R</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[14px] font-medium">Rodrigo</span>
+                      <span class="text-[12.5px] text-[var(--color-text-3)]">Rodrigo Tazima</span>
+                      <span class="pill pill-owner"><span class="dot"></span>owner</span>
+                    </div>
+                    <div class="flex items-center gap-3 mt-1 text-[11.5px]">
+                      <span class="mono text-[var(--color-text-4)]" title="CPF mascarado">123.<span class="text-[var(--color-text-4)]">***</span>.<span class="text-[var(--color-text-4)]">***</span>-45</span>
+                      <span class="text-[var(--color-text-4)]">·</span>
+                      <span class="text-[var(--color-text-3)]">39 anos · arrojado</span>
+                      <span class="text-[var(--color-text-4)]">·</span>
+                      <span class="text-[var(--color-text-3)] num">R$ 687.142</span>
+                    </div>
+                  </div>
+                  <button class="btn btn-bare" aria-label="Menu">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="3" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="13" cy="8" r="1.2" fill="currentColor"/></svg>
+                  </button>
+                </article>
+
+                <!-- Member: Grasi (membro) -->
+                <article class="holder">
+                  <span class="avatar" style="background: oklch(0.74 0.15 340);">G</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[14px] font-medium">Grasi</span>
+                      <span class="text-[12.5px] text-[var(--color-text-3)]">Grasiele Tazima</span>
+                      <span class="pill pill-member"><span class="dot"></span>membro</span>
+                    </div>
+                    <div class="flex items-center gap-3 mt-1 text-[11.5px]">
+                      <span class="mono text-[var(--color-text-4)]">847.<span class="text-[var(--color-text-4)]">***</span>.<span class="text-[var(--color-text-4)]">***</span>-12</span>
+                      <span class="text-[var(--color-text-4)]">·</span>
+                      <span class="text-[var(--color-text-3)]">37 anos · conservador</span>
+                      <span class="text-[var(--color-text-4)]">·</span>
+                      <span class="text-[var(--color-text-3)] num">R$ 312.480</span>
+                    </div>
+                  </div>
+                  <button class="btn btn-bare" aria-label="Menu">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="3" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="13" cy="8" r="1.2" fill="currentColor"/></svg>
+                  </button>
+                </article>
+
+                <!-- Member: Amora (pendente) -->
+                <article class="holder">
+                  <span class="avatar" style="background: oklch(0.78 0.15 60);">A</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[14px] font-medium">Amora</span>
+                      <span class="text-[12.5px] text-[var(--color-text-3)]">Amora Tazima</span>
+                      <span class="pill pill-pending"><span class="dot"></span>pendente</span>
+                      <span class="pill text-[10px]">menor</span>
+                    </div>
+                    <div class="flex items-center gap-3 mt-1 text-[11.5px]">
+                      <span class="mono text-[var(--color-text-4)]">512.<span class="text-[var(--color-text-4)]">***</span>.<span class="text-[var(--color-text-4)]">***</span>-04</span>
+                      <span class="text-[var(--color-text-4)]">·</span>
+                      <span class="text-[var(--color-text-3)]">6 anos · resp. Rodrigo</span>
+                      <span class="text-[var(--color-text-4)]">·</span>
+                      <span class="text-[var(--color-text-3)]">aguardando confirmação parental</span>
+                    </div>
+                  </div>
+                  <button class="btn btn-bare" aria-label="Menu">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="3" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="13" cy="8" r="1.2" fill="currentColor"/></svg>
+                  </button>
+                </article>
+
+                <!-- Member: Benicio (pendente) -->
+                <article class="holder">
+                  <span class="avatar" style="background: oklch(0.74 0.14 160);">B</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <span class="text-[14px] font-medium">Benicio</span>
+                      <span class="text-[12.5px] text-[var(--color-text-3)]">Benicio Tazima</span>
+                      <span class="pill pill-pending"><span class="dot"></span>pendente</span>
+                      <span class="pill text-[10px]">menor</span>
+                    </div>
+                    <div class="flex items-center gap-3 mt-1 text-[11.5px]">
+                      <span class="mono text-[var(--color-text-4)]">498.<span class="text-[var(--color-text-4)]">***</span>.<span class="text-[var(--color-text-4)]">***</span>-87</span>
+                      <span class="text-[var(--color-text-4)]">·</span>
+                      <span class="text-[var(--color-text-3)]">1 ano · resp. Rodrigo</span>
+                      <span class="text-[var(--color-text-4)]">·</span>
+                      <span class="text-[var(--color-text-3)]">aguardando confirmação parental</span>
+                    </div>
+                  </div>
+                  <button class="btn btn-bare" aria-label="Menu">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="3" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="13" cy="8" r="1.2" fill="currentColor"/></svg>
+                  </button>
+                </article>
+              </div>
+
+              <p class="text-[11px] text-[var(--color-text-4)] mt-2.5 leading-relaxed">
+                CPFs aparecem mascarados para todos os membros. Apenas o owner pode visualizar o documento completo na auditoria da conta.
+              </p>
+            </section>
+
+            <!-- ================ SECTION 2: ADD MEMBER ================ -->
+            <section>
+              <div class="flex items-baseline justify-between mb-3">
+                <h2 class="text-[13.5px] font-medium tracking-tight">Adicionar membro</h2>
+                <span class="text-[11.5px] text-[var(--color-text-3)]">Plano Família · até 6 titulares</span>
+              </div>
+
+              <div class="rounded-xl border border-[var(--color-line-2)] bg-[var(--color-bg-2)] p-5"
+                   style="box-shadow: 0 1px 0 oklch(1 0 0 / 0.03) inset, 0 4px 12px oklch(0 0 0 / 0.25);">
+
+                <!-- Error state (demo) -->
+                <div class="err-block mb-4">
+                  <span class="ico">
+                    <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M5 1.6 9 8.4H1L5 1.6Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M5 4.5v1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                  </span>
+                  <div class="flex-1 min-w-0">
+                    <div class="font-medium leading-snug">CPF já cadastrado nesta família</div>
+                    <p class="text-[var(--color-text-2)] text-[11.5px] mt-0.5 leading-relaxed">
+                      O CPF <span class="mono text-[var(--color-text)]">847.***.***-12</span> pertence a Grasi. Use outro documento ou edite o titular existente.
+                    </p>
+                  </div>
+                  <button class="text-[var(--color-text-3)] hover:text-[var(--color-text)]" aria-label="Fechar">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="m3 3 6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                  </button>
+                </div>
+
+                <form class="space-y-4" autocomplete="off">
+                  <!-- CPF + birth year -->
+                  <div class="grid grid-cols-[1fr_120px] gap-3">
+                    <div>
+                      <label class="label label-row">
+                        <span>CPF</span>
+                        <span class="hint mono">000.000.000-00</span>
+                      </label>
+                      <input class="input mono focused" type="text" placeholder="000.000.000-00" value="847.291.330-12" data-cpf />
+                    </div>
+                    <div>
+                      <label class="label label-row">
+                        <span>Ano de nasc.</span>
+                      </label>
+                      <input class="input mono" type="text" inputmode="numeric" maxlength="4" placeholder="1989" value="1989" />
+                    </div>
+                  </div>
+
+                  <!-- Full name -->
+                  <div>
+                    <label class="label">Nome completo</label>
+                    <input class="input" type="text" placeholder="Como aparece no documento" value="Grasiele Tazima" />
+                  </div>
+
+                  <!-- Nickname -->
+                  <div>
+                    <label class="label label-row">
+                      <span>Apelido</span>
+                      <span class="hint">aparece no dashboard e nas notificações</span>
+                    </label>
+                    <input class="input" type="text" placeholder="Como te chamamos" value="Grasi" />
+                  </div>
+
+                  <!-- Minor checkbox -->
+                  <label class="flex items-start gap-2.5 pt-1 cursor-pointer select-none">
+                    <input type="checkbox" class="check mt-[2px]" />
+                    <span class="flex-1 text-[12.5px] leading-relaxed">
+                      <span class="text-[var(--color-text)]">Menor de idade</span>
+                      <span class="text-[var(--color-text-3)]"> — Rodrigo será registrado como responsável e a estratégia exigirá horizonte de longo prazo. <a href="#" class="underline underline-offset-2 text-[var(--color-text-2)] hover:text-[var(--color-text)]">Saiba mais</a></span>
+                    </span>
+                  </label>
+
+                  <!-- Actions -->
+                  <div class="flex items-center gap-2 pt-3 border-t border-[var(--color-line-2)] -mx-5 px-5 mt-5">
+                    <button class="btn btn-primary" type="button">
+                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                      Adicionar membro
+                    </button>
+                    <button class="btn btn-bare" type="button">Cancelar</button>
+                    <span class="ml-auto text-[11px] text-[var(--color-text-4)]">
+                      <span class="kbd">⌘</span> <span class="kbd">↵</span> envia
+                    </span>
+                  </div>
+                </form>
+              </div>
+
+              <p class="text-[11px] text-[var(--color-text-4)] mt-3 leading-relaxed">
+                Ao adicionar, enviaremos um convite por email (se fornecido posteriormente) ou o membro ficará como <span class="text-[var(--color-text-3)]">pendente</span> até ser conectado a uma instituição.
+              </p>
+            </section>
+
+            <!-- Footer area -->
+            <footer class="mt-12 pt-6 border-t border-[var(--color-line-2)]">
+              <div class="flex items-center justify-between">
+                <div class="text-[11.5px] text-[var(--color-text-3)] leading-relaxed">
+                  <span class="text-[var(--color-text-2)]">Plano Família</span> — 4 / 6 titulares ativos.
+                  <a href="#" class="underline underline-offset-2 hover:text-[var(--color-text)]">Comparar planos</a>
+                </div>
+                <span class="text-[11px] text-[var(--color-text-4)] mono">last sync 14:03 · v2.4.1</span>
+              </div>
+            </footer>
+
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- ============ Interactions ============ -->
+    <script>
+      // CPF mask
+      document.querySelectorAll('input[data-cpf]').forEach(el => {
+        el.addEventListener('input', e => {
+          let v = e.target.value.replace(/\D/g, '').slice(0, 11);
+          v = v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1-$2');
+          e.target.value = v;
+        });
+      });
+    </script>
+  </body>
+</html>

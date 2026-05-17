@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=1440, initial-scale=1" />
+    <title>Invest — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <template id="__bundler_thumbnail" data-bg-color="#252525">
+      <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1200" height="800" fill="#252525"/>
+        <!-- Patrimony line -->
+        <path d="M120 520 L260 480 L400 510 L540 430 L680 380 L820 410 L960 320 L1080 260"
+              stroke="#5BB87E" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="1080" cy="260" r="14" fill="#5BB87E"/>
+        <circle cx="1080" cy="260" r="28" fill="#5BB87E" fill-opacity="0.25"/>
+        <!-- Donut -->
+        <g transform="translate(900 620)">
+          <circle r="64" fill="none" stroke="#2f2f2f" stroke-width="20"/>
+          <circle r="64" fill="none" stroke="#5BB87E" stroke-width="20" stroke-dasharray="160 402" transform="rotate(-90)"/>
+        </g>
+        <!-- Title -->
+        <text x="120" y="200" font-family="ui-sans-serif,system-ui" font-size="32" fill="#a1a1aa" letter-spacing="2">PATRIMÔNIO TOTAL</text>
+        <text x="120" y="320" font-family="ui-monospace,monospace" font-size="96" fill="#fafafa" font-weight="500">R$ 1.183.420</text>
+      </svg>
+    </template>
+    <style type="text/tailwindcss">
+      @theme {
+        --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+        --font-mono: "Geist Mono", ui-monospace, "JetBrains Mono", monospace;
+
+        /* Neutrals — true-neutral zinc, OKLCH ~0 chroma */
+        --color-bg: oklch(0.145 0 0);          /* page base */
+        --color-bg-2: oklch(0.175 0 0);        /* surface */
+        --color-bg-3: oklch(0.208 0 0);        /* elevated / row hover */
+        --color-line: oklch(0.272 0 0);        /* borders */
+        --color-line-2: oklch(0.235 0 0);      /* subtle borders */
+        --color-text: oklch(0.985 0 0);
+        --color-text-2: oklch(0.708 0 0);
+        --color-text-3: oklch(0.556 0 0);
+
+        /* Semantic — shared chroma ~0.16, shifted hue */
+        --color-gain: oklch(0.76 0.16 152);    /* emerald-ish */
+        --color-gain-soft: oklch(0.42 0.09 152);
+        --color-loss: oklch(0.68 0.20 24);     /* rose-ish */
+        --color-loss-soft: oklch(0.40 0.13 24);
+        --color-warn: oklch(0.80 0.15 82);     /* amber */
+        --color-info: oklch(0.74 0.13 232);    /* sky */
+        --color-crit: oklch(0.65 0.23 22);     /* deep red */
+      }
+
+      html, body { background: var(--color-bg); color: var(--color-text); }
+      body { font-family: var(--font-sans); font-feature-settings: "ss01","cv11","cv02"; }
+      .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+      .hairline { box-shadow: inset 0 -1px 0 var(--color-line-2); }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-thumb { background: oklch(0.3 0 0); border-radius: 8px; border: 2px solid var(--color-bg); }
+      ::-webkit-scrollbar-track { background: transparent; }
+
+      /* Tab indicator */
+      .tab[aria-selected="true"] { color: var(--color-text); }
+      .tab[aria-selected="true"]::after {
+        content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+        height: 1.5px; background: var(--color-text);
+      }
+
+      /* Severity strips */
+      .sev-info    { background: color-mix(in oklch, var(--color-info) 12%, transparent); border-color: color-mix(in oklch, var(--color-info) 35%, var(--color-line)); }
+      .sev-warn    { background: color-mix(in oklch, var(--color-warn) 12%, transparent); border-color: color-mix(in oklch, var(--color-warn) 35%, var(--color-line)); }
+      .sev-crit    { background: color-mix(in oklch, var(--color-crit) 14%, transparent); border-color: color-mix(in oklch, var(--color-crit) 45%, var(--color-line)); box-shadow: inset 3px 0 0 var(--color-crit); }
+
+      /* Donut hover */
+      .ring-seg { transition: stroke-width .15s ease, opacity .15s ease; }
+      .ring-seg:hover { stroke-width: 26; }
+
+      /* Sparkline */
+      .spark path { stroke: var(--color-gain); stroke-width: 1.25; fill: none; }
+      .spark .fill { fill: color-mix(in oklch, var(--color-gain) 14%, transparent); stroke: none; }
+
+      /* Pill */
+      .pill { display: inline-flex; align-items: center; gap: .375rem; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; line-height: 16px; border: 1px solid var(--color-line); color: var(--color-text-2); }
+      .pill .dot { width: 5px; height: 5px; border-radius: 999px; background: currentColor; }
+      .pill-gain { color: var(--color-gain); border-color: color-mix(in oklch, var(--color-gain) 30%, var(--color-line)); background: color-mix(in oklch, var(--color-gain) 8%, transparent); }
+      .pill-loss { color: var(--color-loss); border-color: color-mix(in oklch, var(--color-loss) 30%, var(--color-line)); background: color-mix(in oklch, var(--color-loss) 8%, transparent); }
+
+      /* Row */
+      tbody tr { border-bottom: 1px solid var(--color-line-2); }
+      tbody tr:hover { background: var(--color-bg-3); }
+      thead th { font-weight: 500; color: var(--color-text-3); text-transform: uppercase; letter-spacing: 0.06em; font-size: 10.5px; }
+
+      /* Buttons */
+      .btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 6px; font-size: 12.5px; color: var(--color-text); border: 1px solid var(--color-line); background: var(--color-bg-2); }
+      .btn:hover { background: var(--color-bg-3); }
+      .btn-primary { background: var(--color-text); color: var(--color-bg); border-color: transparent; }
+      .btn-ghost { background: transparent; border-color: transparent; color: var(--color-text-2); }
+      .btn-ghost:hover { color: var(--color-text); background: var(--color-bg-2); }
+
+      .kbd { font-family: var(--font-mono); font-size: 10.5px; padding: 1px 5px; border: 1px solid var(--color-line); border-bottom-width: 2px; border-radius: 4px; color: var(--color-text-2); background: var(--color-bg-2); }
+    </style>
+  </head>
+  <body class="min-h-screen" data-screen-label="Dashboard">
+    <!-- ============ LEFT RAIL ============ -->
+    <aside class="fixed inset-y-0 left-0 w-14 border-r border-[var(--color-line-2)] bg-[var(--color-bg)] flex flex-col items-center py-3 z-20">
+      <!-- Logo -->
+      <div class="size-8 rounded-md bg-[var(--color-text)] text-[var(--color-bg)] grid place-items-center font-semibold text-[14px] mb-4">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <path d="M2 12 L6 4 L8 8 L12 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <!-- Nav -->
+      <nav class="flex-1 flex flex-col items-center gap-1">
+        <a href="#" class="size-9 grid place-items-center rounded-md bg-[var(--color-bg-3)] text-[var(--color-text)]" title="Dashboard">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"/></svg>
+        </a>
+        <a href="#" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)] relative" title="Alertas">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 12V7a5 5 0 0 1 10 0v5l1 1H2l1-1Z" stroke="currentColor" stroke-width="1.3"/><path d="M6.5 14a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1.3"/></svg>
+          <span class="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-[var(--color-crit)]"></span>
+        </a>
+        <a href="#" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)]" title="Estratégia">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2" stroke="currentColor" stroke-width="1.3"/></svg>
+        </a>
+        <a href="#" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)]" title="Importar">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0 3-3m-3 3L5 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2" stroke="currentColor" stroke-width="1.3"/></svg>
+        </a>
+        <a href="#" class="size-9 grid place-items-center rounded-md text-[var(--color-text-3)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-2)]" title="Configurações">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M13 8.5v-1l1.2-.9-.9-1.6-1.4.4-.9-.5-.3-1.4h-1.8l-.3 1.4-.9.5-1.4-.4-.9 1.6L4.7 7.5v1l-1.2.9.9 1.6 1.4-.4.9.5.3 1.4h1.8l.3-1.4.9-.5 1.4.4.9-1.6L13 8.5Z" stroke="currentColor" stroke-width="1.2"/></svg>
+        </a>
+      </nav>
+      <!-- Avatar -->
+      <div class="size-7 rounded-full bg-gradient-to-br from-zinc-600 to-zinc-800 grid place-items-center text-[10.5px] font-semibold text-[var(--color-text)] ring-1 ring-[var(--color-line)]">RT</div>
+    </aside>
+
+    <!-- ============ MAIN ============ -->
+    <div class="pl-14">
+      <!-- Top bar -->
+      <header class="h-12 flex items-center px-6 hairline sticky top-0 z-10 bg-[var(--color-bg)]/95 backdrop-blur">
+        <div class="flex items-center gap-2 text-[13px]">
+          <span class="text-[var(--color-text-3)]">Família Tazima</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="text-[var(--color-text-3)]"><path d="M4.5 2.5 8 6 4.5 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          <span class="font-medium">Dashboard</span>
+        </div>
+        <div class="ml-auto flex items-center gap-2">
+          <!-- Sync status -->
+          <div class="flex items-center gap-2 text-[11.5px] text-[var(--color-text-2)] mr-2">
+            <span class="flex items-center gap-1.5"><span class="size-1.5 rounded-full bg-[var(--color-gain)]"></span>XP</span>
+            <span class="flex items-center gap-1.5"><span class="size-1.5 rounded-full bg-[var(--color-gain)]"></span>BTG</span>
+            <span class="flex items-center gap-1.5"><span class="size-1.5 rounded-full bg-[var(--color-warn)]"></span>Nomad</span>
+            <span class="text-[var(--color-text-3)] num">· atualizado 14:03</span>
+          </div>
+          <button class="btn btn-ghost">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M14 8a6 6 0 1 1-1.5-3.97M14 2.5V5.5h-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Sync
+          </button>
+          <button class="btn">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="5.5" cy="5.5" r="3.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 8l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <span class="text-[var(--color-text-3)]">Buscar</span>
+            <span class="kbd ml-1">⌘K</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="px-6 py-6 max-w-[1440px]">
+        <!-- ============ HERO ============ -->
+        <section class="grid grid-cols-12 gap-4 mb-6">
+          <!-- Patrimônio total -->
+          <div class="col-span-7 rounded-lg border border-[var(--color-line-2)] bg-[var(--color-bg-2)] p-5">
+            <div class="flex items-start justify-between">
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-[11px] uppercase tracking-[0.08em] text-[var(--color-text-3)]">Patrimônio total</span>
+                  <span class="pill"><span class="dot"></span>4 titulares · 3 instituições</span>
+                </div>
+                <div class="flex items-baseline gap-3">
+                  <span class="text-[var(--color-text-3)] text-[14px] num">R$</span>
+                  <span class="num text-[44px] leading-none font-medium tracking-[-0.02em]">1.183.420<span class="text-[var(--color-text-3)]">,57</span></span>
+                </div>
+                <div class="mt-3 flex items-center gap-4 text-[12.5px]">
+                  <span class="text-[var(--color-text-3)]">Hoje</span>
+                  <span class="num text-[var(--color-gain)]">+ R$ 4.812,30</span>
+                  <span class="num text-[var(--color-gain)]">+0,41%</span>
+                  <span class="h-3 w-px bg-[var(--color-line)]"></span>
+                  <span class="text-[var(--color-text-3)]">30d</span>
+                  <span class="num text-[var(--color-gain)]">+ R$ 28.140,12</span>
+                  <span class="num text-[var(--color-gain)]">+2,43%</span>
+                  <span class="h-3 w-px bg-[var(--color-line)]"></span>
+                  <span class="text-[var(--color-text-3)]">12m</span>
+                  <span class="num text-[var(--color-gain)]">+11,82%</span>
+                  <span class="text-[var(--color-text-3)] num">vs CDI 10,4%</span>
+                </div>
+              </div>
+              <!-- Period switch -->
+              <div class="flex items-center gap-0 border border-[var(--color-line)] rounded-md p-0.5 text-[11.5px]">
+                <button class="px-2 py-1 rounded text-[var(--color-text-3)]">1D</button>
+                <button class="px-2 py-1 rounded text-[var(--color-text-3)]">1S</button>
+                <button class="px-2 py-1 rounded text-[var(--color-text-3)]">1M</button>
+                <button class="px-2 py-1 rounded bg-[var(--color-bg-3)] text-[var(--color-text)]">6M</button>
+                <button class="px-2 py-1 rounded text-[var(--color-text-3)]">1A</button>
+                <button class="px-2 py-1 rounded text-[var(--color-text-3)]">MAX</button>
+              </div>
+            </div>
+
+            <!-- Patrimony chart (svg) -->
+            <div class="mt-5 -mx-1">
+              <svg viewBox="0 0 720 170" class="w-full h-[170px]" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="hero-fill" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stop-color="oklch(0.76 0.16 152)" stop-opacity="0.24"/>
+                    <stop offset="100%" stop-color="oklch(0.76 0.16 152)" stop-opacity="0"/>
+                  </linearGradient>
+                  <pattern id="grid" width="60" height="34" patternUnits="userSpaceOnUse">
+                    <path d="M60 0H0V34" fill="none" stroke="oklch(0.235 0 0)" stroke-width="1"/>
+                  </pattern>
+                </defs>
+                <rect width="720" height="170" fill="url(#grid)"/>
+                <!-- benchmark line (CDI) -->
+                <path d="M0 110 L120 108 L240 105 L360 102 L480 99 L600 96 L720 92"
+                      stroke="oklch(0.5 0 0)" stroke-width="1" stroke-dasharray="3 3" fill="none"/>
+                <!-- area -->
+                <path d="M0 130 L60 122 L120 128 L180 110 L240 96 L300 102 L360 84 L420 78 L480 90 L540 70 L600 58 L660 64 L720 48 L720 170 L0 170 Z"
+                      fill="url(#hero-fill)"/>
+                <!-- line -->
+                <path d="M0 130 L60 122 L120 128 L180 110 L240 96 L300 102 L360 84 L420 78 L480 90 L540 70 L600 58 L660 64 L720 48"
+                      stroke="oklch(0.76 0.16 152)" stroke-width="1.6" fill="none"/>
+                <!-- end dot -->
+                <circle cx="720" cy="48" r="3" fill="oklch(0.76 0.16 152)"/>
+                <circle cx="720" cy="48" r="6" fill="oklch(0.76 0.16 152)" fill-opacity="0.25"/>
+                <!-- hover tag -->
+                <g transform="translate(540, 70)">
+                  <line x1="0" y1="0" x2="0" y2="100" stroke="oklch(0.4 0 0)" stroke-width="1" stroke-dasharray="2 3"/>
+                  <circle cx="0" cy="0" r="3" fill="oklch(0.985 0 0)"/>
+                </g>
+              </svg>
+              <div class="flex items-center justify-between mt-2 text-[10.5px] text-[var(--color-text-3)] num px-1">
+                <span>dez/25</span><span>jan/26</span><span>fev/26</span><span>mar/26</span><span>abr/26</span><span>mai/26</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Holders strip -->
+          <div class="col-span-5 grid grid-cols-2 gap-4">
+            <!-- Rodrigo -->
+            <div class="rounded-lg border border-[var(--color-line-2)] bg-[var(--color-bg-2)] p-4 flex flex-col">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="size-5 rounded-full bg-[oklch(0.65_0.10_240)] text-[10px] grid place-items-center font-medium">R</span>
+                <span class="text-[12.5px] font-medium">Rodrigo</span>
+                <span class="text-[10.5px] text-[var(--color-text-3)]">Arrojado</span>
+              </div>
+              <div class="num text-[20px] tracking-tight">R$ 687.142<span class="text-[var(--color-text-3)] text-[14px]">,18</span></div>
+              <div class="mt-1 flex items-center gap-2 text-[11px] num">
+                <span class="text-[var(--color-gain)]">+0,52%</span>
+                <span class="text-[var(--color-text-3)]">+3.554,12 hoje</span>
+              </div>
+              <svg viewBox="0 0 120 24" class="mt-2 w-full h-6 spark" preserveAspectRatio="none">
+                <path class="fill" d="M0 18 L15 16 L30 19 L45 14 L60 12 L75 14 L90 9 L105 11 L120 6 L120 24 L0 24 Z"/>
+                <path d="M0 18 L15 16 L30 19 L45 14 L60 12 L75 14 L90 9 L105 11 L120 6"/>
+              </svg>
+            </div>
+            <!-- Grasi -->
+            <div class="rounded-lg border border-[var(--color-line-2)] bg-[var(--color-bg-2)] p-4">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="size-5 rounded-full bg-[oklch(0.68_0.13_330)] text-[10px] grid place-items-center font-medium">G</span>
+                <span class="text-[12.5px] font-medium">Grasi</span>
+                <span class="text-[10.5px] text-[var(--color-text-3)]">Conservador</span>
+              </div>
+              <div class="num text-[20px] tracking-tight">R$ 312.480<span class="text-[var(--color-text-3)] text-[14px]">,00</span></div>
+              <div class="mt-1 flex items-center gap-2 text-[11px] num">
+                <span class="text-[var(--color-gain)]">+0,18%</span>
+                <span class="text-[var(--color-text-3)]">+562,40 hoje</span>
+              </div>
+              <svg viewBox="0 0 120 24" class="mt-2 w-full h-6 spark" preserveAspectRatio="none">
+                <path class="fill" d="M0 16 L15 15 L30 14 L45 14 L60 13 L75 12 L90 11 L105 10 L120 9 L120 24 L0 24 Z"/>
+                <path d="M0 16 L15 15 L30 14 L45 14 L60 13 L75 12 L90 11 L105 10 L120 9"/>
+              </svg>
+            </div>
+            <!-- Amora -->
+            <div class="rounded-lg border border-[var(--color-line-2)] bg-[var(--color-bg-2)] p-4">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="size-5 rounded-full bg-[oklch(0.72_0.15_60)] text-[10px] grid place-items-center font-medium text-[var(--color-bg)]">A</span>
+                <span class="text-[12.5px] font-medium">Amora</span>
+                <span class="text-[10.5px] text-[var(--color-text-3)]">6a · 17% meta</span>
+              </div>
+              <div class="num text-[20px] tracking-tight">R$ 124.860<span class="text-[var(--color-text-3)] text-[14px]">,42</span></div>
+              <div class="mt-1 flex items-center gap-2 text-[11px] num">
+                <span class="text-[var(--color-loss)]">−0,12%</span>
+                <span class="text-[var(--color-text-3)]">−148,80 hoje</span>
+              </div>
+              <svg viewBox="0 0 120 24" class="mt-2 w-full h-6 spark" preserveAspectRatio="none">
+                <path class="fill" style="fill:color-mix(in oklch, var(--color-gain) 14%, transparent)" d="M0 14 L15 12 L30 16 L45 13 L60 17 L75 15 L90 12 L105 14 L120 11 L120 24 L0 24 Z"/>
+                <path style="stroke:var(--color-gain)" d="M0 14 L15 12 L30 16 L45 13 L60 17 L75 15 L90 12 L105 14 L120 11"/>
+              </svg>
+            </div>
+            <!-- Benicio -->
+            <div class="rounded-lg border border-[var(--color-line-2)] bg-[var(--color-bg-2)] p-4">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="size-5 rounded-full bg-[oklch(0.70_0.13_160)] text-[10px] grid place-items-center font-medium text-[var(--color-bg)]">B</span>
+                <span class="text-[12.5px] font-medium">Benicio</span>
+                <span class="text-[10.5px] text-[var(--color-text-3)]">1a · 4% meta</span>
+              </div>
+              <div class="num text-[20px] tracking-tight">R$ 58.937<span class="text-[var(--color-text-3)] text-[14px]">,97</span></div>
+              <div class="mt-1 flex items-center gap-2 text-[11px] num">
+                <span class="text-[var(--color-gain)]">+0,28%</span>
+                <span class="text-[var(--color-text-3)]">+165,21 hoje</span>
+              </div>
+              <svg viewBox="0 0 120 24" class="mt-2 w-full h-6 spark" preserveAspectRatio="none">
+                <path class="fill" d="M0 18 L15 17 L30 16 L45 14 L60 15 L75 12 L90 11 L105 10 L120 8 L120 24 L0 24 Z"/>
+                <path d="M0 18 L15 17 L30 16 L45 14 L60 15 L75 12 L90 11 L105 10 L120 8"/>
+              </svg>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ TABS ============ -->
+        <section class="mb-4">
+          <div role="tablist" class="flex items-center gap-6 hairline -mx-6 px-6">
+            <button class="tab relative py-2.5 text-[13px] text-[var(--color-text-3)] hover:text-[var(--color-text)]" aria-selected="true" data-view="global">
+              Visão global
+              <span class="ml-1.5 num text-[10.5px] text-[var(--color-text-3)] align-top">42</span>
+            </button>
+            <button class="tab relative py-2.5 text-[13px] text-[var(--color-text-3)] hover:text-[var(--color-text)]" aria-selected="false" data-view="titular">
+              Por titular
+            </button>
+            <button class="tab relative py-2.5 text-[13px] text-[var(--color-text-3)] hover:text-[var(--color-text)]" aria-selected="false" data-view="instituicao">
+              Por instituição
+            </button>
+            <button class="tab relative py-2.5 text-[13px] text-[var(--color-text-3)] hover:text-[var(--color-text)]" aria-selected="false" data-view="classe">
+              Por classe de ativo
+            </button>
+            <div class="ml-auto flex items-center gap-2">
+              <div class="flex items-center gap-1 text-[11.5px] text-[var(--color-text-3)]">
+                <span class="kbd">G</span><span class="kbd">T</span><span class="kbd">I</span><span class="kbd">C</span>
+              </div>
+              <button class="btn btn-ghost">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                Filtros
+              </button>
+              <button class="btn btn-ghost">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 4h10M3 8h10M3 12h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                Colunas
+              </button>
+              <button class="btn">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0 3-3m-3 3L5 7M3 14h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Export
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ CONTENT GRID ============ -->
+        <section class="grid grid-cols-12 gap-4">
+          <!-- POSITIONS TABLE -->
+          <div class="col-span-8 rounded-lg border border-[var(--color-line-2)] bg-[var(--color-bg-2)] overflow-hidden">
+            <div class="flex items-center px-4 h-10 hairline">
+              <span class="text-[12px] font-medium">Posições</span>
+              <span class="ml-2 text-[11px] text-[var(--color-text-3)] num" id="pos-count">42 ativos · ordenado por valor</span>
+              <div class="ml-auto flex items-center gap-3 text-[11px]">
+                <label class="flex items-center gap-1.5 text-[var(--color-text-3)]">
+                  <input type="checkbox" class="size-3 accent-zinc-200" /> Agrupar por classe
+                </label>
+                <label class="flex items-center gap-1.5 text-[var(--color-text-3)]">
+                  <input type="checkbox" class="size-3 accent-zinc-200" checked /> Ocultar liquidez
+                </label>
+              </div>
+            </div>
+
+            <!-- VIEW: GLOBAL -->
+            <div data-view-panel="global">
+              <div class="overflow-x-auto">
+                <table class="w-full text-[12.5px]">
+                  <thead class="bg-[var(--color-bg)] hairline">
+                    <tr class="text-left">
+                      <th class="py-2 pl-4 pr-2 w-[34%]">Ativo</th>
+                      <th class="py-2 px-2">Titular</th>
+                      <th class="py-2 px-2">Inst.</th>
+                      <th class="py-2 px-2 text-right">Qtd</th>
+                      <th class="py-2 px-2 text-right">PM</th>
+                      <th class="py-2 px-2 text-right">Atual</th>
+                      <th class="py-2 px-2 text-right">Valor</th>
+                      <th class="py-2 px-2 text-right">P&amp;L</th>
+                      <th class="py-2 px-2 text-right">%</th>
+                      <th class="py-2 pl-2 pr-4 text-right w-[6%]">% Port.</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-global"></tbody>
+                </table>
+              </div>
+              <div class="flex items-center justify-between px-4 h-9 text-[11px] text-[var(--color-text-3)] num">
+                <span>Mostrando 12 de 42 ativos</span>
+                <div class="flex items-center gap-1">
+                  <button class="btn btn-ghost h-6 px-1.5">◀</button>
+                  <span>1 / 4</span>
+                  <button class="btn btn-ghost h-6 px-1.5">▶</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- VIEW: TITULAR -->
+            <div data-view-panel="titular" class="hidden">
+              <table class="w-full text-[12.5px]">
+                <thead class="bg-[var(--color-bg)] hairline">
+                  <tr class="text-left">
+                    <th class="py-2 pl-4 pr-2">Titular</th>
+                    <th class="py-2 px-2">Perfil</th>
+                    <th class="py-2 px-2">Instituições</th>
+                    <th class="py-2 px-2 text-right">Patrimônio</th>
+                    <th class="py-2 px-2 text-right">Hoje</th>
+                    <th class="py-2 px-2 text-right">30d</th>
+                    <th class="py-2 px-2 text-right">12m</th>
+                    <th class="py-2 px-2 text-right">vs Meta</th>
+                    <th class="py-2 pl-2 pr-4 text-right">% Port.</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-titular"></tbody>
+              </table>
+            </div>
+
+            <!-- VIEW: INSTITUIÇÃO -->
+            <div data-view-panel="instituicao" class="hidden">
+              <table class="w-full text-[12.5px]">
+                <thead class="bg-[var(--color-bg)] hairline">
+                  <tr class="text-left">
+                    <th class="py-2 pl-4 pr-2">Instituição</th>
+                    <th class="py-2 px-2">Tipo</th>
+                    <th class="py-2 px-2">Última sync</th>
+                    <th class="py-2 px-2 text-right">Contas</th>
+                    <th class="py-2 px-2 text-right">Ativos</th>
+                    <th class="py-2 px-2 text-right">Patrimônio</th>
+                    <th class="py-2 px-2 text-right">Hoje</th>
+                    <th class="py-2 px-2 text-right">12m</th>
+                    <th class="py-2 pl-2 pr-4 text-right">% Port.</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-instituicao"></tbody>
+              </table>
+            </div>
+
+            <!-- VIEW: CLASSE -->
+            <div data-view-panel="classe" class="hidden">
+              <table class="w-full text-[12.5px]">
+                <thead class="bg-[var(--color-bg)] hairline">
+                  <tr class="text-left">
+                    <th class="py-2 pl-4 pr-2">Classe</th>
+                    <th class="py-2 px-2">Sub-classe</th>
+                    <th class="py-2 px-2 text-right">Ativos</th>
+                    <th class="py-2 px-2 text-right">Patrimônio</th>
+                    <th class="py-2 px-2 text-right">Alvo</th>
+                    <th class="py-2 px-2 text-right">Atual</th>
+                    <th class="py-2 px-2 text-right">Desvio</th>
+                    <th class="py-2 px-2 text-right">12m</th>
+                    <th class="py-2 pl-2 pr-4">Alocação</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-classe"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- RIGHT COLUMN: DONUT + ALERTS -->
+          <div class="col-span-4 flex flex-col gap-4">
+            <!-- Donut card -->
+            <div class="rounded-lg border border-[var(--color-line-2)] bg-[var(--color-bg-2)] p-5">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[12px] font-medium">Alocação por classe</span>
+                <div class="flex text-[10.5px] border border-[var(--color-line)] rounded-md p-0.5">
+                  <button class="px-1.5 py-0.5 rounded bg-[var(--color-bg-3)] text-[var(--color-text)]">Atual</button>
+                  <button class="px-1.5 py-0.5 rounded text-[var(--color-text-3)]">Alvo</button>
+                  <button class="px-1.5 py-0.5 rounded text-[var(--color-text-3)]">Δ</button>
+                </div>
+              </div>
+
+              <div class="relative grid place-items-center my-2">
+                <svg width="200" height="200" viewBox="0 0 120 120" class="-rotate-90">
+                  <!-- background ring -->
+                  <circle cx="60" cy="60" r="46" fill="none" stroke="var(--color-line-2)" stroke-width="22"/>
+                  <!-- Segments: Renda Fixa 38, Renda Variável 24, Fundos Imob. 12, Internacional 18, Liquidez 6, Outros 2 -->
+                  <!-- circumference 2πr = 289.03 -->
+                  <circle class="ring-seg" cx="60" cy="60" r="46" fill="none" stroke="oklch(0.74 0.13 232)" stroke-width="22"
+                          stroke-dasharray="109.83 289.03" stroke-dashoffset="0"/>
+                  <circle class="ring-seg" cx="60" cy="60" r="46" fill="none" stroke="oklch(0.76 0.16 152)" stroke-width="22"
+                          stroke-dasharray="69.37 289.03" stroke-dashoffset="-109.83"/>
+                  <circle class="ring-seg" cx="60" cy="60" r="46" fill="none" stroke="oklch(0.80 0.15 82)" stroke-width="22"
+                          stroke-dasharray="34.68 289.03" stroke-dashoffset="-179.20"/>
+                  <circle class="ring-seg" cx="60" cy="60" r="46" fill="none" stroke="oklch(0.68 0.18 300)" stroke-width="22"
+                          stroke-dasharray="52.03 289.03" stroke-dashoffset="-213.88"/>
+                  <circle class="ring-seg" cx="60" cy="60" r="46" fill="none" stroke="oklch(0.55 0.04 240)" stroke-width="22"
+                          stroke-dasharray="17.34 289.03" stroke-dashoffset="-265.91"/>
+                  <circle class="ring-seg" cx="60" cy="60" r="46" fill="none" stroke="oklch(0.45 0.02 240)" stroke-width="22"
+                          stroke-dasharray="5.78 289.03" stroke-dashoffset="-283.25"/>
+                </svg>
+                <div class="absolute inset-0 grid place-items-center text-center pointer-events-none">
+                  <div>
+                    <div class="text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-3)]">Total</div>
+                    <div class="num text-[18px] tracking-tight">1.183.420</div>
+                    <div class="text-[10.5px] text-[var(--color-text-3)] num">6 classes</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Legend -->
+              <ul class="mt-3 space-y-1.5 text-[11.5px]">
+                <li class="flex items-center gap-2">
+                  <span class="size-2 rounded-sm" style="background: oklch(0.74 0.13 232)"></span>
+                  <span class="flex-1">Renda Fixa</span>
+                  <span class="num text-[var(--color-text-3)]">449.700</span>
+                  <span class="num w-10 text-right">38,0%</span>
+                  <span class="num w-12 text-right text-[var(--color-text-3)]">alvo 35%</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="size-2 rounded-sm" style="background: oklch(0.76 0.16 152)"></span>
+                  <span class="flex-1">Renda Variável</span>
+                  <span class="num text-[var(--color-text-3)]">284.020</span>
+                  <span class="num w-10 text-right">24,0%</span>
+                  <span class="num w-12 text-right text-[var(--color-text-3)]">alvo 25%</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="size-2 rounded-sm" style="background: oklch(0.80 0.15 82)"></span>
+                  <span class="flex-1">Fundos Imob.</span>
+                  <span class="num text-[var(--color-text-3)]">142.010</span>
+                  <span class="num w-10 text-right">12,0%</span>
+                  <span class="num w-12 text-right text-[var(--color-text-3)]">alvo 10%</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="size-2 rounded-sm" style="background: oklch(0.68 0.18 300)"></span>
+                  <span class="flex-1">Internacional</span>
+                  <span class="num text-[var(--color-text-3)]">213.020</span>
+                  <span class="num w-10 text-right">18,0%</span>
+                  <span class="num w-12 text-right text-[var(--color-text-3)]">alvo 20%</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="size-2 rounded-sm" style="background: oklch(0.55 0.04 240)"></span>
+                  <span class="flex-1">Liquidez</span>
+                  <span class="num text-[var(--color-text-3)]">71.010</span>
+                  <span class="num w-10 text-right">6,0%</span>
+                  <span class="num w-12 text-right text-[var(--color-text-3)]">alvo 8%</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <span class="size-2 rounded-sm" style="background: oklch(0.45 0.02 240)"></span>
+                  <span class="flex-1">Outros</span>
+                  <span class="num text-[var(--color-text-3)]">23.660</span>
+                  <span class="num w-10 text-right">2,0%</span>
+                  <span class="num w-12 text-right text-[var(--color-text-3)]">alvo 2%</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Alerts -->
+            <div class="rounded-lg border border-[var(--color-line-2)] bg-[var(--color-bg-2)]">
+              <div class="flex items-center px-4 h-10 hairline">
+                <span class="text-[12px] font-medium">Alertas</span>
+                <span class="ml-2 num text-[10.5px] text-[var(--color-text-3)]">5 abertos · monitor 14:00</span>
+                <div class="ml-auto flex items-center gap-1 text-[10.5px] text-[var(--color-text-3)]">
+                  <button class="px-1.5 py-0.5 rounded hover:bg-[var(--color-bg-3)] text-[var(--color-text)]">Todos</button>
+                  <span>·</span>
+                  <button class="px-1.5 py-0.5 rounded hover:bg-[var(--color-bg-3)]">Crítico</button>
+                  <span>·</span>
+                  <button class="px-1.5 py-0.5 rounded hover:bg-[var(--color-bg-3)]">Aviso</button>
+                </div>
+              </div>
+              <ul class="divide-y divide-[var(--color-line-2)]">
+                <li class="px-4 py-3 sev-crit border-l-0 border">
+                  <div class="flex items-start gap-2.5">
+                    <span class="mt-0.5 size-4 rounded-full grid place-items-center" style="background: color-mix(in oklch, var(--color-crit) 25%, transparent); color: var(--color-crit)">
+                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M5 1v5M5 8.5v.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    </span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 text-[12px]">
+                        <span class="font-medium">Consent Nomad expirado</span>
+                        <span class="pill" style="color: var(--color-crit); border-color: color-mix(in oklch, var(--color-crit) 40%, transparent); background: color-mix(in oklch, var(--color-crit) 12%, transparent)">CRÍTICO</span>
+                      </div>
+                      <p class="text-[11.5px] text-[var(--color-text-2)] mt-0.5">Última sync 11/05 23:14. Portfólio USD pode estar desatualizado. Re-autenticar para retomar.</p>
+                      <div class="flex items-center gap-3 mt-1.5 text-[11px]">
+                        <button class="text-[var(--color-text)] hover:underline">Re-autenticar</button>
+                        <span class="text-[var(--color-text-3)] num">há 13h · Rodrigo</span>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+                <li class="px-4 py-3 sev-warn border-l-0">
+                  <div class="flex items-start gap-2.5">
+                    <span class="mt-0.5 size-4 rounded-full grid place-items-center text-[var(--color-warn)]" style="background: color-mix(in oklch, var(--color-warn) 20%, transparent)">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1.5 9 8.5H1L5 1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M5 4.5v1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                    </span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 text-[12px]">
+                        <span class="font-medium num">VALE3</span> <span class="text-[var(--color-text-3)]">— queda atípica</span>
+                        <span class="pill" style="color: var(--color-warn); border-color: color-mix(in oklch, var(--color-warn) 40%, transparent); background: color-mix(in oklch, var(--color-warn) 10%, transparent)">AVISO</span>
+                      </div>
+                      <p class="text-[11.5px] text-[var(--color-text-2)] mt-0.5">−4,2% hoje vs. setor −1,1%. Desvio &gt;2σ da média 30d. Notícias relacionadas: minério −2,8% em SH.</p>
+                      <div class="flex items-center gap-3 mt-1.5 text-[11px]">
+                        <button class="text-[var(--color-text)] hover:underline">Ver posição</button>
+                        <span class="text-[var(--color-text-3)] num">há 1h · Rodrigo, Amora</span>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+                <li class="px-4 py-3 sev-warn border-l-0">
+                  <div class="flex items-start gap-2.5">
+                    <span class="mt-0.5 size-4 rounded-full grid place-items-center text-[var(--color-warn)]" style="background: color-mix(in oklch, var(--color-warn) 20%, transparent)">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 3.2V5L6.2 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                    </span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 text-[12px]">
+                        <span class="font-medium">Vencimento CDB BTG 105% CDI</span>
+                        <span class="pill" style="color: var(--color-warn); border-color: color-mix(in oklch, var(--color-warn) 40%, transparent); background: color-mix(in oklch, var(--color-warn) 10%, transparent)">AVISO</span>
+                      </div>
+                      <p class="text-[11.5px] text-[var(--color-text-2)] mt-0.5">R$ 142.300 vence em 18 dias. Liquidez será creditada em 09/06. Considerar realocação.</p>
+                      <div class="flex items-center gap-3 mt-1.5 text-[11px]">
+                        <button class="text-[var(--color-text)] hover:underline">Pedir recomendação</button>
+                        <span class="text-[var(--color-text-3)] num">há 4h · Rodrigo</span>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+                <li class="px-4 py-3 sev-info border-l-0">
+                  <div class="flex items-start gap-2.5">
+                    <span class="mt-0.5 size-4 rounded-full grid place-items-center text-[var(--color-info)]" style="background: color-mix(in oklch, var(--color-info) 18%, transparent)">
+                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M5 4v3M5 2.5v.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    </span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 text-[12px]">
+                        <span class="font-medium">Desvio de alocação — Grasi</span>
+                        <span class="pill" style="color: var(--color-info); border-color: color-mix(in oklch, var(--color-info) 40%, transparent); background: color-mix(in oklch, var(--color-info) 10%, transparent)">INFO</span>
+                      </div>
+                      <p class="text-[11.5px] text-[var(--color-text-2)] mt-0.5">Liquidez em 14% (alvo 20%). Dentro do threshold de 3% pendente de re-rebalanceio.</p>
+                      <div class="flex items-center gap-3 mt-1.5 text-[11px]">
+                        <span class="text-[var(--color-text-3)] num">há 6h · Grasi</span>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+                <li class="px-4 py-3 sev-info border-l-0">
+                  <div class="flex items-start gap-2.5">
+                    <span class="mt-0.5 size-4 rounded-full grid place-items-center text-[var(--color-info)]" style="background: color-mix(in oklch, var(--color-info) 18%, transparent)">
+                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M5 4v3M5 2.5v.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    </span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 text-[12px]">
+                        <span class="font-medium">COPOM amanhã — decisão SELIC</span>
+                        <span class="pill" style="color: var(--color-info); border-color: color-mix(in oklch, var(--color-info) 40%, transparent); background: color-mix(in oklch, var(--color-info) 10%, transparent)">INFO</span>
+                      </div>
+                      <p class="text-[11.5px] text-[var(--color-text-2)] mt-0.5">Expectativa de manutenção em 11,25%. Impacto em prefixados de Amora e Benicio.</p>
+                      <div class="flex items-center gap-3 mt-1.5 text-[11px]">
+                        <span class="text-[var(--color-text-3)] num">há 8h · macro</span>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+              <div class="px-4 h-9 flex items-center hairline">
+                <button class="text-[11.5px] text-[var(--color-text-2)] hover:text-[var(--color-text)]">Ver todos os alertas →</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <footer class="mt-6 text-[10.5px] text-[var(--color-text-3)] num flex items-center gap-3">
+          <span>Pluggy connector v2.4.1 · Plaid Production · USD/BRL 5,082 (manual · 11/05)</span>
+          <span class="ml-auto">Fundos com cota D+1: HGLG11, KNRI11 · valor de hoje pode variar até divulgação.</span>
+        </footer>
+      </main>
+    </div>
+
+    <!-- =================== DATA + INTERACTIONS =================== -->
+    <script>
+      // --- Data ---
+      const fmt = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const fmt0 = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      const sign = n => (n >= 0 ? '+' : '−');
+      const cls  = n => (n >= 0 ? 'text-[var(--color-gain)]' : 'text-[var(--color-loss)]');
+      const abs  = n => Math.abs(n);
+
+      const positions = [
+        { tk:'Tesouro IPCA+ 2035',  cls:'RF',  titular:'Rodrigo', inst:'BTG',  qtd:187,  pm:1000.00, atual:1004.21, val:187787.27, pl:787.27,   pct:0.42,  port:15.87 },
+        { tk:'CDB BTG 105% CDI',    cls:'RF',  titular:'Rodrigo', inst:'BTG',  qtd:1,    pm:142000,  atual:142300,   val:142300.00, pl:2300.00,  pct:1.64,  port:12.02 },
+        { tk:'Tesouro Selic 2029',  cls:'RF',  titular:'Grasi',   inst:'XP',   qtd:96,   pm:990.00,  atual:992.41,   val:95271.36,  pl:231.36,   pct:0.24,  port:8.05 },
+        { tk:'VOO',                 cls:'Int', titular:'Rodrigo', inst:'Nomad',qtd:28,   pm:480.00,  atual:522.10,   val:74333.51,  pl:5985.81,  pct:8.77,  port:6.28, ccy:'USD' },
+        { tk:'LCA Itaú 92% CDI',    cls:'RF',  titular:'Grasi',   inst:'XP',   qtd:1,    pm:78000,   atual:78420,    val:78420.00,  pl:420.00,   pct:0.54,  port:6.63 },
+        { tk:'QQQ',                 cls:'Int', titular:'Rodrigo', inst:'Nomad',qtd:14,   pm:462.00,  atual:495.30,   val:35243.71,  pl:2370.81,  pct:7.21,  port:2.98, ccy:'USD' },
+        { tk:'PETR4',               cls:'RV',  titular:'Rodrigo', inst:'XP',   qtd:800,  pm:38.20,   atual:41.85,    val:33480.00,  pl:2920.00,  pct:9.55,  port:2.83 },
+        { tk:'BBAS3',               cls:'RV',  titular:'Rodrigo', inst:'XP',   qtd:1500, pm:27.50,   atual:32.10,    val:48150.00,  pl:6900.00,  pct:16.73, port:4.07 },
+        { tk:'HGLG11',              cls:'FII', titular:'Rodrigo', inst:'XP',   qtd:200,  pm:162.00,  atual:168.40,   val:33680.00,  pl:1280.00,  pct:3.95,  port:2.85 },
+        { tk:'VALE3',               cls:'RV',  titular:'Rodrigo', inst:'XP',   qtd:600,  pm:64.00,   atual:60.30,    val:36180.00,  pl:-2220.00, pct:-5.78, port:3.06 },
+        { tk:'ITSA4',               cls:'RV',  titular:'Rodrigo', inst:'XP',   qtd:4000, pm:10.10,   atual:11.85,    val:47400.00,  pl:7000.00,  pct:17.33, port:4.01 },
+        { tk:'IVVB11',              cls:'Int', titular:'Amora',   inst:'XP',   qtd:30,   pm:290.00,  atual:305.40,   val:9162.00,   pl:462.00,   pct:5.31,  port:0.77 },
+      ];
+
+      const byTitular = [
+        { titular:'Rodrigo', perfil:'Arrojado',     inst:'XP · BTG · Nomad', patrim:687142.18, hoje:0.52, d30:3.10, m12:14.20, meta:'82% / 100%', port:58.06, color:'oklch(0.65 0.10 240)' },
+        { titular:'Grasi',   perfil:'Conservador',  inst:'XP · BTG',         patrim:312480.00, hoje:0.18, d30:1.40, m12:9.80,  meta:'liq. 30d ok', port:26.41, color:'oklch(0.68 0.13 330)' },
+        { titular:'Amora',   perfil:'Mod./Arrojado',inst:'XP',               patrim:124860.42, hoje:-0.12,d30:1.90, m12:11.40, meta:'17% / R$12k/mês 18a', port:10.55, color:'oklch(0.72 0.15 60)' },
+        { titular:'Benicio', perfil:'Arrojado',     inst:'XP',               patrim:58937.97,  hoje:0.28, d30:2.20, m12:12.10, meta:'4% / R$12k/mês 18a',  port:4.98,  color:'oklch(0.70 0.13 160)' },
+      ];
+
+      const byInst = [
+        { name:'XP Investimentos', tipo:'Corretora BR',     sync:'14:03 · ok',     contas:4, ativos:24, patrim:612480.10, hoje:0.31, m12:11.20, port:51.75, status:'ok' },
+        { name:'BTG Pactual',      tipo:'Banco BR',         sync:'14:00 · ok',     contas:2, ativos:11, patrim:415018.47, hoje:0.62, m12:12.40, port:35.07, status:'ok' },
+        { name:'Nomad',            tipo:'Banco US (USD)',   sync:'11/05 23:14 · expirado', contas:1, ativos:7,  patrim:155922.00, hoje:0.18, m12:14.80, port:13.18, status:'warn' },
+      ];
+
+      const byClasse = [
+        { cls:'Renda Fixa',     sub:'Tesouro · CDB · LCA',  ativos:14, patrim:449700, alvo:35, atual:38.0, dev:+3.0, m12:9.20,  c:'oklch(0.74 0.13 232)' },
+        { cls:'Renda Variável', sub:'Ações · ETFs BR',      ativos:11, patrim:284020, alvo:25, atual:24.0, dev:-1.0, m12:18.40, c:'oklch(0.76 0.16 152)' },
+        { cls:'Fundos Imob.',   sub:'Tijolo · Papel',        ativos:6,  patrim:142010, alvo:10, atual:12.0, dev:+2.0, m12:7.10,  c:'oklch(0.80 0.15 82)' },
+        { cls:'Internacional',  sub:'VOO · QQQ · BND',       ativos:7,  patrim:213020, alvo:20, atual:18.0, dev:-2.0, m12:14.80, c:'oklch(0.68 0.18 300)' },
+        { cls:'Liquidez',       sub:'CDB liq. · Tesouro Selic', ativos:3, patrim:71010, alvo:8,  atual:6.0,  dev:-2.0, m12:10.40, c:'oklch(0.55 0.04 240)' },
+        { cls:'Outros',         sub:'Previdência',           ativos:1,  patrim:23660,  alvo:2,  atual:2.0,  dev:0.0,  m12:8.20,  c:'oklch(0.45 0.02 240)' },
+      ];
+
+      // --- Renderers ---
+      const tbodyGlobal = document.getElementById('tbody-global');
+      tbodyGlobal.innerHTML = positions.map(p => {
+        const titColor = byTitular.find(t => t.titular === p.titular)?.color || '#888';
+        const initial = p.titular[0];
+        const ccy = p.ccy === 'USD' ? '<span class="text-[var(--color-text-3)] text-[10.5px]"> USD</span>' : '';
+        const ccyVal = p.ccy === 'USD' ? ` · US$ ${fmt(p.val / 5.082)}` : '';
+        const classTag = ({RF:'Renda Fixa',RV:'Renda Var.',FII:'FII',Int:'Internac.'})[p.cls];
+        return `
+          <tr>
+            <td class="py-2 pl-4 pr-2">
+              <div class="flex items-center gap-2">
+                <span class="num font-medium">${p.tk}</span>
+                <span class="pill text-[10px]">${classTag}</span>
+              </div>
+            </td>
+            <td class="py-2 px-2">
+              <span class="inline-flex items-center gap-1.5">
+                <span class="size-4 rounded-full grid place-items-center text-[9.5px] font-medium" style="background:${titColor}">${initial}</span>
+                <span class="text-[12px]">${p.titular}</span>
+              </span>
+            </td>
+            <td class="py-2 px-2 text-[var(--color-text-2)]">${p.inst}</td>
+            <td class="py-2 px-2 text-right num">${p.qtd.toLocaleString('pt-BR')}</td>
+            <td class="py-2 px-2 text-right num text-[var(--color-text-2)]">${fmt(p.pm)}</td>
+            <td class="py-2 px-2 text-right num">${fmt(p.atual)}</td>
+            <td class="py-2 px-2 text-right num">${fmt(p.val)}${ccy}</td>
+            <td class="py-2 px-2 text-right num ${cls(p.pl)}">${sign(p.pl)} ${fmt(abs(p.pl))}</td>
+            <td class="py-2 px-2 text-right num ${cls(p.pct)}">${sign(p.pct)}${fmt(abs(p.pct))}%</td>
+            <td class="py-2 pl-2 pr-4 text-right num text-[var(--color-text-2)]">${fmt(p.port)}%</td>
+          </tr>`;
+      }).join('');
+
+      // Titular view
+      document.getElementById('tbody-titular').innerHTML = byTitular.map(t => `
+        <tr>
+          <td class="py-2.5 pl-4 pr-2">
+            <span class="inline-flex items-center gap-2">
+              <span class="size-6 rounded-full grid place-items-center text-[11px] font-medium" style="background:${t.color}">${t.titular[0]}</span>
+              <span class="font-medium">${t.titular}</span>
+            </span>
+          </td>
+          <td class="py-2.5 px-2 text-[var(--color-text-2)]">${t.perfil}</td>
+          <td class="py-2.5 px-2 text-[var(--color-text-2)] num text-[11.5px]">${t.inst}</td>
+          <td class="py-2.5 px-2 text-right num">${fmt(t.patrim)}</td>
+          <td class="py-2.5 px-2 text-right num ${cls(t.hoje)}">${sign(t.hoje)}${fmt(abs(t.hoje))}%</td>
+          <td class="py-2.5 px-2 text-right num ${cls(t.d30)}">${sign(t.d30)}${fmt(abs(t.d30))}%</td>
+          <td class="py-2.5 px-2 text-right num ${cls(t.m12)}">${sign(t.m12)}${fmt(abs(t.m12))}%</td>
+          <td class="py-2.5 px-2 text-right text-[11.5px] text-[var(--color-text-2)] num">${t.meta}</td>
+          <td class="py-2.5 pl-2 pr-4 text-right num">${fmt(t.port)}%</td>
+        </tr>`).join('');
+
+      // Inst view
+      document.getElementById('tbody-instituicao').innerHTML = byInst.map(i => {
+        const dot = i.status === 'ok'
+          ? 'background: var(--color-gain)'
+          : 'background: var(--color-warn)';
+        return `
+        <tr>
+          <td class="py-2.5 pl-4 pr-2">
+            <span class="inline-flex items-center gap-2">
+              <span class="size-1.5 rounded-full" style="${dot}"></span>
+              <span class="font-medium">${i.name}</span>
+            </span>
+          </td>
+          <td class="py-2.5 px-2 text-[var(--color-text-2)]">${i.tipo}</td>
+          <td class="py-2.5 px-2 num text-[11.5px] ${i.status==='warn'?'text-[var(--color-warn)]':'text-[var(--color-text-2)]'}">${i.sync}</td>
+          <td class="py-2.5 px-2 text-right num">${i.contas}</td>
+          <td class="py-2.5 px-2 text-right num">${i.ativos}</td>
+          <td class="py-2.5 px-2 text-right num">${fmt(i.patrim)}</td>
+          <td class="py-2.5 px-2 text-right num ${cls(i.hoje)}">${sign(i.hoje)}${fmt(abs(i.hoje))}%</td>
+          <td class="py-2.5 px-2 text-right num ${cls(i.m12)}">${sign(i.m12)}${fmt(abs(i.m12))}%</td>
+          <td class="py-2.5 pl-2 pr-4 text-right num">${fmt(i.port)}%</td>
+        </tr>`;
+      }).join('');
+
+      // Classe view
+      document.getElementById('tbody-classe').innerHTML = byClasse.map(c => {
+        const devCls = c.dev > 0 ? 'text-[var(--color-warn)]' : c.dev < 0 ? 'text-[var(--color-info)]' : 'text-[var(--color-text-2)]';
+        const widthAtual = Math.min(100, c.atual * 2);
+        const widthAlvo = Math.min(100, c.alvo * 2);
+        return `
+        <tr>
+          <td class="py-2.5 pl-4 pr-2">
+            <span class="inline-flex items-center gap-2">
+              <span class="size-2 rounded-sm" style="background:${c.c}"></span>
+              <span class="font-medium">${c.cls}</span>
+            </span>
+          </td>
+          <td class="py-2.5 px-2 text-[var(--color-text-2)] text-[11.5px]">${c.sub}</td>
+          <td class="py-2.5 px-2 text-right num">${c.ativos}</td>
+          <td class="py-2.5 px-2 text-right num">${fmt(c.patrim)}</td>
+          <td class="py-2.5 px-2 text-right num text-[var(--color-text-2)]">${fmt(c.alvo)}%</td>
+          <td class="py-2.5 px-2 text-right num">${fmt(c.atual)}%</td>
+          <td class="py-2.5 px-2 text-right num ${devCls}">${c.dev>0?'+':c.dev<0?'−':''}${fmt(abs(c.dev))} pp</td>
+          <td class="py-2.5 px-2 text-right num ${cls(c.m12)}">${sign(c.m12)}${fmt(abs(c.m12))}%</td>
+          <td class="py-2.5 pl-2 pr-4">
+            <div class="relative h-1.5 w-32 ml-auto bg-[var(--color-bg-3)] rounded-full overflow-hidden">
+              <span class="absolute inset-y-0 left-0" style="width:${widthAtual}%; background:${c.c}"></span>
+              <span class="absolute inset-y-[-2px] w-px bg-[var(--color-text)]" style="left:${widthAlvo}%"></span>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      // --- Tab switching ---
+      const tabs = document.querySelectorAll('[role="tablist"] .tab');
+      const panels = document.querySelectorAll('[data-view-panel]');
+      const posCount = document.getElementById('pos-count');
+      const counts = { global:'42 ativos · ordenado por valor', titular:'4 titulares', instituicao:'3 instituições', classe:'6 classes · vs. alvo' };
+      tabs.forEach(t => t.addEventListener('click', () => {
+        tabs.forEach(x => x.setAttribute('aria-selected', x === t ? 'true' : 'false'));
+        const view = t.dataset.view;
+        panels.forEach(p => p.classList.toggle('hidden', p.dataset.viewPanel !== view));
+        posCount.textContent = counts[view];
+      }));
+
+      // Keyboard shortcuts G/T/I/C
+      window.addEventListener('keydown', e => {
+        if (e.target.tagName === 'INPUT') return;
+        const map = { g:'global', t:'titular', i:'instituicao', c:'classe' };
+        const v = map[e.key.toLowerCase()];
+        if (v) document.querySelector(`.tab[data-view="${v}"]`)?.click();
+      });
+    </script>
+  </body>
+</html>

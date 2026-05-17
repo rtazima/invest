@@ -22,13 +22,15 @@
   --color-text-2: oklch(0.708 0 0);
   --color-text-3: oklch(0.556 0 0);
 
-  --color-text: oklch(0.96 0 0);
+  --color-text: oklch(0.985 0 0);
   --color-text-muted: oklch(0.65 0 0);
   --color-text-faint: oklch(0.45 0 0);
+  --color-text-4: oklch(0.38 0 0);
   --color-text-placeholder: oklch(0.38 0 0);
 
-  --color-brand: oklch(0.65 0.18 250);
-  --color-brand-subtle: oklch(0.25 0.06 250);
+  --color-brand:    oklch(0.62 0.20 277);
+  --color-brand-hi: oklch(0.70 0.20 277);
+  --color-brand-subtle: oklch(0.22 0.07 277);
 
   /* ── P&L ── */
   --color-gain: oklch(0.76 0.16 152);
@@ -50,6 +52,11 @@
   --color-loss-soft: oklch(0.40 0.13 24);
   --color-warn:      oklch(0.80 0.15 82);
   --color-crit:      oklch(0.65 0.23 22);
+
+  /* ── Perfis de risco ── */
+  --color-cons: oklch(0.72 0.13 232);
+  --color-mod:  oklch(0.74 0.13 175);
+  --color-aggr: oklch(0.80 0.15 60);
 
   /* ── Titulares ── */
   --color-holder-rodrigo: oklch(0.65 0.10 240);
@@ -109,10 +116,11 @@ body {
 }
 
 /* ── Números financeiros: sempre monoespaçado com alinhamento tabular ── */
-.num {
+.num, .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+  letter-spacing: -0.005em;
 }
 
 /* ── Convenção de sinal: − (U+2212), não - ── */
@@ -164,6 +172,42 @@ body {
   background: color-mix(in oklch, var(--color-crit) 14%, transparent);
   border-color: color-mix(in oklch, var(--color-crit) 45%, var(--color-line));
   box-shadow: inset 3px 0 0 var(--color-crit);
+}
+
+/* ── Animações ── */
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-crit) 30%, transparent); }
+  50%       { box-shadow: 0 0 0 6px color-mix(in oklch, var(--color-crit) 12%, transparent); }
+}
+
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 4px color-mix(in oklch, var(--color-crit) 40%, transparent); }
+  50%       { box-shadow: 0 0 0 2px var(--color-bg), 0 0 0 8px color-mix(in oklch, var(--color-crit) 15%, transparent); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* dot de alerta crítico não-lido */
+.alert-dot-crit {
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+/* badge de alertas na sidebar */
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* spinner (histórico de importações: "processando") */
+.spinner {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid color-mix(in oklch, var(--color-warn) 30%, transparent);
+  border-top-color: var(--color-warn);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  display: inline-block;
 }
 
 /* ── Scrollbar minimalista ── */
