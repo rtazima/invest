@@ -7,15 +7,14 @@ function getEnvVar(name: string): string {
   return value;
 }
 
-/**
- * Middleware de autenticação.
- * Renova o token Supabase em cada request e redireciona
- * usuários não autenticados para /login.
- */
+// Rotas que não precisam de auth
+const PUBLIC_ROUTES = ["/login", "/auth/callback"];
+
+// Rotas que precisam de auth mas não de aal2 (MFA em andamento)
+const MFA_ROUTES = ["/mfa/enroll", "/mfa/verify"];
+
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
     getEnvVar("NEXT_PUBLIC_SUPABASE_URL"),
@@ -27,9 +26,7 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({
-            request,
-          });
+          supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           );
@@ -38,27 +35,44 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  // Renova sessão — não remova esta chamada
+  // Renova sessão — não remover esta chamada
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
 
-  // Rotas públicas: não requerem auth
-  const publicRoutes = ["/login", "/auth/callback"];
-  const isPublic = publicRoutes.some((route) => pathname.startsWith(route));
+  const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
+  const isMfaRoute = MFA_ROUTES.some((r) => pathname.startsWith(r));
 
-  if (!user && !isPublic) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    return NextResponse.redirect(loginUrl);
+  // Não autenticado
+  if (!user) {
+    if (isPublic || isMfaRoute) return supabaseResponse;
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (user && pathname === "/login") {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = "/dashboard";
-    return NextResponse.redirect(dashboardUrl);
+  // Autenticado + tentando acessar /login → redireciona
+  if (pathname.startsWith("/login")) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // Rotas MFA: acessíveis com qualquer nível de auth
+  if (isMfaRoute) return supabaseResponse;
+
+  // Rotas protegidas: verifica se MFA está completo (aal2)
+  if (!isPublic) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+    if (aal?.currentLevel !== "aal2") {
+      // Verifica se tem TOTP cadastrado
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const hasTOTP = (factors?.totp?.length ?? 0) > 0;
+
+      if (!hasTOTP) {
+        return NextResponse.redirect(new URL("/mfa/enroll", request.url));
+      }
+      return NextResponse.redirect(new URL("/mfa/verify", request.url));
+    }
   }
 
   return supabaseResponse;
@@ -66,12 +80,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Aplica middleware em todas as rotas EXCETO:
-     * - _next/static (arquivos estáticos)
-     * - _next/image (otimização de imagem)
-     * - favicon.ico, sitemap.xml, robots.txt
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

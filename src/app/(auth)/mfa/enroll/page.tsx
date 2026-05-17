@@ -1,12 +1,21 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { redirect } from "next/navigation";
+import { createServerClient } from "@/lib/supabase/server";
+import { MfaEnrollForm } from "@/components/auth/MfaEnrollForm";
 
 export const metadata: Metadata = {
-  title: "Entrar — Invest",
+  title: "Ativar 2FA — Invest",
 };
 
-export default function LoginPage() {
+export default async function MfaEnrollPage() {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
   return (
     <div
       style={{
@@ -21,7 +30,7 @@ export default function LoginPage() {
       <div
         style={{
           width: "100%",
-          maxWidth: "360px",
+          maxWidth: "400px",
           padding: "2rem",
           backgroundColor: "var(--color-surface)",
           borderRadius: "var(--radius-lg)",
@@ -31,20 +40,20 @@ export default function LoginPage() {
         <div style={{ marginBottom: "1.5rem" }}>
           <h1
             style={{
-              fontSize: "1.125rem",
-              fontWeight: 700,
+              fontSize: "1rem",
+              fontWeight: 600,
               color: "var(--color-text)",
               margin: "0 0 0.25rem",
             }}
           >
-            Invest
+            Autenticação em duas etapas
           </h1>
           <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", margin: 0 }}>
-            Gestão patrimonial familiar
+            Configure um autenticador para proteger sua conta.
           </p>
         </div>
         <Suspense fallback={null}>
-          <LoginForm />
+          <MfaEnrollForm />
         </Suspense>
       </div>
     </div>

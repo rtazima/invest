@@ -1,12 +1,25 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { redirect } from "next/navigation";
+import { createServerClient } from "@/lib/supabase/server";
+import { MfaVerifyForm } from "@/components/auth/MfaVerifyForm";
 
 export const metadata: Metadata = {
-  title: "Entrar — Invest",
+  title: "Verificar 2FA — Invest",
 };
 
-export default function LoginPage() {
+export default async function MfaVerifyPage() {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  // Se já está em aal2, vai direto pro dashboard
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal?.currentLevel === "aal2") redirect("/dashboard");
+
   return (
     <div
       style={{
@@ -31,20 +44,20 @@ export default function LoginPage() {
         <div style={{ marginBottom: "1.5rem" }}>
           <h1
             style={{
-              fontSize: "1.125rem",
-              fontWeight: 700,
+              fontSize: "1rem",
+              fontWeight: 600,
               color: "var(--color-text)",
               margin: "0 0 0.25rem",
             }}
           >
-            Invest
+            Verificação em duas etapas
           </h1>
           <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", margin: 0 }}>
-            Gestão patrimonial familiar
+            Digite o código do seu aplicativo autenticador.
           </p>
         </div>
         <Suspense fallback={null}>
-          <LoginForm />
+          <MfaVerifyForm />
         </Suspense>
       </div>
     </div>
