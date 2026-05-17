@@ -1,12 +1,34 @@
 "use client";
 
-import { signInWithOtp } from "@/app/(auth)/login/actions";
+import { registerWithOtp } from "@/app/(auth)/register/actions";
 import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { formatCPF } from "@/lib/cpf";
+import Link from "next/link";
 
-export function LoginForm() {
+const inputStyle = {
+  padding: "0.5rem 0.75rem",
+  backgroundColor: "var(--color-bg)",
+  border: "1px solid var(--color-border)",
+  borderRadius: "var(--radius-md)",
+  color: "var(--color-text)",
+  fontSize: "0.875rem",
+  outline: "none",
+  width: "100%",
+  boxSizing: "border-box" as const,
+};
+
+const labelStyle = {
+  fontSize: "0.8125rem",
+  color: "var(--color-text-muted)",
+  fontWeight: 500,
+};
+
+export function RegisterForm() {
   const params = useSearchParams();
   const message = params.get("message");
   const error = params.get("error");
+  const [cpfDisplay, setCpfDisplay] = useState("");
 
   if (message === "check-email") {
     return (
@@ -31,14 +53,14 @@ export function LoginForm() {
           Link enviado
         </p>
         <p style={{ color: "var(--color-text-muted)", fontSize: "0.875rem" }}>
-          Verifique seu e-mail e clique no link para entrar.
+          Verifique seu e-mail e clique no link para continuar o cadastro.
         </p>
       </div>
     );
   }
 
   return (
-    <form action={signInWithOtp} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+    <form action={registerWithOtp} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {error && (
         <p
           style={{
@@ -55,28 +77,32 @@ export function LoginForm() {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-        <label
-          htmlFor="email"
-          style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", fontWeight: 500 }}
-        >
-          E-mail
-        </label>
+        <label htmlFor="email" style={labelStyle}>E-mail</label>
         <input
           id="email"
           name="email"
           type="email"
           required
           autoComplete="email"
-          placeholder="rodrigo@tazima.com.br"
-          style={{
-            padding: "0.5rem 0.75rem",
-            backgroundColor: "var(--color-bg)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-md)",
-            color: "var(--color-text)",
-            fontSize: "0.875rem",
-            outline: "none",
-          }}
+          placeholder="seuemail@exemplo.com"
+          style={inputStyle}
+        />
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+        <label htmlFor="cpf" style={labelStyle}>CPF</label>
+        <input
+          id="cpf"
+          name="cpf"
+          type="text"
+          required
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="000.000.000-00"
+          value={cpfDisplay}
+          maxLength={14}
+          onChange={(e) => setCpfDisplay(formatCPF(e.target.value))}
+          style={inputStyle}
         />
       </div>
 
@@ -93,18 +119,17 @@ export function LoginForm() {
           cursor: "pointer",
         }}
       >
-        Enviar link de acesso
+        Criar conta
       </button>
 
       <p style={{ fontSize: "0.75rem", color: "var(--color-text-faint)", textAlign: "center" }}>
-        Sem senha — acesso via magic link no e-mail.
-      </p>
-
-      <p style={{ fontSize: "0.75rem", color: "var(--color-text-faint)", textAlign: "center" }}>
-        Primeiro acesso?{" "}
-        <a href="/register" style={{ color: "var(--color-brand)", textDecoration: "none" }}>
-          Criar conta
-        </a>
+        Já tem conta?{" "}
+        <Link
+          href="/login"
+          style={{ color: "var(--color-brand)", textDecoration: "none" }}
+        >
+          Entrar
+        </Link>
       </p>
     </form>
   );

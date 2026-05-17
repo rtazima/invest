@@ -7,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -100,38 +98,111 @@ export type Database = {
         }
         Relationships: []
       }
+      families: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_user_id?: string
+        }
+        Relationships: []
+      }
+      family_cpfs: {
+        Row: {
+          added_at: string
+          added_by: string
+          cpf: string
+          family_id: string
+          id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by: string
+          cpf: string
+          family_id: string
+          id?: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string
+          cpf?: string
+          family_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_cpfs_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       holders: {
         Row: {
           birth_year: number | null
+          cpf: string | null
           created_at: string
+          family_id: string | null
+          full_name: string | null
           id: string
           is_minor: boolean
           name: string
-          owner_id: string
+          role: string
           slug: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           birth_year?: number | null
+          cpf?: string | null
           created_at?: string
+          family_id?: string | null
+          full_name?: string | null
           id?: string
           is_minor?: boolean
           name: string
-          owner_id: string
+          role?: string
           slug: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           birth_year?: number | null
+          cpf?: string | null
           created_at?: string
+          family_id?: string | null
+          full_name?: string | null
           id?: string
           is_minor?: boolean
           name?: string
-          owner_id?: string
+          role?: string
           slug?: string
           updated_at?: string
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "holders_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       import_batches: {
         Row: {
@@ -384,7 +455,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      claim_holder_by_cpf: { Args: Record<PropertyKey, never>; Returns: string }
+      is_family_owner: { Args: { p_family_id: string }; Returns: boolean }
+      my_family_id: { Args: Record<PropertyKey, never>; Returns: string }
     }
     Enums: {
       alert_severity: "info" | "warning" | "critical"
@@ -414,22 +487,148 @@ type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
-  T extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"]),
-> = (DefaultSchema["Tables"] & DefaultSchema["Views"])[T] extends { Row: infer R } ? R : never
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
-export type TablesInsert<T extends keyof DefaultSchema["Tables"]> =
-  DefaultSchema["Tables"][T] extends { Insert: infer I } ? I : never
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
-export type TablesUpdate<T extends keyof DefaultSchema["Tables"]> =
-  DefaultSchema["Tables"][T] extends { Update: infer U } ? U : never
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
-export type Enums<T extends keyof DefaultSchema["Enums"]> = DefaultSchema["Enums"][T]
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
-// Aliases convenientes
-export type DBHolder = Tables<"holders">
-export type DBStrategy = Tables<"strategies">
-export type DBStrategyAllocation = Tables<"strategy_allocations">
-export type DBPosition = Tables<"positions">
-export type DBImportBatch = Tables<"import_batches">
-export type DBAlert = Tables<"alerts">
-export type DBExchangeRate = Tables<"exchange_rates">
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      alert_severity: ["info", "warning", "critical"],
+      alert_status: ["unread", "read", "dismissed"],
+      asset_class: [
+        "fiis",
+        "stocks_br",
+        "stocks_intl",
+        "fixed_income",
+        "funds",
+        "liquidity",
+        "etf_br",
+        "etf_intl",
+      ],
+      currency: ["BRL", "USD"],
+      import_status: ["pending", "processing", "completed", "failed"],
+      indexer: ["cdi", "ipca", "igpm", "selic", "prefixado", "usd", "none"],
+      institution: ["xp", "btg", "nomad"],
+      risk_profile: ["conservative", "moderate", "aggressive"],
+    },
+  },
+} as const
+
+// Convenience aliases
+export type DBHolder = Database["public"]["Tables"]["holders"]["Row"]
+export type DBFamily = Database["public"]["Tables"]["families"]["Row"]
+export type DBFamilyCpf = Database["public"]["Tables"]["family_cpfs"]["Row"]
+export type DBStrategy = Database["public"]["Tables"]["strategies"]["Row"]
+export type DBStrategyAllocation = Database["public"]["Tables"]["strategy_allocations"]["Row"]
+export type DBPosition = Database["public"]["Tables"]["positions"]["Row"]
+export type DBImportBatch = Database["public"]["Tables"]["import_batches"]["Row"]
+export type DBAlert = Database["public"]["Tables"]["alerts"]["Row"]
+export type DBExchangeRate = Database["public"]["Tables"]["exchange_rates"]["Row"]

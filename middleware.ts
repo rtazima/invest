@@ -7,11 +7,9 @@ function getEnvVar(name: string): string {
   return value;
 }
 
-// Rotas que não precisam de auth
-const PUBLIC_ROUTES = ["/login", "/auth/callback"];
-
-// Rotas que precisam de auth mas não de aal2 (MFA em andamento)
+const PUBLIC_ROUTES = ["/login", "/register", "/auth/callback"];
 const MFA_ROUTES = ["/mfa/enroll", "/mfa/verify"];
+const ONBOARDING_ROUTE = "/onboarding";
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -35,7 +33,6 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  // Renova sessão — não remover esta chamada
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -44,27 +41,33 @@ export async function middleware(request: NextRequest) {
 
   const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
   const isMfaRoute = MFA_ROUTES.some((r) => pathname.startsWith(r));
+  const isOnboarding = pathname.startsWith(ONBOARDING_ROUTE);
 
   // Não autenticado
   if (!user) {
-    if (isPublic || isMfaRoute) return supabaseResponse;
+    if (isPublic || isMfaRoute || isOnboarding) return supabaseResponse;
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Autenticado + tentando acessar /login → redireciona
-  if (pathname.startsWith("/login")) {
+  // Autenticado + tentando acessar /login ou /register
+  if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Rotas MFA: acessíveis com qualquer nível de auth
-  if (isMfaRoute) return supabaseResponse;
+  // Rotas MFA e onboarding: acessíveis sem aal2
+  if (isMfaRoute || isOnboarding) return supabaseResponse;
 
-  // Rotas protegidas: verifica se MFA está completo (aal2)
+  // Verifica onboarding concluído (lido do JWT — sem roundtrip ao DB)
+  const isOnboarded = user.user_metadata?.["onboarded"] === true;
+  if (!isOnboarded && !isPublic) {
+    return NextResponse.redirect(new URL("/onboarding", request.url));
+  }
+
+  // Rotas protegidas: verifica aal2
   if (!isPublic) {
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
     if (aal?.currentLevel !== "aal2") {
-      // Verifica se tem TOTP cadastrado
       const { data: factors } = await supabase.auth.mfa.listFactors();
       const hasTOTP = (factors?.totp?.length ?? 0) > 0;
 
