@@ -38,10 +38,50 @@ Estratégias detalhadas em `docs/product/estrategias-por-titular.md`.
 
 ```
 src/
-  app/              ← Next.js App Router (páginas e layouts)
-  components/       ← componentes React (shadcn + customizados)
+  app/
+    (app)/
+      dashboard/    ← dashboard principal (4 tabs: global, titular, instituição, classe)
+      alerts/       ← página de alertas + Server Actions (markRead, dismiss)
+      import/       ← wizard de importação CSV + Server Action processCSVImport
+      holders/
+        [holderId]/
+          strategy/ ← editor de estratégia por titular + Server Actions
+  components/
+    ui/
+      Sidebar.tsx       ← sidebar fixa 56px com nav + badge de alertas
+      AppHeader.tsx     ← breadcrumb + status dots de sync por instituição
+      PnlValue.tsx      ← valor P&L com cor gain/loss + símbolo U+2212
+    dashboard/
+      types.ts          ← interfaces serializáveis (ClientPortfolioSummary etc.)
+      DashboardView.tsx ← orquestrador client-side (tabs + hero + alertas)
+      PortfolioHeroCard.tsx ← card hero com period switcher + SVG line chart
+      HolderCard.tsx    ← card por titular com sparkline SVG
+      AllocationDonut.tsx   ← donut SVG com hover expand por segmento
+      PositionsTable.tsx    ← tabela de posições com sort/filter client-side
+      TabByHolder.tsx       ← tab por titular
+      TabByInstitution.tsx  ← tab por instituição com sync status
+      TabByClass.tsx        ← tab por classe de ativo
+      AlertsPanel.tsx       ← painel lateral de alertas com dismiss
+    alerts/
+      AlertCard.tsx     ← card de alerta com severity + dismiss handler
+      AlertFilters.tsx  ← filtros URL-based por severity/status
+    import/
+      ImportWizard.tsx  ← wizard 4 etapas: titular → instituição → arquivo → confirmar
+    strategy/
+      RiskProfileBadge.tsx  ← badge colorido por perfil de risco
+      AllocationEditor.tsx  ← tabela editável de alocações (soma = 100%)
+      StrategyPanel.tsx     ← painel combinado perfil + alocações
   agents/           ← agentes Claude (monitoring, recommendation, allocation)
   lib/
+    csv/
+      types.ts      ← ParsedPosition, ParseError, ParseResult, CsvFormat
+      validators.ts ← parseDecimalBR/US, parseDateBR/US, parsePct, validatePositions
+      xp-parser.ts  ← parser CSV XP (sep auto-detect, assets, indexadores, liquidez)
+      btg-parser.ts ← parser CSV BTG
+      nomad-parser.ts ← parser CSV Nomad (USD, exchangeRate: Decimal)
+      index.ts      ← detectFormat() + parseCSV() orquestrador
+    data/
+      sync.ts       ← getInstitutionSyncStatuses() — ok/warn/never por instituição
     pluggy/         ← cliente Pluggy API
     plaid/          ← cliente Plaid API (Nomad)
     supabase/       ← cliente Supabase (browser + server)
@@ -144,6 +184,8 @@ scripts/            ← bootstrap, pre-commit, ci
 - Dados de menores (filhos) exigem atenção extra de LGPD — consentimento parental documentado.
 - Tesouro Direto: preços intraday variam, valor de mercado diverge do valor investido — deixar claro no UI.
 - Fundos de investimento têm cota D+1 ou D+2 — não mostrar valor de hoje como definitivo.
+- Gráficos (donut, sparkline, line chart) são SVG puro — sem Recharts. Demo data hard-coded em PortfolioHeroCard e HolderCard até série histórica estar no banco.
+- Decimal nunca passa direto como prop para Client Components — converter para `number` no Server Component antes de serializar (ver `dashboard/page.tsx`).
 
 ## Memória (L4)
 

@@ -1,51 +1,94 @@
 import { Metadata } from "next";
+import { getPortfolioSummary } from "@/lib/data/portfolio";
+import { getAlerts } from "@/lib/data/alerts";
+import { getLatestPositions } from "@/lib/data/positions";
+import { getInstitutionSyncStatuses } from "@/lib/data/sync";
+import { getHolders } from "@/lib/data/holders";
+import { DashboardView } from "@/components/dashboard/DashboardView";
+import type { ClientPortfolioSummary, ClientPosition, ClientAlert } from "@/components/dashboard/types";
 
-export const metadata: Metadata = {
-  title: "Dashboard — Invest",
-};
+export const metadata: Metadata = { title: "Dashboard — Invest" };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const [summary, alerts, positions, holders, syncStatuses] = await Promise.all([
+    getPortfolioSummary(),
+    getAlerts({ limit: 30 }),
+    getLatestPositions(),
+    getHolders(),
+    getInstitutionSyncStatuses(),
+  ]);
+
+  const holderMap = new Map(holders.map((h) => [h.id, h]));
+
+  const clientSummary: ClientPortfolioSummary = {
+    totalBrl: summary.totalBrl.toNumber(),
+    byHolder: summary.byHolder.map((h) => ({
+      id: h.holder.id,
+      name: h.holder.name,
+      slug: h.holder.slug,
+      role: h.holder.role,
+      totalBrl: h.totalBrl.toNumber(),
+      byInstitution: Object.fromEntries(
+        Object.entries(h.byInstitution).map(([k, v]) => [k, v.toNumber()]),
+      ),
+      byAssetClass: Object.fromEntries(
+        Object.entries(h.byAssetClass).map(([k, v]) => [k, v.toNumber()]),
+      ),
+    })),
+    byInstitution: Object.fromEntries(
+      Object.entries(summary.byInstitution).map(([k, v]) => [k, v.toNumber()]),
+    ),
+    byAssetClass: Object.fromEntries(
+      Object.entries(summary.byAssetClass).map(([k, v]) => [k, v.toNumber()]),
+    ),
+    lastUpdatedAt: summary.lastUpdatedAt?.toISOString() ?? null,
+  };
+
+  const clientPositions: ClientPosition[] = positions.map((p) => {
+    const holder = holderMap.get(p.holder_id);
+    return {
+      id: p.id,
+      holder_id: p.holder_id,
+      holder_name: holder?.name ?? "—",
+      holder_slug: holder?.slug ?? "",
+      institution: p.institution,
+      ticker: p.ticker,
+      name: p.name,
+      asset_class: p.asset_class,
+      currency: p.currency,
+      quantity: Number(p.quantity),
+      avg_price: p.avg_price !== null ? Number(p.avg_price) : null,
+      current_price: p.current_price !== null ? Number(p.current_price) : null,
+      market_value: Number(p.market_value),
+      market_value_brl: p.marketValueBrl.toNumber(),
+      pnl: p.pnlDecimal?.toNumber() ?? null,
+      pnl_pct: p.pnlPctDecimal?.toNumber() ?? null,
+      maturity_date: p.maturity_date,
+      indexer: p.indexer,
+      liquidity_days: p.liquidity_days,
+      quota_date: p.quota_date,
+      is_stale_quota: p.isStaleQuota,
+    };
+  });
+
+  const clientAlerts: ClientAlert[] = alerts.map((a) => ({
+    id: a.id,
+    holder_id: a.holder_id,
+    ticker: a.ticker,
+    severity: a.severity,
+    status: a.status,
+    title: a.title,
+    description: a.description,
+    recommendation: a.recommendation,
+    generated_at: a.generated_at,
+  }));
+
   return (
-    <div>
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h1
-          style={{
-            fontSize: "1.5rem",
-            fontWeight: 700,
-            color: "var(--color-text)",
-            margin: 0,
-          }}
-        >
-          Dashboard
-        </h1>
-        <p
-          style={{
-            fontSize: "0.875rem",
-            color: "var(--color-text-muted)",
-            marginTop: "0.25rem",
-          }}
-        >
-          Portfólio consolidado da família
-        </p>
-      </div>
-
-      {/* Placeholder — implementado na Etapa 6 */}
-      <div
-        style={{
-          padding: "3rem",
-          backgroundColor: "var(--color-surface)",
-          borderRadius: "var(--radius-lg)",
-          border: "1px solid var(--color-border)",
-          textAlign: "center",
-        }}
-      >
-        <p style={{ color: "var(--color-text-muted)", fontSize: "0.875rem" }}>
-          Dashboard em construção — Etapa 6
-        </p>
-        <p style={{ color: "var(--color-text-faint)", fontSize: "0.75rem", marginTop: "0.5rem" }}>
-          Importe seu portfólio para começar
-        </p>
-      </div>
-    </div>
+    <DashboardView
+      summary={clientSummary}
+      positions={clientPositions}
+      alerts={clientAlerts}
+      syncStatuses={syncStatuses}
+    />
   );
 }
