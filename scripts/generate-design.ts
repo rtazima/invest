@@ -26,7 +26,7 @@ const ROOT = path.resolve(__dirname, "..");
 const DESIGN_DIR = path.join(ROOT, "docs", "design");
 const DOCS_DIR = path.join(ROOT, "docs");
 
-const SCREENS = ["dashboard", "alertas", "estrategia", "importar"] as const;
+const SCREENS = ["dashboard", "alertas", "estrategia", "importar", "auth", "familia"] as const;
 type Screen = (typeof SCREENS)[number];
 
 // Prompt caching: o contexto do projeto é cacheado entre chamadas
@@ -169,6 +169,102 @@ Gere o PROMPT.md de design para o EDITOR DE ESTRATÉGIA por titular do Invest.
    - Transição suave entre modo view e edit
 `,
 
+  auth: `
+Gere o PROMPT.md de design para o FLUXO DE AUTENTICAÇÃO do Invest.
+
+Cobre quatro telas do mesmo fluxo — todas usam o mesmo card centralizado, mesma paleta, mesma tipografia. São telas simples de formulário, mas precisam ter uma identidade visual premium.
+
+## Telas cobertas
+
+1. **/login** — e-mail → magic link
+2. **/register** — e-mail + CPF → magic link (campo CPF com máscara 000.000.000-00)
+3. **/onboarding** — nome completo + apelido + nome da família (opcional) + CPF (se owner) — aparece uma vez por conta nova
+4. **/mfa/enroll** — exibe QR code ou chave TOTP, campo de código de 6 dígitos, botão confirmar
+5. **/mfa/verify** — campo de código de 6 dígitos, botão entrar
+
+## Contexto
+
+- Plataforma de gestão patrimonial familiar — público é adulto, sofisticado, valoriza privacidade
+- Dark mode padrão
+- Visual: limpo, minimalista, confiável — referência: Linear login, Vercel login
+- Card único centralizado na tela (max-width 360px para login/register, 400px para onboarding)
+- Logo "Invest" no topo do card com tagline "Gestão patrimonial familiar"
+- Sem imagens decorativas — tipografia + espaço em branco fazem o trabalho visual
+
+## O que o PROMPT.md deve conter
+
+1. **Design tokens específicos**:
+   - Cor de fundo da página (mais escuro que o dashboard)
+   - Estilo do card: background, border, border-radius, shadow
+   - Input: idle, focused, error — com transição de borda
+   - Botão primário: cor, hover, loading (spinner inline), disabled
+   - Link de ação secundária (ex: "Já tem conta? Entrar")
+   - Mensagem de sucesso (ex: "Link enviado") — card diferente, ícone de envelope
+   - Mensagem de erro inline
+
+2. **Especificação por tela**:
+   - Layout exato do card (logo, título, subtitle, form, CTA, link secundário)
+   - Campos e labels de cada tela
+   - Estados especiais: loading após submit, estado "check-email" do /login e /register
+   - /onboarding: quando mostrar/ocultar campo CPF e campo família
+   - /mfa/enroll: exibição da chave TOTP em fonte mono + instrução de setup
+   - /mfa/verify: input de 6 dígitos com autosubmit ou botão
+
+3. **Micro-interações**:
+   - Input CPF: máscara ao digitar (000.000.000-00)
+   - Código MFA: aceita só dígitos, auto-avança ao completar 6
+   - Botão de submit: loading spinner durante requisição
+
+4. **Instruções de implementação**:
+   - Server Actions para os forms (sem useEffect de submit)
+   - Como implementar a máscara de CPF sem biblioteca externa
+   - Componentes shadcn/ui relevantes (Input, Button, Form, Label)
+`,
+
+  familia: `
+Gere o PROMPT.md de design para a tela FAMÍLIA do Invest.
+
+## Contexto desta tela
+
+- Rota: /familia
+- Acesso: apenas o owner da família (ex: Rodrigo)
+- Funcionalidades:
+  1. Lista de titulares com status (owner | membro ativo | pendente — aguardando cadastro)
+  2. Formulário inline para adicionar novo membro: CPF + nome completo + apelido + ano de nascimento + checkbox menor de idade
+
+## Contexto do produto
+
+- Família tem no máximo 10-15 membros (lista pequena)
+- Status "pendente": CPF cadastrado pelo owner, mas a pessoa ainda não criou conta
+- Quando membro se cadastra com o mesmo CPF: vira "membro ativo" automaticamente
+- Owner não consegue remover a si mesmo
+
+## O que o PROMPT.md deve conter
+
+1. **Design tokens específicos**:
+   - Badge de status: owner (brand color), ativo (verde), pendente (âmbar)
+   - Avatar gerado por inicial do nome (sem foto — plataforma financeira, privacidade)
+   - Linha de titular: hover state, layout de informações
+
+2. **Especificação de componentes**:
+   - HolderRow: avatar (inicial), nome + nome completo (secundário), CPF mascarado, badge de status, menu de ações (···)
+   - AddMemberForm: formulário inline com grid 2 colunas (CPF + ano nasc.), campos de nome, checkbox, botão
+   - Seção de lista: título "Titulares" + contagem, lista de HolderRows
+   - Estado vazio da lista (não acontece — owner sempre está listado)
+
+3. **Layout da página**:
+   - Max-width 640px, centralizado
+   - Header: título "Família" + subtítulo
+   - Seção lista de titulares
+   - Seção "Adicionar membro" (card com form)
+   - Mensagens de erro/sucesso inline no form (não toast)
+
+4. **Instruções de implementação**:
+   - CPF mascarado na lista (ex: 123.***.***-45) — privacidade
+   - Server Action para adicionar (revalidatePath após sucesso)
+   - Sem modal — tudo inline na página
+`,
+
   importar: `
 Gere o PROMPT.md de design para a TELA DE IMPORTAÇÃO CSV do Invest.
 
@@ -222,7 +318,7 @@ async function generateDesignPrompt(screen: Screen): Promise<void> {
   const screenPrompt = SCREEN_PROMPTS[screen];
 
   const response = await client.messages.create({
-    model: "claude-opus-4-5",
+    model: "claude-opus-4-7",
     max_tokens: 8000,
     system: [
       {
@@ -263,7 +359,7 @@ Princípios inegociáveis:
 
 > Gerado automaticamente por \`scripts/generate-design.ts\`
 > Data: ${new Date().toISOString().split("T")[0]}
-> Modelo: claude-opus-4-5
+> Modelo: claude-opus-4-7
 >
 > Este arquivo é a fonte de verdade para implementação da tela **${screen}**.
 > O comando \`/implement\` usa este arquivo como contexto de UI.
