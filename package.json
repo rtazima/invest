@@ -49,5 +49,10 @@
     "@playwright/test": "^1.60.0",
     "jsdom": "^26.1.0"
   },
-  "packageManager": "pnpm@10.10.0"
+  "packageManager": "pnpm@10.10.0",
+  "pnpm": {
+    "overrides": {
+      "postcss": ">=8.5.10"
+    }
+  }
 }
