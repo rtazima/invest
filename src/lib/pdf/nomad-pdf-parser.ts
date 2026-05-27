@@ -223,7 +223,7 @@ export async function parseNomadPdf(
     const diag = [
       `lines_total=${lines.length}`,
       `portfolio_line=${portfolioIdx}`,
-      `first_20_lines=${JSON.stringify(lines.slice(0, 20))}`,
+      `portfolio_ctx=${JSON.stringify(lines.slice(portfolioIdx, portfolioIdx + 50))}`,
     ].join(" | ");
     throw new Error(`[nomad-debug] ${diag}`);
   }
