@@ -10,33 +10,15 @@ const TICKER_ONLY_RE = /^[A-Z]{1,6}$/;
 // Data line: starts with decimal number (quantity field)
 const DATA_LINE_RE = /^\d+\.\d+ /;
 
-// pdf-parse marks load/getText as private in its types but they are callable at runtime.
-// We cast through unknown to bypass the access check.
-type PDFParseInstance = {
-  load(): Promise<unknown>;
-  getText(): Promise<string | { text: string }>;
-};
-
 async function extractText(buffer: ArrayBuffer): Promise<string> {
-  // pdfjs-dist v5 executes `new DOMMatrix()` at module-init time (CanvasGraphics).
-  // Node.js doesn't have DOMMatrix; a no-op stub is enough since we only extract text
-  // and never trigger canvas rendering.
-  if (typeof (globalThis as Record<string, unknown>).DOMMatrix === "undefined") {
-    (globalThis as Record<string, unknown>).DOMMatrix = class DOMMatrix {
-      constructor(_init?: string | number[]) {}
-      preMultiplySelf() { return this; }
-      multiplySelf() { return this; }
-      invertSelf() { return this; }
-      translateSelf() { return this; }
-      scaleSelf() { return this; }
-    };
-  }
-
-  const { PDFParse } = await import("pdf-parse");
-  const parser = new PDFParse({ data: new Uint8Array(buffer) }) as unknown as PDFParseInstance;
-  await parser.load();
-  const result = await parser.getText();
-  return typeof result === "string" ? result : (result.text ?? "");
+  // pdf-parse v1.1.1 embute pdfjs-dist v2 — sem workers, sem browser APIs.
+  // module.exports = fn; dynamic import expõe como .default em ESM.
+  const mod = await import("pdf-parse");
+  const pdfParse = (mod.default ?? mod) as (
+    data: Buffer | Uint8Array,
+  ) => Promise<{ text: string }>;
+  const result = await pdfParse(Buffer.from(buffer));
+  return result.text;
 }
 
 function parseUSD(s: string): Decimal | null {
