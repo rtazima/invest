@@ -120,6 +120,22 @@ export function TabByClass({ summary }: Props) {
           );
         })}
       </tbody>
+      {rows.length > 0 && (
+        <tfoot>
+          <tr style={{ borderTop: "1px solid var(--color-line)" }}>
+            <td style={{ padding: "8px 8px 8px 16px", fontSize: "11.5px", color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Total
+            </td>
+            <td style={{ padding: "8px", textAlign: "right" }}>
+              <span className="num" style={{ fontWeight: 600, fontSize: "13px" }}>{fmt(totalBrl)}</span>
+            </td>
+            <td style={{ padding: "8px", textAlign: "right" }}>
+              <span className="num" style={{ fontWeight: 600, fontSize: "13px", color: "var(--color-text-2)" }}>100,00%</span>
+            </td>
+            <td style={{ padding: "8px 16px 8px 8px" }} />
+          </tr>
+        </tfoot>
+      )}
     </table>
   );
 }

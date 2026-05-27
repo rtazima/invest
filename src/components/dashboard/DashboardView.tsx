@@ -124,7 +124,7 @@ export function DashboardView({ summary, positions, alerts, syncStatuses }: Prop
                   <div style={{ padding: "20px" }}>
                     <AllocationDonut byAssetClass={summary.byAssetClass} totalBrl={summary.totalBrl} />
                     <div style={{ marginTop: "24px" }}>
-                      <PositionsTable positions={positions} />
+                      <PositionsTable positions={positions} totalBrl={summary.totalBrl} />
                     </div>
                   </div>
                 )}

@@ -7,10 +7,10 @@ import type { EnrichedPosition } from "@/types/domain";
 export async function getLatestPositions(holderId?: string): Promise<EnrichedPosition[]> {
   const supabase = await createServerClient();
 
-  // Pega o batch mais recente por (holder_id, institution) com status completed
+  // Pega batches completed, ordenados do mais recente para o mais antigo
   let batchQuery = supabase
     .from("import_batches")
-    .select("id, holder_id, institution, completed_at")
+    .select("id, holder_id, institution, filename, completed_at")
     .eq("status", "completed")
     .order("completed_at", { ascending: false });
 
@@ -19,10 +19,12 @@ export async function getLatestPositions(holderId?: string): Promise<EnrichedPos
   const { data: batches, error: batchErr } = await batchQuery;
   if (batchErr) throw new Error(`getLatestPositions/batches: ${batchErr.message}`);
 
-  // Para cada (holder_id, institution), mantém só o batch mais recente
+  // Dedup por (holder_id, institution, filename): cada arquivo-fonte tem seu próprio slot.
+  // Re-importar o mesmo arquivo substitui o batch anterior; arquivos diferentes coexistem
+  // (útil quando a mesma instituição exporta sub-contas em arquivos separados).
   const latestBatchId = new Map<string, string>();
   for (const b of batches ?? []) {
-    const key = `${b.holder_id}:${b.institution}`;
+    const key = `${b.holder_id}:${b.institution}:${b.filename ?? ""}`;
     if (!latestBatchId.has(key)) latestBatchId.set(key, b.id);
   }
 

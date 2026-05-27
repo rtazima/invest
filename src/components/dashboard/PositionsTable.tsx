@@ -37,9 +37,10 @@ function fmt0(n: number | null): string {
 
 interface Props {
   positions: ClientPosition[];
+  totalBrl: number;
 }
 
-export function PositionsTable({ positions }: Props) {
+export function PositionsTable({ positions, totalBrl }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("market_value_brl");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filterClass, setFilterClass] = useState<string>("");
@@ -183,7 +184,6 @@ export function PositionsTable({ positions }: Props) {
           <tbody>
             {sorted.map((pos) => {
               const holderColor = HOLDER_COLORS[pos.holder_slug] ?? "var(--color-brand)";
-              const totalBrl = positions.reduce((s, p) => s + p.market_value_brl, 0);
               const portPct = totalBrl > 0 ? (pos.market_value_brl / totalBrl) * 100 : 0;
 
               return (
@@ -305,6 +305,28 @@ export function PositionsTable({ positions }: Props) {
               </tr>
             )}
           </tbody>
+          {sorted.length > 0 && (
+            <tfoot>
+              <tr style={{ borderTop: "1px solid var(--color-line)" }}>
+                <td colSpan={6} style={{ padding: "8px 8px 8px 16px", fontSize: "11.5px", color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Total ({sorted.length} ativo{sorted.length !== 1 ? "s" : ""})
+                </td>
+                <td style={{ padding: "8px", paddingRight: "8px", textAlign: "right" }}>
+                  <span className="num" style={{ fontWeight: 600, fontSize: "13px" }}>
+                    {fmt(sorted.reduce((s, p) => s + p.market_value_brl, 0))}
+                  </span>
+                </td>
+                <td colSpan={2} />
+                <td style={{ padding: "8px", paddingRight: "16px", textAlign: "right" }}>
+                  <span className="num" style={{ fontWeight: 600, fontSize: "13px", color: "var(--color-text-2)" }}>
+                    {filterClass || filterInst
+                      ? `${((sorted.reduce((s, p) => s + p.market_value_brl, 0) / totalBrl) * 100).toFixed(2)}%`
+                      : "100,00%"}
+                  </span>
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>
