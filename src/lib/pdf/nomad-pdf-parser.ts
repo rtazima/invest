@@ -218,5 +218,15 @@ export async function parseNomadPdf(
     });
   }
 
+  if (positions.length === 0) {
+    const portfolioIdx = lines.findIndex((l) => l === "PORTFOLIO");
+    const diag = [
+      `lines_total=${lines.length}`,
+      `portfolio_line=${portfolioIdx}`,
+      `first_20_lines=${JSON.stringify(lines.slice(0, 20))}`,
+    ].join(" | ");
+    throw new Error(`[nomad-debug] ${diag}`);
+  }
+
   return positions;
 }
