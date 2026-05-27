@@ -18,6 +18,20 @@ type PDFParseInstance = {
 };
 
 async function extractText(buffer: ArrayBuffer): Promise<string> {
+  // pdfjs-dist v5 executes `new DOMMatrix()` at module-init time (CanvasGraphics).
+  // Node.js doesn't have DOMMatrix; a no-op stub is enough since we only extract text
+  // and never trigger canvas rendering.
+  if (typeof (globalThis as Record<string, unknown>).DOMMatrix === "undefined") {
+    (globalThis as Record<string, unknown>).DOMMatrix = class DOMMatrix {
+      constructor(_init?: string | number[]) {}
+      preMultiplySelf() { return this; }
+      multiplySelf() { return this; }
+      invertSelf() { return this; }
+      translateSelf() { return this; }
+      scaleSelf() { return this; }
+    };
+  }
+
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: new Uint8Array(buffer) }) as unknown as PDFParseInstance;
   await parser.load();
