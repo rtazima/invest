@@ -52,7 +52,7 @@ export function ImportWizard({ holders }: Props) {
   const selectedHolder = holders.find((h) => h.id === holderId);
 
   const acceptedExtensions =
-    institution === "xp" || institution === "btg" ? [".xlsx", ".csv"] : [".csv"];
+    institution === "nomad" ? [".pdf"] : [".xlsx", ".csv"];
 
   function isValidFile(f: File): boolean {
     return acceptedExtensions.some((ext) => f.name.toLowerCase().endsWith(ext));
@@ -314,7 +314,7 @@ export function ImportWizard({ holders }: Props) {
                     ? "XP: arquivo XLSX (Posição Detalhada) ou CSV"
                     : institution === "btg"
                     ? "BTG: arquivo XLSX (Extrato da Conta Investimento) ou CSV"
-                    : "Nomad: arquivo CSV"}
+                    : "Nomad: arquivo PDF (Account Statement)"}
                 </p>
               </div>
             )}

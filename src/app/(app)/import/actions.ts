@@ -7,6 +7,7 @@ import { getHolders } from "@/lib/data/holders";
 import { detectFormat, parseCSV, extractCsvOwner } from "@/lib/csv";
 import { parseXPXlsx, extractXPXlsxOwner } from "@/lib/xlsx/xp-xlsx-parser";
 import { parseBTGXlsx, extractBTGXlsxOwner } from "@/lib/xlsx/btg-xlsx-parser";
+import { parseNomadPdf, extractNomadPdfOwner } from "@/lib/pdf/nomad-pdf-parser";
 import { validateDocumentOwner } from "@/lib/import/owner-validator";
 import type { ParsedPosition } from "@/lib/csv/types";
 import { toDecimal } from "@/lib/decimal";
@@ -42,7 +43,9 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
   const holder = holders.find((h) => h.id === holderId);
   if (!holder) return { success: false, errorMessage: "Titular não encontrado." };
 
-  const isXlsx = file.name.toLowerCase().endsWith(".xlsx");
+  const fileName = file.name.toLowerCase();
+  const isXlsx = fileName.endsWith(".xlsx");
+  const isPdf = fileName.endsWith(".pdf");
 
   if (institution === "nomad" && !exchangeRateStr) {
     return { success: false, errorMessage: "Informe a cotação USD/BRL para importar o Nomad." };
@@ -56,7 +59,7 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
       holder_id: holderId,
       institution,
       status: "processing",
-      source: isXlsx ? "xlsx" : "csv",
+      source: isXlsx ? "xlsx" : isPdf ? "pdf" : "csv",
       filename: file.name,
       imported_by: user.id,
       exchange_rate: institution === "nomad" ? exchangeRate.toNumber() : null,
@@ -75,7 +78,7 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
 
     if (isXlsx) {
       if (institution !== "xp" && institution !== "btg") {
-        return { success: false, errorMessage: "Formato XLSX é suportado para XP e BTG. Nomad usa CSV." };
+        return { success: false, errorMessage: "Formato XLSX é suportado para XP e BTG. Nomad usa PDF." };
       }
       const buffer = await file.arrayBuffer();
 
@@ -89,6 +92,19 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
       }
 
       positions = institution === "btg" ? parseBTGXlsx(buffer) : parseXPXlsx(buffer);
+    } else if (isPdf) {
+      if (institution !== "nomad") {
+        return { success: false, errorMessage: "Formato PDF é suportado apenas para Nomad." };
+      }
+      const buffer = await file.arrayBuffer();
+
+      const ownerErr = validateDocumentOwner(await extractNomadPdfOwner(buffer), holder);
+      if (ownerErr) {
+        await supabase.from("import_batches").update({ status: "failed", error_message: ownerErr }).eq("id", batch.id);
+        return { success: false, errorMessage: ownerErr };
+      }
+
+      positions = await parseNomadPdf(buffer, exchangeRate);
     } else {
       const csvText = await file.text();
       const format = detectFormat(csvText);
