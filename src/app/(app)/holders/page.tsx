@@ -4,6 +4,13 @@ import { getHolders } from "@/lib/data/holders";
 import { getStrategy } from "@/lib/data/strategies";
 import { RiskProfileBadge } from "@/components/strategy/RiskProfileBadge";
 
+function isMinor(birthDate: string | null): boolean {
+  if (!birthDate) return false;
+  const dob = new Date(birthDate);
+  const cutoff = new Date(dob.getFullYear() + 18, dob.getMonth(), dob.getDate());
+  return new Date() < cutoff;
+}
+
 export const metadata: Metadata = { title: "Estratégia — Invest" };
 
 const HOLDER_COLORS: Record<string, string> = {
@@ -86,7 +93,7 @@ export default async function HoldersPage() {
                     <span style={{ fontWeight: 600, fontSize: "14px", color: "var(--color-text)" }}>
                       {h.name}
                     </span>
-                    {h.is_minor && (
+                    {isMinor(h.birth_date) && (
                       <span className="pill" style={{ fontSize: "10px" }}>menor</span>
                     )}
                     {strategy && <RiskProfileBadge profile={strategy.risk_profile} />}

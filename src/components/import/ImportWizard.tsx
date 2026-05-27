@@ -51,11 +51,18 @@ export function ImportWizard({ holders }: Props) {
   const isNomad = institution === "nomad";
   const selectedHolder = holders.find((h) => h.id === holderId);
 
+  const acceptedExtensions =
+    institution === "xp" || institution === "btg" ? [".xlsx", ".csv"] : [".csv"];
+
+  function isValidFile(f: File): boolean {
+    return acceptedExtensions.some((ext) => f.name.toLowerCase().endsWith(ext));
+  }
+
   function handleFileDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped?.name.endsWith(".csv")) setFile(dropped);
+    if (dropped && isValidFile(dropped)) setFile(dropped);
   }
 
   async function handleSubmit() {
@@ -258,7 +265,7 @@ export function ImportWizard({ holders }: Props) {
       {step === "arquivo" && (
         <div style={{ maxWidth: "500px" }}>
           <h2 style={{ margin: "0 0 20px", fontSize: "15px", fontWeight: 600 }}>
-            Upload do CSV — {INSTITUTIONS.find((i) => i.value === institution)?.label}
+            Upload do arquivo — {INSTITUTIONS.find((i) => i.value === institution)?.label}
           </h2>
 
           {/* Dropzone */}
@@ -281,9 +288,12 @@ export function ImportWizard({ holders }: Props) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv"
+              accept={acceptedExtensions.join(",")}
               style={{ display: "none" }}
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null;
+                setFile(f && isValidFile(f) ? f : null);
+              }}
             />
             {file ? (
               <div>
@@ -297,10 +307,14 @@ export function ImportWizard({ holders }: Props) {
             ) : (
               <div>
                 <p style={{ margin: "0 0 4px", color: "var(--color-text-2)", fontSize: "13px" }}>
-                  Arraste o arquivo CSV ou clique para selecionar
+                  Arraste o arquivo ou clique para selecionar
                 </p>
                 <p style={{ margin: 0, fontSize: "11.5px", color: "var(--color-text-3)" }}>
-                  Formatos suportados: XP, BTG e Nomad
+                  {institution === "xp"
+                    ? "XP: arquivo XLSX (Posição Detalhada) ou CSV"
+                    : institution === "btg"
+                    ? "BTG: arquivo XLSX (Extrato da Conta Investimento) ou CSV"
+                    : "Nomad: arquivo CSV"}
                 </p>
               </div>
             )}

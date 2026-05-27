@@ -28,12 +28,10 @@ function AddMemberFormInner({ familyId }: { familyId: string }) {
   const params = useSearchParams();
   const error = params.get("error");
   const [cpfDisplay, setCpfDisplay] = useState("");
-  const [isMinor, setIsMinor] = useState(false);
 
   return (
     <form action={addFamilyMember} style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
       <input type="hidden" name="family_id" value={familyId} />
-      <input type="hidden" name="is_minor" value={String(isMinor)} />
 
       {error && (
         <p
@@ -68,14 +66,11 @@ function AddMemberFormInner({ familyId }: { familyId: string }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-          <label htmlFor="member_birth_year" style={labelStyle}>Ano de nasc.</label>
+          <label htmlFor="member_birth_date" style={labelStyle}>Data de nascimento</label>
           <input
-            id="member_birth_year"
-            name="birth_year"
-            type="number"
-            min="1900"
-            max="2025"
-            placeholder="Ex: 2000"
+            id="member_birth_date"
+            name="birth_date"
+            type="date"
             style={inputStyle}
           />
         </div>
@@ -104,24 +99,6 @@ function AddMemberFormInner({ familyId }: { familyId: string }) {
           style={inputStyle}
         />
       </div>
-
-      <label
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          fontSize: "0.8125rem",
-          color: "var(--color-text-muted)",
-          cursor: "pointer",
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={isMinor}
-          onChange={(e) => setIsMinor(e.target.checked)}
-        />
-        Menor de idade
-      </label>
 
       <button
         type="submit"

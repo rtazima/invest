@@ -15,13 +15,19 @@ function toSlug(name: string): string {
     .slice(0, 40);
 }
 
+function computeIsMinor(birthDate: string | null): boolean {
+  if (!birthDate) return false;
+  const dob = new Date(birthDate);
+  const cutoff = new Date(dob.getFullYear() + 18, dob.getMonth(), dob.getDate());
+  return new Date() < cutoff;
+}
+
 export async function addFamilyMember(formData: FormData) {
   const cpfRaw = formData.get("cpf");
   const fullName = formData.get("full_name");
   const nickname = formData.get("nickname");
   const familyId = formData.get("family_id");
-  const birthYear = formData.get("birth_year");
-  const isMinor = formData.get("is_minor") === "true";
+  const birthDate = formData.get("birth_date");
 
   if (typeof cpfRaw !== "string" || !validateCPF(cpfRaw)) {
     redirect("/familia?error=CPF+inválido");
@@ -43,7 +49,6 @@ export async function addFamilyMember(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Verifica se o CPF já existe
   const { data: existing } = await supabase
     .from("holders")
     .select("id")
@@ -55,6 +60,7 @@ export async function addFamilyMember(formData: FormData) {
   }
 
   const slug = toSlug(nickname.trim());
+  const birthDateValue = typeof birthDate === "string" && birthDate ? birthDate : null;
 
   const { error } = await supabase.from("holders").insert({
     cpf,
@@ -63,15 +69,13 @@ export async function addFamilyMember(formData: FormData) {
     slug,
     family_id: familyId,
     role: "member",
-    is_minor: isMinor,
-    birth_year: birthYear ? parseInt(String(birthYear)) : null,
+    birth_date: birthDateValue,
   });
 
   if (error) {
     redirect(`/familia?error=${encodeURIComponent(error.message)}`);
   }
 
-  // Registra CPF em family_cpfs para auto-link no cadastro
   await supabase.from("family_cpfs").insert({
     family_id: familyId,
     cpf,
@@ -81,3 +85,85 @@ export async function addFamilyMember(formData: FormData) {
   revalidatePath("/familia");
   redirect("/familia");
 }
+
+export async function updateFamilyMember(formData: FormData) {
+  const holderId = formData.get("holder_id");
+  const fullName = formData.get("full_name");
+  const nickname = formData.get("nickname");
+  const birthDate = formData.get("birth_date");
+
+  if (typeof holderId !== "string" || !holderId) {
+    redirect("/familia?error=Titular+não+encontrado");
+  }
+  if (typeof fullName !== "string" || fullName.trim().length < 3) {
+    redirect("/familia?error=Nome+completo+obrigatório");
+  }
+  if (typeof nickname !== "string" || nickname.trim().length < 2) {
+    redirect("/familia?error=Apelido+obrigatório");
+  }
+
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const birthDateValue = typeof birthDate === "string" && birthDate ? birthDate : null;
+  const slug = toSlug(nickname.trim());
+
+  const { error } = await supabase
+    .from("holders")
+    .update({
+      full_name: fullName.trim(),
+      name: nickname.trim(),
+      slug,
+      birth_date: birthDateValue,
+    })
+    .eq("id", holderId);
+
+  if (error) {
+    redirect(`/familia?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/familia");
+  redirect("/familia");
+}
+
+export async function deleteFamilyMember(formData: FormData) {
+  const holderId = formData.get("holder_id");
+
+  if (typeof holderId !== "string" || !holderId) {
+    redirect("/familia?error=Titular+não+encontrado");
+  }
+
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Verifica se tem posições cadastradas
+  const { count } = await supabase
+    .from("positions")
+    .select("id", { count: "exact", head: true })
+    .eq("holder_id", holderId);
+
+  if (count && count > 0) {
+    redirect("/familia?error=Titular+tem+posições+cadastradas.+Remova+as+posições+primeiro.");
+  }
+
+  const { error } = await supabase
+    .from("holders")
+    .delete()
+    .eq("id", holderId);
+
+  if (error) {
+    redirect(`/familia?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/familia");
+  revalidatePath("/dashboard");
+  redirect("/familia");
+}
+
+export { computeIsMinor };

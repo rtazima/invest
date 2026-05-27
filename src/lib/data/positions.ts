@@ -7,36 +7,36 @@ import type { EnrichedPosition } from "@/types/domain";
 export async function getLatestPositions(holderId?: string): Promise<EnrichedPosition[]> {
   const supabase = await createServerClient();
 
-  // Busca o batch mais recente por (holder_id, institution) com status completed
-  let query = supabase
+  // Pega o batch mais recente por (holder_id, institution) com status completed
+  let batchQuery = supabase
+    .from("import_batches")
+    .select("id, holder_id, institution, completed_at")
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false });
+
+  if (holderId) batchQuery = batchQuery.eq("holder_id", holderId);
+
+  const { data: batches, error: batchErr } = await batchQuery;
+  if (batchErr) throw new Error(`getLatestPositions/batches: ${batchErr.message}`);
+
+  // Para cada (holder_id, institution), mantém só o batch mais recente
+  const latestBatchId = new Map<string, string>();
+  for (const b of batches ?? []) {
+    const key = `${b.holder_id}:${b.institution}`;
+    if (!latestBatchId.has(key)) latestBatchId.set(key, b.id);
+  }
+
+  const batchIds = Array.from(latestBatchId.values());
+  if (batchIds.length === 0) return [];
+
+  const { data, error } = await supabase
     .from("positions")
-    .select(`
-      *,
-      batch:import_batches!inner(id, status, completed_at)
-    `)
-    .order("created_at", { ascending: false });
+    .select("*")
+    .in("batch_id", batchIds)
+    .order("market_value_brl", { ascending: false });
 
-  if (holderId) {
-    query = query.eq("holder_id", holderId);
-  }
-
-  const { data, error } = await query;
-  if (error) throw new Error(`getLatestPositions: ${error.message}`);
-
-  // Agrupa por (holder_id, institution) e mantém apenas o batch mais recente
-  const latestByKey = new Map<string, EnrichedPosition>();
-
-  for (const row of data ?? []) {
-    const batch = row.batch as DBImportBatch & { status: string };
-    if (batch.status !== "completed") continue;
-
-    const key = `${row.holder_id}:${row.institution}:${row.id}`;
-    if (!latestByKey.has(key)) {
-      latestByKey.set(key, enrichPosition(row as DBPosition));
-    }
-  }
-
-  return Array.from(latestByKey.values());
+  if (error) throw new Error(`getLatestPositions/positions: ${error.message}`);
+  return (data ?? []).map(enrichPosition);
 }
 
 export async function getPositionsByBatch(batchId: string): Promise<EnrichedPosition[]> {

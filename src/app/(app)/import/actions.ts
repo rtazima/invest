@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { getHolders } from "@/lib/data/holders";
-import { detectFormat, parseCSV } from "@/lib/csv";
+import { detectFormat, parseCSV, extractCsvOwner } from "@/lib/csv";
+import { parseXPXlsx, extractXPXlsxOwner } from "@/lib/xlsx/xp-xlsx-parser";
+import { parseBTGXlsx, extractBTGXlsxOwner } from "@/lib/xlsx/btg-xlsx-parser";
+import { validateDocumentOwner } from "@/lib/import/owner-validator";
+import type { ParsedPosition } from "@/lib/csv/types";
 import { toDecimal } from "@/lib/decimal";
 import Decimal from "decimal.js";
 import type { Enums } from "@/types/database";
@@ -38,12 +42,7 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
   const holder = holders.find((h) => h.id === holderId);
   if (!holder) return { success: false, errorMessage: "Titular não encontrado." };
 
-  const csvText = await file.text();
-  const format = detectFormat(csvText);
-
-  if (format === "unknown") {
-    return { success: false, errorMessage: "Formato do CSV não reconhecido. Verifique se é um arquivo XP, BTG ou Nomad." };
-  }
+  const isXlsx = file.name.toLowerCase().endsWith(".xlsx");
 
   if (institution === "nomad" && !exchangeRateStr) {
     return { success: false, errorMessage: "Informe a cotação USD/BRL para importar o Nomad." };
@@ -57,7 +56,7 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
       holder_id: holderId,
       institution,
       status: "processing",
-      source: "csv",
+      source: isXlsx ? "xlsx" : "csv",
       filename: file.name,
       imported_by: user.id,
       exchange_rate: institution === "nomad" ? exchangeRate.toNumber() : null,
@@ -71,7 +70,41 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
   }
 
   try {
-    const { positions, errors } = parseCSV(csvText, format as "xp" | "btg" | "nomad", exchangeRate);
+    let positions: ParsedPosition[];
+    let errors: Array<{ row: number; field: string; message: string }> = [];
+
+    if (isXlsx) {
+      if (institution !== "xp" && institution !== "btg") {
+        return { success: false, errorMessage: "Formato XLSX é suportado para XP e BTG. Nomad usa CSV." };
+      }
+      const buffer = await file.arrayBuffer();
+
+      const ownerErr = validateDocumentOwner(
+        institution === "btg" ? extractBTGXlsxOwner(buffer) : extractXPXlsxOwner(buffer),
+        holder,
+      );
+      if (ownerErr) {
+        await supabase.from("import_batches").update({ status: "failed", error_message: ownerErr }).eq("id", batch.id);
+        return { success: false, errorMessage: ownerErr };
+      }
+
+      positions = institution === "btg" ? parseBTGXlsx(buffer) : parseXPXlsx(buffer);
+    } else {
+      const csvText = await file.text();
+      const format = detectFormat(csvText);
+      if (format === "unknown") {
+        await supabase.from("import_batches").update({ status: "failed", error_message: "Formato não reconhecido." }).eq("id", batch.id);
+        return { success: false, errorMessage: "Formato do arquivo não reconhecido. Verifique se é XP (XLSX), BTG (CSV) ou Nomad (CSV)." };
+      }
+
+      const ownerErr = validateDocumentOwner(extractCsvOwner(csvText, format as "xp" | "btg" | "nomad"), holder);
+      if (ownerErr) {
+        await supabase.from("import_batches").update({ status: "failed", error_message: ownerErr }).eq("id", batch.id);
+        return { success: false, errorMessage: ownerErr };
+      }
+
+      ({ positions, errors } = parseCSV(csvText, format as "xp" | "btg" | "nomad", exchangeRate));
+    }
 
     if (positions.length === 0) {
       await supabase

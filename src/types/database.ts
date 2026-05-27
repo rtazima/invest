@@ -153,13 +153,12 @@ export type Database = {
       }
       holders: {
         Row: {
-          birth_year: number | null
+          birth_date: string | null
           cpf: string | null
           created_at: string
           family_id: string | null
           full_name: string | null
           id: string
-          is_minor: boolean
           name: string
           role: string
           slug: string
@@ -167,13 +166,12 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          birth_year?: number | null
+          birth_date?: string | null
           cpf?: string | null
           created_at?: string
           family_id?: string | null
           full_name?: string | null
           id?: string
-          is_minor?: boolean
           name: string
           role?: string
           slug: string
@@ -181,13 +179,12 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          birth_year?: number | null
+          birth_date?: string | null
           cpf?: string | null
           created_at?: string
           family_id?: string | null
           full_name?: string | null
           id?: string
-          is_minor?: boolean
           name?: string
           role?: string
           slug?: string

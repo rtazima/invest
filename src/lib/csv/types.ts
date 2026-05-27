@@ -36,3 +36,8 @@ export interface ParseResult {
 }
 
 export type CsvFormat = "xp" | "btg" | "nomad";
+
+export interface DocumentOwner {
+  name: string | null;
+  cpf: string | null;
+}

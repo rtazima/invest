@@ -38,8 +38,7 @@ export interface Holder {
   owner_id: string;
   name: string;
   slug: HolderSlug;
-  birth_year: number | null;
-  is_minor: boolean;
+  birth_date: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,5 +1,5 @@
 import Decimal from "decimal.js";
-import type { ParseResult, CsvFormat } from "./types";
+import type { ParseResult, CsvFormat, DocumentOwner } from "./types";
 import { parseXP } from "./xp-parser";
 import { parseBTG } from "./btg-parser";
 import { parseNomad } from "./nomad-parser";
@@ -39,6 +39,13 @@ export function detectFormat(csvText: string): CsvFormat | "unknown" {
   }
 
   return "unknown";
+}
+
+// Extrai nome/CPF do dono do documento a partir do texto CSV.
+// BTG e Nomad não expõem esses dados nos exports atuais — retorna null.
+// Extensão futura: parsear linhas de cabeçalho de cada formato.
+export function extractCsvOwner(_csvText: string, _format: CsvFormat): DocumentOwner {
+  return { name: null, cpf: null };
 }
 
 export function parseCSV(
