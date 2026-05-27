@@ -18,6 +18,8 @@ async function extractText(buffer: ArrayBuffer): Promise<string> {
     data: Buffer | Uint8Array,
   ) => Promise<{ text: string }>;
   const result = await pdfParse(Buffer.from(buffer));
+  // debug temporário — remover após validar formato
+  console.log("[nomad-pdf] primeiros 1500 chars:\n", result.text.slice(0, 1500));
   return result.text;
 }
 
