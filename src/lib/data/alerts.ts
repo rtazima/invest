@@ -69,14 +69,8 @@ export async function createAlertDeduped(
 }
 
 export async function countUnreadAlerts(): Promise<number> {
-  const supabase = await createServerClient();
-  const { count, error } = await supabase
-    .from("alerts")
-    .select("*", { count: "exact", head: true })
-    .eq("status", "unread");
-
-  if (error) throw new Error(`countUnreadAlerts: ${error.message}`);
-  return count ?? 0;
+  const alerts = await getAlerts({ status: "unread" });
+  return alerts.length;
 }
 
 export async function markAlertRead(id: string): Promise<void> {
