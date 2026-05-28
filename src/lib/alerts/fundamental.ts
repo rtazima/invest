@@ -11,6 +11,18 @@ const FII_CLASSES = new Set(["fiis"]);
 const STOCK_CLASSES = new Set(["stocks_br", "stocks_intl", "etf_br", "etf_intl"]);
 const ANALYSABLE_CLASSES = new Set(["fiis", "stocks_br", "stocks_intl", "etf_br", "etf_intl"]);
 
+function chartUrl(ticker: string, assetClass: string): string {
+  const t = ticker.toLowerCase();
+  if (assetClass === "fiis") return `https://statusinvest.com.br/fundos-imobiliarios/${t}`;
+  if (assetClass === "stocks_br") return `https://statusinvest.com.br/acoes/${t}`;
+  if (assetClass === "etf_br") return `https://statusinvest.com.br/etfs/${t}`;
+  return `https://finance.yahoo.com/chart/${ticker}`;
+}
+
+function fmtBRL(v: number): string {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v);
+}
+
 function fmtNull(v: number | null, suffix = ""): string {
   return v !== null ? `${v}${suffix}` : "N/D";
 }
@@ -163,15 +175,18 @@ export async function runFundamentalAnalysis(): Promise<{ analyzed: number; crea
     .in("batch_id", batchIds)
     .not("ticker", "is", null);
 
-  // Agrupa por ticker, acumulando valor de mercado total para priorização
-  type TickerEntry = { holderId: string; assetClass: string };
+  const holderNameById = new Map(holders.map((h) => [h.id, h.name as string]));
+
+  // Agrupa por ticker, acumulando valor de mercado total e por titular
+  type TickerEntry = { holderId: string; assetClass: string; marketValue: number };
   const tickerHolders = new Map<string, TickerEntry[]>();
   const tickerValue = new Map<string, number>();
   for (const p of positions ?? []) {
     if (!ANALYSABLE_CLASSES.has(p.asset_class)) continue;
     if (!tickerHolders.has(p.ticker!)) tickerHolders.set(p.ticker!, []);
-    tickerHolders.get(p.ticker!)!.push({ holderId: p.holder_id, assetClass: p.asset_class });
-    tickerValue.set(p.ticker!, (tickerValue.get(p.ticker!) ?? 0) + (p.market_value_brl ?? 0));
+    const mv = p.market_value_brl ?? 0;
+    tickerHolders.get(p.ticker!)!.push({ holderId: p.holder_id, assetClass: p.asset_class, marketValue: mv });
+    tickerValue.set(p.ticker!, (tickerValue.get(p.ticker!) ?? 0) + mv);
   }
 
   // Processa apenas os top 10 tickers por valor total de carteira
@@ -210,11 +225,16 @@ export async function runFundamentalAnalysis(): Promise<{ analyzed: number; crea
     if (!analysis) continue;
 
     const verdictLabel = { comprar: "Comprar", manter: "Manter", reduzir: "Reduzir" }[analysis.verdict];
-    const description = [analysis.qualitative, analysis.quantitative, analysis.valuation]
+    const analysisText = [analysis.qualitative, analysis.quantitative, analysis.valuation]
       .filter(Boolean)
       .join(" | ");
+    const chart = chartUrl(ticker, assetClass);
 
-    for (const { holderId } of entries) {
+    for (const { holderId, marketValue } of entries) {
+      const holderName = holderNameById.get(holderId) ?? holderId;
+      const positionContext = `${holderName} · ${fmtBRL(marketValue)}`;
+      const description = `${positionContext} | ${analysisText}`;
+
       const wasCreated = await createAlertDeduped(
         {
           holder_id: holderId,
@@ -223,7 +243,7 @@ export async function runFundamentalAnalysis(): Promise<{ analyzed: number; crea
           title: `${ticker} — ${verdictLabel} | Análise fundamentalista`,
           description,
           recommendation: analysis.summary,
-          sources: news.slice(0, 3).map((r) => r.url),
+          sources: [chart, ...news.slice(0, 3).map((r) => r.url)],
           generated_by: "fundamental-analysis",
         },
         25 * 24,

@@ -188,6 +188,47 @@ export function AlertCard({ alert, selected = false, onToggle }: Props) {
         </p>
       )}
 
+      {alert.sources && alert.sources.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <a
+            href={alert.sources[0]}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              fontSize: "11.5px",
+              color: "var(--color-text-3)",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              border: "1px solid var(--color-line)",
+              borderRadius: "4px",
+              padding: "2px 7px",
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="2" width="12" height="12" rx="2" />
+              <polyline points="6,10 10,6" />
+              <polyline points="8,6 10,6 10,8" />
+            </svg>
+            Ver gráfico
+          </a>
+          {alert.sources.slice(1).map((url, i) => (
+            <a
+              key={i}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{ fontSize: "11px", color: "var(--color-text-3)", textDecoration: "underline" }}
+            >
+              [{i + 1}]
+            </a>
+          ))}
+        </div>
+      )}
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span
           style={{
