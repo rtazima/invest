@@ -5,7 +5,7 @@ import type { DBHolder } from "@/types/database";
 import type { StrategyWithAllocations } from "@/lib/data/strategies";
 import { RiskProfileBadge } from "./RiskProfileBadge";
 import { AllocationEditor } from "./AllocationEditor";
-import { saveStrategyAction, saveAllocationsAction } from "@/app/(app)/holders/[holderId]/strategy/actions";
+import { saveStrategyAction, saveAllocationsAction, suggestAllocationsAction } from "@/app/(app)/holders/[holderId]/strategy/actions";
 
 const PROFILES = [
   { value: "conservative", label: "Conservador" },
@@ -280,6 +280,17 @@ export function StrategyPanel({ holder, strategy }: Props) {
             onSave={async (rows) => {
               await saveAllocationsAction(holder.id, rows);
             }}
+            onSuggest={() =>
+              suggestAllocationsAction(holder.id, {
+                risk_profile: profile,
+                investment_horizon_years: horizon ? parseInt(horizon) : null,
+                goal_description: goalDesc || null,
+                goal_monthly_income: goalIncome ? parseFloat(goalIncome) : null,
+                goal_target_age: goalAge ? parseInt(goalAge) : null,
+                liquidity_min_pct: parseFloat(liqMin) / 100,
+                notes: notes || null,
+              })
+            }
           />
         </div>
       )}

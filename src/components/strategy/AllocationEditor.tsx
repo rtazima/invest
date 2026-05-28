@@ -21,12 +21,18 @@ interface AllocationRow {
   tolerance_pct: string;
 }
 
+interface Suggestion {
+  allocations: Array<{ asset_class: string; target_pct: number; tolerance_pct: number }>;
+  reasoning: string;
+}
+
 interface Props {
   initial: DBStrategyAllocation[];
   onSave: (rows: AllocationRow[]) => Promise<void>;
+  onSuggest?: () => Promise<Suggestion>;
 }
 
-export function AllocationEditor({ initial, onSave }: Props) {
+export function AllocationEditor({ initial, onSave, onSuggest }: Props) {
   const [rows, setRows] = useState<AllocationRow[]>(
     initial.length > 0
       ? initial.map((a) => ({
@@ -42,6 +48,8 @@ export function AllocationEditor({ initial, onSave }: Props) {
   );
 
   const [saving, setSaving] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [reasoning, setReasoning] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const total = rows.reduce((s, r) => s + (parseFloat(r.target_pct) || 0), 0);
@@ -82,6 +90,28 @@ export function AllocationEditor({ initial, onSave }: Props) {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSuggest() {
+    if (!onSuggest) return;
+    setSuggesting(true);
+    setError("");
+    setReasoning(null);
+    try {
+      const result = await onSuggest();
+      setRows(
+        result.allocations.map((a) => ({
+          asset_class: a.asset_class as Enums<"asset_class">,
+          target_pct: a.target_pct.toString(),
+          tolerance_pct: a.tolerance_pct.toString(),
+        })),
+      );
+      setReasoning(result.reasoning);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao gerar sugestão.");
+    } finally {
+      setSuggesting(false);
     }
   }
 
@@ -197,24 +227,70 @@ export function AllocationEditor({ initial, onSave }: Props) {
         <p style={{ margin: "8px 0 0", fontSize: "12px", color: "var(--color-crit)" }}>{error}</p>
       )}
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        style={{
-          marginTop: "16px",
-          padding: "8px 20px",
-          borderRadius: "6px",
-          backgroundColor: "var(--color-text)",
-          border: "none",
-          color: "var(--color-bg)",
-          fontSize: "13px",
-          fontWeight: 600,
-          cursor: saving ? "not-allowed" : "pointer",
-          opacity: saving ? 0.7 : 1,
-        }}
-      >
-        {saving ? "Salvando..." : "Salvar alocações"}
-      </button>
+      {reasoning && (
+        <div
+          style={{
+            marginTop: "12px",
+            padding: "10px 14px",
+            borderRadius: "6px",
+            border: "1px solid var(--color-line-2)",
+            backgroundColor: "var(--color-bg-3)",
+            fontSize: "12.5px",
+            color: "var(--color-text-2)",
+            display: "flex",
+            gap: "8px",
+            alignItems: "flex-start",
+          }}
+        >
+          <span style={{ flexShrink: 0, color: "var(--color-text-3)", fontWeight: 600, fontSize: "11px", paddingTop: "1px" }}>IA</span>
+          <span>{reasoning}</span>
+          <button
+            onClick={() => setReasoning(null)}
+            style={{ marginLeft: "auto", flexShrink: 0, background: "none", border: "none", color: "var(--color-text-3)", cursor: "pointer", fontSize: "12px", padding: 0 }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      <div style={{ marginTop: "16px", display: "flex", gap: "8px", alignItems: "center" }}>
+        {onSuggest && (
+          <button
+            onClick={handleSuggest}
+            disabled={suggesting || saving}
+            style={{
+              padding: "8px 16px",
+              borderRadius: "6px",
+              border: "1px solid var(--color-line)",
+              backgroundColor: "transparent",
+              color: suggesting ? "var(--color-text-3)" : "var(--color-text-2)",
+              fontSize: "13px",
+              fontWeight: 500,
+              cursor: suggesting || saving ? "not-allowed" : "pointer",
+              opacity: suggesting ? 0.7 : 1,
+            }}
+          >
+            {suggesting ? "Gerando sugestão..." : "Sugerir com IA"}
+          </button>
+        )}
+        <button
+          onClick={handleSave}
+          disabled={saving || suggesting}
+          style={{
+            padding: "8px 20px",
+            borderRadius: "6px",
+            backgroundColor: "var(--color-text)",
+            border: "none",
+            color: "var(--color-bg)",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: saving || suggesting ? "not-allowed" : "pointer",
+            opacity: saving ? 0.7 : 1,
+          }}
+        >
+          {saving ? "Salvando..." : "Salvar alocações"}
+        </button>
+      </div>
     </div>
   );
 }
