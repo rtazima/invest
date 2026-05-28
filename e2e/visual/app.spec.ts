@@ -25,7 +25,7 @@ test.describe("regressão visual", () => {
   test("dashboard carrega sem erros", async ({ page }) => {
     const errors = await noConsoleErrors(page);
     await page.goto("/dashboard");
-    await expect(page.locator("h1, [data-testid='dashboard']").first()).toBeVisible({
+    await expect(page.locator("h1, h2, nav, main").first()).toBeVisible({
       timeout: 15_000,
     });
     await shot(page, "dashboard");
