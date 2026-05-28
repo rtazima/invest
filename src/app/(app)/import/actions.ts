@@ -14,6 +14,27 @@ import { toDecimal } from "@/lib/decimal";
 import Decimal from "decimal.js";
 import type { Enums } from "@/types/database";
 
+export interface DeleteBatchResult {
+  success: boolean;
+  errorMessage?: string;
+}
+
+export async function deleteImportBatch(batchId: string): Promise<DeleteBatchResult> {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, errorMessage: "Não autenticado." };
+
+  const { error } = await supabase.from("import_batches").delete().eq("id", batchId);
+  if (error) return { success: false, errorMessage: error.message };
+
+  revalidatePath("/dashboard");
+  revalidatePath("/import");
+  revalidatePath("/holders");
+  return { success: true };
+}
+
 export interface ImportResult {
   success: boolean;
   batchId?: string;
@@ -98,7 +119,13 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
       }
       const buffer = await file.arrayBuffer();
 
-      const ownerErr = validateDocumentOwner(await extractNomadPdfOwner(buffer), holder);
+      const docOwner = await extractNomadPdfOwner(buffer);
+      if (!docOwner.name && !docOwner.cpf) {
+        const msg = "Não foi possível identificar o titular no documento. Confirme que o arquivo é um extrato Nomad do titular selecionado.";
+        await supabase.from("import_batches").update({ status: "failed", error_message: msg }).eq("id", batch.id);
+        return { success: false, errorMessage: msg };
+      }
+      const ownerErr = validateDocumentOwner(docOwner, holder);
       if (ownerErr) {
         await supabase.from("import_batches").update({ status: "failed", error_message: ownerErr }).eq("id", batch.id);
         return { success: false, errorMessage: ownerErr };

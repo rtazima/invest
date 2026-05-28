@@ -84,20 +84,34 @@ function parseDataLine(
   return { quantity, price, marketValue };
 }
 
+const NOMAD_SKIP_RE = /nomad|investment|services|inc\b|phone|account|statement|period|date|street|city|state|zip|pershing|llc/i;
+
 export async function extractNomadPdfOwner(buffer: ArrayBuffer): Promise<DocumentOwner> {
   const text = await extractText(buffer);
   const lines = text.split("\n");
 
-  // Page 1 header: name appears in first 15 lines as an all-caps full name
-  for (const line of lines.slice(0, 15)) {
+  // Search first 30 lines for the account holder name
+  for (const line of lines.slice(0, 30)) {
     const trimmed = line.trim();
+    if (trimmed.length < 5) continue;
+    if (NOMAD_SKIP_RE.test(trimmed)) continue;
+
+    // All-caps full name (e.g. "RODRIGO TAZIMA")
     if (
-      trimmed.length > 5 &&
       /^[A-Z\s]+$/.test(trimmed) &&
-      trimmed.split(/\s+/).length >= 2 &&
-      !["NOMAD", "PHONE", "BR", "US"].some((s) => trimmed === s)
+      trimmed.split(/\s+/).length >= 2
     ) {
       return { name: trimmed, cpf: null };
+    }
+
+    // Mixed-case person name (e.g. "Rodrigo Tazima") — each word Title-cased, 2–5 words
+    const words = trimmed.split(/\s+/);
+    if (
+      words.length >= 2 &&
+      words.length <= 5 &&
+      words.every((w) => /^[A-Z][a-z]{1,}$/.test(w))
+    ) {
+      return { name: trimmed.toUpperCase(), cpf: null };
     }
   }
   return { name: null, cpf: null };
