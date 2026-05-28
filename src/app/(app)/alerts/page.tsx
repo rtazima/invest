@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { getAlerts, countUnreadAlerts } from "@/lib/data/alerts";
-import { AlertCard } from "@/components/alerts/AlertCard";
+import { AlertsList } from "@/components/alerts/AlertsList";
 import { AlertFilters } from "@/components/alerts/AlertFilters";
 import type { Enums } from "@/types/database";
 
@@ -48,25 +48,7 @@ export default async function AlertsPage({ searchParams }: Props) {
         <AlertFilters />
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        {alerts.length === 0 ? (
-          <div
-            style={{
-              padding: "48px",
-              textAlign: "center",
-              color: "var(--color-text-3)",
-              fontSize: "13px",
-              borderRadius: "8px",
-              border: "1px solid var(--color-line-2)",
-              backgroundColor: "var(--color-bg-2)",
-            }}
-          >
-            Nenhum alerta encontrado
-          </div>
-        ) : (
-          alerts.map((alert) => <AlertCard key={alert.id} alert={alert} />)
-        )}
-      </div>
+      <AlertsList alerts={alerts} />
     </div>
   );
 }

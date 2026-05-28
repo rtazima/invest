@@ -25,9 +25,11 @@ const SNOOZE_OPTIONS = [
 
 interface Props {
   alert: DBAlert;
+  selected?: boolean;
+  onToggle?: (id: string) => void;
 }
 
-export function AlertCard({ alert }: Props) {
+export function AlertCard({ alert, selected = false, onToggle }: Props) {
   const [pending, startTransition] = useTransition();
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const unread = alert.status === "unread";
@@ -57,16 +59,25 @@ export function AlertCard({ alert }: Props) {
       style={{
         padding: "16px",
         borderRadius: "8px",
-        border: "1px solid transparent",
+        border: selected ? "1px solid var(--color-text-3)" : "1px solid transparent",
         display: "flex",
         flexDirection: "column",
         gap: "8px",
         cursor: unread ? "pointer" : "default",
         opacity: pending ? 0.6 : 1,
-        transition: "opacity 0.2s",
+        transition: "opacity 0.2s, border-color 0.1s",
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "8px" }}>
+        {onToggle && (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(e) => { e.stopPropagation(); onToggle(alert.id); }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ marginTop: "2px", flexShrink: 0, cursor: "pointer", accentColor: "var(--color-text)" }}
+          />
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
           {unread && (
             <span
