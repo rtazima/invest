@@ -3,8 +3,8 @@ interface NotifyPayload {
   deployUrl?: string;
   commitMsg?: string;
   passed?: number;
-  failed: 0;
-  failedTests: [];
+  failed?: number;
+  failedTests?: string[];
   error?: string;
 }
 
@@ -44,7 +44,7 @@ export async function notifyWhatsApp(payload: NotifyPayload): Promise<void> {
   if (!res.ok) {
     console.error(`WhatsApp notify falhou: ${res.status} ${await res.text()}`);
   } else {
-    console.log(`WhatsApp enviado (${icon})`);
+    console.log("WhatsApp enviado ✅");
   }
 }
 

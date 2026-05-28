@@ -27,9 +27,11 @@ export default async function StrategyPage({ params }: Props) {
   ]);
 
   const actualByClass: Record<string, number> = {};
+  const actualBrlByClass: Record<string, number> = {};
   if (summary && summary.totalBrl.gt(0)) {
     for (const [cls, val] of Object.entries(summary.byAssetClass)) {
       actualByClass[cls] = val.div(summary.totalBrl).times(100).toNumber();
+      actualBrlByClass[cls] = val.toNumber();
     }
   }
   const hasData = (summary?.totalBrl.gt(0)) ?? false;
@@ -77,6 +79,7 @@ export default async function StrategyPage({ params }: Props) {
           <AllocationComparison
             targets={allocationTargets}
             actualByClass={actualByClass}
+            actualBrlByClass={actualBrlByClass}
             hasData={hasData}
           />
         </div>

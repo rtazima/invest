@@ -33,8 +33,18 @@ export interface AllocationTarget {
 
 interface Props {
   targets: AllocationTarget[];
-  actualByClass: Record<string, number>; // 0-100 percentages
+  actualByClass: Record<string, number>;    // 0-100 percentages
+  actualBrlByClass?: Record<string, number>; // valores em BRL
   hasData: boolean;
+}
+
+function fmtBRL(v: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(v);
 }
 
 type Status = "ok" | "warn" | "out";
@@ -137,12 +147,14 @@ function GeoGroupRow({
   label,
   targetSum,
   actualSum,
+  actualBrl,
   status,
   hasData,
 }: {
   label: string;
   targetSum: number;
   actualSum: number;
+  actualBrl: number;
   status: Status;
   hasData: boolean;
 }) {
@@ -174,6 +186,11 @@ function GeoGroupRow({
           }}
         >
           {hasData ? `${actualSum.toFixed(1)}%` : "—"}
+        </span>
+      </td>
+      <td style={{ padding: "6px", textAlign: "right" }}>
+        <span className="num" style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-2)" }}>
+          {hasData ? fmtBRL(actualBrl) : "—"}
         </span>
       </td>
       <td style={{ padding: "6px", textAlign: "right" }}>
@@ -215,11 +232,13 @@ function GeoGroupRow({
 
 function ClassRow({
   row,
+  brl,
   hasData,
   hovered,
   setHovered,
 }: {
   row: RowData;
+  brl: number;
   hasData: boolean;
   hovered: string | null;
   setHovered: (v: string | null) => void;
@@ -250,6 +269,11 @@ function ClassRow({
       <td style={{ padding: "8px 6px", textAlign: "right" }}>
         <span className="num" style={{ color: hasData ? "var(--color-text)" : "var(--color-text-3)" }}>
           {hasData ? `${row.actual.toFixed(1)}%` : "—"}
+        </span>
+      </td>
+      <td style={{ padding: "8px 6px", textAlign: "right", whiteSpace: "nowrap" }}>
+        <span className="num" style={{ fontSize: "12px", color: hasData ? "var(--color-text-2)" : "var(--color-text-3)" }}>
+          {hasData ? fmtBRL(brl) : "—"}
         </span>
       </td>
       <td style={{ padding: "8px 6px", textAlign: "right", whiteSpace: "nowrap" }}>
@@ -292,7 +316,7 @@ function ClassRow({
   );
 }
 
-export function AllocationComparison({ targets, actualByClass, hasData }: Props) {
+export function AllocationComparison({ targets, actualByClass, actualBrlByClass = {}, hasData }: Props) {
   const [hovered, setHovered] = useState<string | null>(null);
 
   const rows: RowData[] = targets.map((t) => {
@@ -314,6 +338,8 @@ export function AllocationComparison({ targets, actualByClass, hasData }: Props)
   // Use all classes in each geo bucket (not just targeted ones) so the group Reals sum to 100%
   const natActualSum = ALL_NATIONAL.reduce((s, cls) => s + (actualByClass[cls] ?? 0), 0);
   const intlActualSum = ALL_INTL.reduce((s, cls) => s + (actualByClass[cls] ?? 0), 0);
+  const natActualBrl = ALL_NATIONAL.reduce((s, cls) => s + (actualBrlByClass[cls] ?? 0), 0);
+  const intlActualBrl = ALL_INTL.reduce((s, cls) => s + (actualBrlByClass[cls] ?? 0), 0);
 
   const natStatus = hasData ? worstStatus(natRows.map((r) => r.status)) : "ok";
   const intlStatus = hasData ? worstStatus(intlRows.map((r) => r.status)) : "ok";
@@ -389,7 +415,8 @@ export function AllocationComparison({ targets, actualByClass, hasData }: Props)
           >
             <th style={{ padding: "6px", textAlign: "left" }}>Classe</th>
             <th style={{ padding: "6px", textAlign: "center" }}>Alvo vs. Real</th>
-            <th style={{ padding: "6px", textAlign: "right" }}>Real</th>
+            <th style={{ padding: "6px", textAlign: "right" }}>Real%</th>
+            <th style={{ padding: "6px", textAlign: "right" }}>Valor</th>
             <th style={{ padding: "6px", textAlign: "right" }}>Alvo ± tol.</th>
             <th style={{ padding: "6px", textAlign: "right" }}>Desvio</th>
             <th style={{ padding: "6px", textAlign: "right" }}>Status</th>
@@ -402,6 +429,7 @@ export function AllocationComparison({ targets, actualByClass, hasData }: Props)
                 label="Nacional"
                 targetSum={natTargetSum}
                 actualSum={natActualSum}
+                actualBrl={natActualBrl}
                 status={natStatus}
                 hasData={hasData}
               />
@@ -409,6 +437,7 @@ export function AllocationComparison({ targets, actualByClass, hasData }: Props)
                 <ClassRow
                   key={row.asset_class}
                   row={row}
+                  brl={actualBrlByClass[row.asset_class] ?? 0}
                   hasData={hasData}
                   hovered={hovered}
                   setHovered={setHovered}
@@ -423,6 +452,7 @@ export function AllocationComparison({ targets, actualByClass, hasData }: Props)
                 label="Internacional"
                 targetSum={intlTargetSum}
                 actualSum={intlActualSum}
+                actualBrl={intlActualBrl}
                 status={intlStatus}
                 hasData={hasData}
               />
@@ -430,6 +460,7 @@ export function AllocationComparison({ targets, actualByClass, hasData }: Props)
                 <ClassRow
                   key={row.asset_class}
                   row={row}
+                  brl={actualBrlByClass[row.asset_class] ?? 0}
                   hasData={hasData}
                   hovered={hovered}
                   setHovered={setHovered}
