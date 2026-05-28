@@ -22,6 +22,9 @@ const NATIONAL_SET = new Set([
   "liquidity",
 ]);
 
+const ALL_NATIONAL = ["fixed_income", "stocks_br", "fiis", "etf_br", "funds", "liquidity"];
+const ALL_INTL = ["stocks_intl", "etf_intl"];
+
 export interface AllocationTarget {
   asset_class: string;
   target_pct: number;    // 0-100
@@ -307,9 +310,10 @@ export function AllocationComparison({ targets, actualByClass, hasData }: Props)
     .sort((a, b) => b.target_pct - a.target_pct);
 
   const natTargetSum = natRows.reduce((s, r) => s + r.target_pct, 0);
-  const natActualSum = natRows.reduce((s, r) => s + r.actual, 0);
   const intlTargetSum = intlRows.reduce((s, r) => s + r.target_pct, 0);
-  const intlActualSum = intlRows.reduce((s, r) => s + r.actual, 0);
+  // Use all classes in each geo bucket (not just targeted ones) so the group Reals sum to 100%
+  const natActualSum = ALL_NATIONAL.reduce((s, cls) => s + (actualByClass[cls] ?? 0), 0);
+  const intlActualSum = ALL_INTL.reduce((s, cls) => s + (actualByClass[cls] ?? 0), 0);
 
   const natStatus = hasData ? worstStatus(natRows.map((r) => r.status)) : "ok";
   const intlStatus = hasData ? worstStatus(intlRows.map((r) => r.status)) : "ok";
