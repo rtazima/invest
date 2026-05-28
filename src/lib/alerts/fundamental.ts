@@ -163,19 +163,28 @@ export async function runFundamentalAnalysis(): Promise<{ analyzed: number; crea
     .in("batch_id", batchIds)
     .not("ticker", "is", null);
 
-  // Agrupa por ticker
-  const tickerHolders = new Map<string, { holderId: string; assetClass: string }[]>();
+  // Agrupa por ticker, acumulando valor de mercado total para priorização
+  type TickerEntry = { holderId: string; assetClass: string };
+  const tickerHolders = new Map<string, TickerEntry[]>();
+  const tickerValue = new Map<string, number>();
   for (const p of positions ?? []) {
     if (!ANALYSABLE_CLASSES.has(p.asset_class)) continue;
     if (!tickerHolders.has(p.ticker!)) tickerHolders.set(p.ticker!, []);
     tickerHolders.get(p.ticker!)!.push({ holderId: p.holder_id, assetClass: p.asset_class });
+    tickerValue.set(p.ticker!, (tickerValue.get(p.ticker!) ?? 0) + (p.market_value_brl ?? 0));
   }
+
+  // Processa apenas os top 10 tickers por valor total de carteira
+  const TOP_N = 10;
+  const sortedTickers = Array.from(tickerHolders.keys()).sort(
+    (a, b) => (tickerValue.get(b) ?? 0) - (tickerValue.get(a) ?? 0),
+  ).slice(0, TOP_N);
 
   let analyzed = 0;
   let created = 0;
 
-  for (const [ticker, entries] of tickerHolders) {
-    if (entries.length === 0) continue;
+  for (const ticker of sortedTickers) {
+    const entries = tickerHolders.get(ticker)!;
     const assetClass = entries[0]!.assetClass;
     const isFii = FII_CLASSES.has(assetClass);
     const isStock = STOCK_CLASSES.has(assetClass);
@@ -192,9 +201,8 @@ export async function runFundamentalAnalysis(): Promise<{ analyzed: number; crea
       if (data) quantContext = fiiQuantitativeContext(data);
     }
 
-    // Busca notícias qualitativas via Brave
-    const news = await getNewsSnippets(ticker);
-    await new Promise((r) => setTimeout(r, 400));
+    // Busca notícias qualitativas via Brave e chama Claude em paralelo quando possível
+    const [news] = await Promise.all([getNewsSnippets(ticker)]);
 
     const analysis = await analyzeAsset(ticker, isFii, quantContext, news);
     analyzed++;
@@ -223,8 +231,6 @@ export async function runFundamentalAnalysis(): Promise<{ analyzed: number; crea
       );
       if (wasCreated) created++;
     }
-
-    await new Promise((r) => setTimeout(r, 500));
   }
 
   return { analyzed, created };
