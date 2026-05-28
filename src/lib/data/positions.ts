@@ -4,6 +4,79 @@ import { isStaleQuota } from "@/lib/dates";
 import type { DBPosition, DBImportBatch, Enums } from "@/types/database";
 import type { EnrichedPosition } from "@/types/domain";
 
+export interface PositionForReview {
+  id: string;
+  holder_id: string;
+  holder_name: string;
+  institution: Enums<"institution">;
+  ticker: string | null;
+  name: string | null;
+  asset_class: Enums<"asset_class">;
+  market_value_brl: number;
+}
+
+export async function getPositionsForReview(): Promise<PositionForReview[]> {
+  const supabase = await createServerClient();
+
+  // Pega batches mais recentes (mesmo algoritmo de getLatestPositions)
+  const { data: batches, error: batchErr } = await supabase
+    .from("import_batches")
+    .select("id, holder_id, institution, filename, completed_at")
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false });
+
+  if (batchErr) throw new Error(`getPositionsForReview/batches: ${batchErr.message}`);
+
+  const latestBatchId = new Map<string, string>();
+  for (const b of batches ?? []) {
+    const key = `${b.holder_id}:${b.institution}:${b.filename ?? ""}`;
+    if (!latestBatchId.has(key)) latestBatchId.set(key, b.id);
+  }
+
+  const batchIds = Array.from(latestBatchId.values());
+  if (batchIds.length === 0) return [];
+
+  const { data: positions, error: posErr } = await supabase
+    .from("positions")
+    .select("id, holder_id, institution, ticker, name, asset_class, market_value_brl")
+    .in("batch_id", batchIds)
+    .order("market_value_brl", { ascending: false });
+
+  if (posErr) throw new Error(`getPositionsForReview/positions: ${posErr.message}`);
+
+  const { data: holders, error: holderErr } = await supabase
+    .from("holders")
+    .select("id, name");
+
+  if (holderErr) throw new Error(`getPositionsForReview/holders: ${holderErr.message}`);
+
+  const holderMap = new Map((holders ?? []).map((h) => [h.id, h.name]));
+
+  return (positions ?? []).map((p) => ({
+    id: p.id,
+    holder_id: p.holder_id,
+    holder_name: holderMap.get(p.holder_id) ?? "—",
+    institution: p.institution as Enums<"institution">,
+    ticker: p.ticker,
+    name: p.name,
+    asset_class: p.asset_class as Enums<"asset_class">,
+    market_value_brl: p.market_value_brl ?? 0,
+  }));
+}
+
+export async function updatePositionAssetClass(
+  positionId: string,
+  assetClass: Enums<"asset_class">,
+): Promise<void> {
+  const supabase = await createServerClient();
+  const { error } = await supabase
+    .from("positions")
+    .update({ asset_class: assetClass })
+    .eq("id", positionId);
+
+  if (error) throw new Error(`updatePositionAssetClass: ${error.message}`);
+}
+
 export async function getLatestPositions(holderId?: string): Promise<EnrichedPosition[]> {
   const supabase = await createServerClient();
 

@@ -40,6 +40,17 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/positions",
+    label: "Posições",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="1" y="3" width="14" height="10" rx="1.5" />
+        <path d="M1 6h14" />
+        <path d="M5 6v7" />
+      </svg>
+    ),
+  },
+  {
     href: "/import",
     label: "Importar",
     icon: (
