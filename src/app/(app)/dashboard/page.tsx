@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Dashboard — Invest" };
 export default async function DashboardPage() {
   const [summary, alerts, positions, holders, syncStatuses] = await Promise.all([
     getPortfolioSummary(),
-    getAlerts({ limit: 30 }),
+    getAlerts({ status: "unread", limit: 30 }),
     getLatestPositions(),
     getHolders(),
     getInstitutionSyncStatuses(),

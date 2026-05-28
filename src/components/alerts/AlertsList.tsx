@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DBAlert } from "@/types/database";
 import { AlertCard } from "./AlertCard";
@@ -17,7 +17,7 @@ interface Props {
 export function AlertsList({ alerts }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
 
   const allIds = alerts.map((a) => a.id);
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
@@ -42,32 +42,32 @@ export function AlertsList({ alerts }: Props) {
 
   const selectedAlerts = alerts.filter((a) => selected.has(a.id));
 
-  function handleBulkRead() {
-    startTransition(async () => {
-      await bulkMarkReadAction([...selected]);
-      clearSelection();
-      router.refresh();
-    });
+  async function handleBulkRead() {
+    setPending(true);
+    await bulkMarkReadAction([...selected]);
+    clearSelection();
+    router.refresh();
+    setPending(false);
   }
 
-  function handleBulkDismiss() {
-    startTransition(async () => {
-      await bulkDismissAction([...selected]);
-      clearSelection();
-      router.refresh();
-    });
+  async function handleBulkDismiss() {
+    setPending(true);
+    await bulkDismissAction([...selected]);
+    clearSelection();
+    router.refresh();
+    setPending(false);
   }
 
-  function handleBulkSnooze() {
+  async function handleBulkSnooze() {
     const pairs = selectedAlerts.map((a) => ({
       ticker: a.ticker ?? null,
       alertType: a.generated_by,
     }));
-    startTransition(async () => {
-      await bulkSnoozeAction(pairs, 30);
-      clearSelection();
-      router.refresh();
-    });
+    setPending(true);
+    await bulkSnoozeAction(pairs, 30);
+    clearSelection();
+    router.refresh();
+    setPending(false);
   }
 
   if (alerts.length === 0) {
