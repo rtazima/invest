@@ -42,7 +42,7 @@ function extract(html: string, label: string): number | null {
 export async function fetchFundamentus(ticker: string): Promise<FundamentusData | null> {
   try {
     const url = `https://fundamentus.com.br/detalhes.php?papel=${ticker.toUpperCase()}`;
-    const res = await fetch(url, { headers: HEADERS });
+    const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(10_000) });
     if (!res.ok) return null;
 
     // Fundamentus usa ISO-8859-1

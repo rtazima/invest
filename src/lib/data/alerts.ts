@@ -69,7 +69,8 @@ export async function createAlertDeduped(
 }
 
 export async function countUnreadAlerts(): Promise<number> {
-  const alerts = await getAlerts({ status: "unread" });
+  // Limit 200: badge só precisa de contagem aproximada; mutes são filtrados in-memory
+  const alerts = await getAlerts({ status: "unread", limit: 200 });
   return alerts.length;
 }
 

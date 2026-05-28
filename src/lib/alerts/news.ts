@@ -49,6 +49,7 @@ ${snippets}`,
     };
     return parsed.relevant && parsed.summary ? { summary: parsed.summary, severity: parsed.severity } : null;
   } catch {
+    console.warn(`[news-monitoring] JSON parse failed for ${ticker}`);
     return null;
   }
 }

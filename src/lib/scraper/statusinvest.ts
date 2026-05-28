@@ -57,7 +57,7 @@ function extractLastDividend(html: string): number | null {
 export async function fetchStatusInvestFii(ticker: string): Promise<StatusInvestFiiData | null> {
   try {
     const url = `https://statusinvest.com.br/fundos-imobiliarios/${ticker.toLowerCase()}`;
-    const res = await fetch(url, { headers: HEADERS });
+    const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(10_000) });
     if (!res.ok) return null;
 
     const html = await res.text();

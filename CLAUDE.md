@@ -115,13 +115,22 @@ scripts/            ← bootstrap, pre-commit, ci
 - [x] `long-term-memory/` → Histórico de recomendações e aprendizado
 - [x] `devops/` → CI/CD Vercel + GCP
 
-## Agentes Claude
+## Agentes de produção (src/app/api/agents/)
 
-| Agente | Arquivo | Modelo | Frequência |
+Rodam via cron GCP (Amaia) e via API protegida por `AGENT_SECRET`. Ver `docs/runbooks/agents.md`.
+
+| Agente | Rota | Modelo | Frequência |
 |---|---|---|---|
-| `monitoring-agent` | `.claude/agents/monitoring-agent.md` | sonnet | 2x/dia (8h e 18h) |
-| `recommendation-agent` | `.claude/agents/recommendation-agent.md` | opus | on-demand |
-| `allocation-agent` | `.claude/agents/allocation-agent.md` | opus | on-demand |
+| `strategy-check` | `/api/agents/strategy-check` | Supabase direto | 2×/dia (8h e 18h) |
+| `news-monitoring` | `/api/agents/news-monitoring` | Claude Haiku | 2×/dia (8h e 18h) |
+| `fundamental-analysis` | `/api/agents/fundamental-analysis` | Claude Opus 4.7 | 1×/mês |
+
+## Agentes Claude Code (.claude/agents/)
+
+Usados durante o desenvolvimento via Claude Code. Não são agentes de produção.
+
+| Agente | Arquivo | Modelo | Quando usar |
+|---|---|---|---|
 | `security-auditor` | `.claude/agents/security-auditor.md` | opus | a cada commit |
 | `compliance-auditor` | `.claude/agents/compliance-auditor.md` | opus | semanal |
 | `quality-guardian` | `.claude/agents/quality-guardian.md` | sonnet | a cada commit |

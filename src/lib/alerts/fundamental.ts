@@ -222,7 +222,10 @@ export async function runFundamentalAnalysis(): Promise<{ analyzed: number; crea
     const analysis = await analyzeAsset(ticker, isFii, quantContext, news);
     analyzed++;
 
-    if (!analysis) continue;
+    if (!analysis) {
+      console.warn(`[fundamental-analysis] parse failed for ${ticker}`);
+      continue;
+    }
 
     const verdictLabel = { comprar: "Comprar", manter: "Manter", reduzir: "Reduzir" }[analysis.verdict];
     const analysisText = [analysis.qualitative, analysis.quantitative, analysis.valuation]
