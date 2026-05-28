@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createAlertDeduped } from "@/lib/data/alerts";
 import { braveSearch, type BraveResult } from "@/lib/brave/client";
+import { fetchFundamentus, type FundamentusData } from "@/lib/scraper/fundamentus";
+import { fetchStatusInvestFii, type StatusInvestFiiData } from "@/lib/scraper/statusinvest";
 
 const claude = new Anthropic();
 
@@ -9,74 +11,89 @@ const FII_CLASSES = new Set(["fiis"]);
 const STOCK_CLASSES = new Set(["stocks_br", "stocks_intl", "etf_br", "etf_intl"]);
 const ANALYSABLE_CLASSES = new Set(["fiis", "stocks_br", "stocks_intl", "etf_br", "etf_intl"]);
 
-async function searchFundamentals(ticker: string, isFii: boolean): Promise<BraveResult[]> {
-  const queries = isFii
-    ? [
-        `${ticker} FII P/VP dividend yield vacância LTV relatório`,
-        `${ticker} FII resultado gestão portfólio imóveis`,
-      ]
-    : [
-        `${ticker} resultado lucro ROE ROIC dívida EBITDA margem`,
-        `${ticker} P/L P/VPA dividend yield valuation análise`,
-      ];
-
-  const allResults: BraveResult[] = [];
-  for (const q of queries) {
-    const results = await braveSearch(q, { count: 5, freshness: "pm" });
-    allResults.push(...results);
-    await new Promise((r) => setTimeout(r, 400));
-  }
-  return allResults;
+function fmtNull(v: number | null, suffix = ""): string {
+  return v !== null ? `${v}${suffix}` : "N/D";
 }
 
-const STOCK_PROMPT = (ticker: string, snippets: string) => `
-Você é um analista fundamentalista especializado em ações brasileiras.
-Analise o ativo ${ticker} com base nas informações abaixo e forneça uma avaliação estruturada.
+function stockQuantitativeContext(d: FundamentusData): string {
+  return [
+    `P/L: ${fmtNull(d.pl)}`,
+    `P/VP: ${fmtNull(d.pvp)}`,
+    `Div.Yield: ${fmtNull(d.dy, "%")}`,
+    `EV/EBITDA: ${fmtNull(d.evEbitda)}`,
+    `Marg.Bruta: ${fmtNull(d.margBruta, "%")}`,
+    `Marg.EBIT: ${fmtNull(d.margEbit, "%")}`,
+    `Marg.Líquida: ${fmtNull(d.margLiquida, "%")}`,
+    `ROE: ${fmtNull(d.roe, "%")}`,
+    `Dív.Líq/Patrim: ${fmtNull(d.divLiqPatrim)}`,
+  ].join(" | ");
+}
 
-Responda APENAS em JSON com este formato exato:
+function fiiQuantitativeContext(d: StatusInvestFiiData): string {
+  return [
+    `P/VP: ${fmtNull(d.pvp)}`,
+    `DY 12m: ${fmtNull(d.dy12m, "%")}`,
+    `Val.Patr/Cota: R$${fmtNull(d.valPatrimonialCota)}`,
+    `Último rend.: R$${fmtNull(d.ultimoRendimento)}`,
+    `Vacância fís.: ${d.vacanciaFisica !== null ? `${d.vacanciaFisica}%` : "N/D (fundo papel)"}`,
+    `Inadimplência: ${d.vacanciaFinanceira !== null ? `${d.vacanciaFinanceira}%` : "N/D"}`,
+  ].join(" | ");
+}
+
+async function getNewsSnippets(ticker: string): Promise<BraveResult[]> {
+  return braveSearch(`${ticker} B3 análise resultado governança`, { count: 5, freshness: "pm" });
+}
+
+const STOCK_PROMPT = (ticker: string, quant: string, snippets: string) => `
+Você é um analista fundamentalista especializado em ações brasileiras.
+Analise ${ticker} com base nos dados quantitativos abaixo e nas notícias recentes.
+
+DADOS QUANTITATIVOS (Fundamentus):
+${quant}
+
+NOTÍCIAS RECENTES:
+${snippets}
+
+Responda APENAS em JSON:
 {
   "verdict": "comprar" | "manter" | "reduzir",
   "severity": "info" | "warning" | "critical",
-  "qualitative": "análise qualitativa em 2-3 frases: modelo de negócio, vantagem competitiva, governança",
-  "quantitative": "análise quantitativa em 2-3 frases: crescimento de receita/lucro, margens, endividamento (Dívida/EBITDA), ROE/ROIC",
-  "valuation": "análise de valuation em 1-2 frases: P/L, P/VPA, DY comparados ao setor",
-  "summary": "veredicto em 1 frase clara com justificativa principal"
+  "qualitative": "análise em 2 frases: modelo de negócio, vantagem competitiva, governança",
+  "quantitative": "análise em 2 frases dos indicadores acima — compare com benchmarks do setor",
+  "valuation": "1 frase sobre P/L, P/VP e DY vs setor",
+  "summary": "veredicto em 1 frase com a principal razão"
 }
 
-Critérios de severity:
-- info: empresa saudável, valuation razoável, manter ou comprar com margem de segurança
-- warning: algum ponto de atenção (endividamento elevado, margem comprimindo, valuation esticado)
-- critical: deterioração clara (prejuízo recorrente, dívida excessiva, governança fraca)
-
-Se não houver dados suficientes para uma análise confiável, retorne verdict="manter", severity="info" e explique a limitação no summary.
-
-Informações disponíveis:
-${snippets}
+Critérios:
+- info: empresa saudável, indicadores razoáveis
+- warning: ponto de atenção (ROE baixo, margem caindo, endividamento elevado, valuation esticado)
+- critical: deterioração clara (prejuízo, dívida excessiva, governança fraca)
 `;
 
-const FII_PROMPT = (ticker: string, snippets: string) => `
-Você é um analista especializado em Fundos de Investimento Imobiliário (FIIs) brasileiros.
-Analise o FII ${ticker} com base nas informações abaixo.
+const FII_PROMPT = (ticker: string, quant: string, snippets: string) => `
+Você é um analista especializado em FIIs brasileiros.
+Analise ${ticker} com base nos dados abaixo.
 
-Responda APENAS em JSON com este formato exato:
+DADOS QUANTITATIVOS (StatusInvest):
+${quant}
+
+NOTÍCIAS RECENTES:
+${snippets}
+
+Responda APENAS em JSON:
 {
   "verdict": "comprar" | "manter" | "reduzir",
   "severity": "info" | "warning" | "critical",
-  "qualitative": "análise qualitativa em 2-3 frases: tipo de fundo (tijolo/papel/híbrido), qualidade dos imóveis/contratos, gestão",
-  "quantitative": "análise quantitativa em 2-3 frases: P/VP, DY anualizado, vacância física e financeira, LTV se aplicável",
-  "valuation": "análise de valuation em 1-2 frases: P/VP vs histórico, DY vs CDI atual",
-  "summary": "veredicto em 1 frase clara com justificativa principal"
+  "qualitative": "análise em 2 frases: tipo do fundo, qualidade da gestão e portfólio",
+  "quantitative": "análise em 2 frases dos indicadores acima — P/VP vs 1, DY vs CDI, vacância",
+  "valuation": "1 frase: P/VP vs histórico e DY anualizado vs CDI atual (~10,5%)",
+  "summary": "veredicto em 1 frase com a principal razão"
 }
 
-Critérios de severity:
-- info: fundo saudável, vacância controlada, DY consistente, P/VP razoável
-- warning: vacância elevada, DY caindo, P/VP muito acima de 1, contratos vencendo
-- critical: inadimplência relevante, gestão questionável, vacância crítica, P/VP >1.5
-
-Se não houver dados suficientes, retorne verdict="manter", severity="info" e explique no summary.
-
-Informações disponíveis:
-${snippets}
+Critérios:
+- info: P/VP próximo de 1, DY acima do CDI, vacância controlada
+- warning: P/VP > 1,2 ou DY abaixo do CDI ou vacância subindo
+- critical: P/VP > 1,5, DY colapsando, inadimplência relevante, gestão questionável
 `;
 
 interface AnalysisResult {
@@ -88,15 +105,16 @@ interface AnalysisResult {
   summary: string;
 }
 
-async function analyzeAsset(ticker: string, isFii: boolean, results: BraveResult[]): Promise<AnalysisResult | null> {
-  if (results.length === 0) return null;
-
-  const snippets = results
-    .slice(0, 8)
-    .map((r, i) => `[${i + 1}] ${r.title}\n${r.description}`)
-    .join("\n\n");
-
-  const prompt = isFii ? FII_PROMPT(ticker, snippets) : STOCK_PROMPT(ticker, snippets);
+async function analyzeAsset(
+  ticker: string,
+  isFii: boolean,
+  quantContext: string,
+  news: BraveResult[],
+): Promise<AnalysisResult | null> {
+  const snippets = news.map((r, i) => `[${i + 1}] ${r.title}\n${r.description}`).join("\n\n");
+  const prompt = isFii
+    ? FII_PROMPT(ticker, quantContext, snippets || "Sem notícias recentes encontradas.")
+    : STOCK_PROMPT(ticker, quantContext, snippets || "Sem notícias recentes encontradas.");
 
   const msg = await claude.messages.create({
     model: "claude-opus-4-7",
@@ -107,18 +125,12 @@ async function analyzeAsset(ticker: string, isFii: boolean, results: BraveResult
   try {
     const first = msg.content[0];
     const text = first && first.type === "text" ? first.text.trim() : "";
-    // Extrai o JSON mesmo se vier com texto ao redor
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return null;
     return JSON.parse(match[0]) as AnalysisResult;
   } catch {
     return null;
   }
-}
-
-function buildAlertDescription(analysis: AnalysisResult): string {
-  const parts = [analysis.qualitative, analysis.quantitative, analysis.valuation].filter(Boolean);
-  return parts.join(" | ");
 }
 
 export async function runFundamentalAnalysis(): Promise<{ analyzed: number; created: number }> {
@@ -151,16 +163,12 @@ export async function runFundamentalAnalysis(): Promise<{ analyzed: number; crea
     .in("batch_id", batchIds)
     .not("ticker", "is", null);
 
-  // Agrupa por ticker (mesmo ticker pode aparecer em vários titulares)
-  const tickerHolders = new Map<string, { holderId: string; assetClass: string; value: number }[]>();
+  // Agrupa por ticker
+  const tickerHolders = new Map<string, { holderId: string; assetClass: string }[]>();
   for (const p of positions ?? []) {
     if (!ANALYSABLE_CLASSES.has(p.asset_class)) continue;
     if (!tickerHolders.has(p.ticker!)) tickerHolders.set(p.ticker!, []);
-    tickerHolders.get(p.ticker!)!.push({
-      holderId: p.holder_id,
-      assetClass: p.asset_class,
-      value: p.market_value_brl ?? 0,
-    });
+    tickerHolders.get(p.ticker!)!.push({ holderId: p.holder_id, assetClass: p.asset_class });
   }
 
   let analyzed = 0;
@@ -173,16 +181,31 @@ export async function runFundamentalAnalysis(): Promise<{ analyzed: number; crea
     const isStock = STOCK_CLASSES.has(assetClass);
     if (!isFii && !isStock) continue;
 
-    const results = await searchFundamentals(ticker, isFii);
-    const analysis = await analyzeAsset(ticker, isFii, results);
+    // Busca dados quantitativos na plataforma especializada
+    let quantContext = "Dados quantitativos não disponíveis.";
+
+    if (isStock) {
+      const data: FundamentusData | null = await fetchFundamentus(ticker);
+      if (data) quantContext = stockQuantitativeContext(data);
+    } else {
+      const data: StatusInvestFiiData | null = await fetchStatusInvestFii(ticker);
+      if (data) quantContext = fiiQuantitativeContext(data);
+    }
+
+    // Busca notícias qualitativas via Brave
+    const news = await getNewsSnippets(ticker);
+    await new Promise((r) => setTimeout(r, 400));
+
+    const analysis = await analyzeAsset(ticker, isFii, quantContext, news);
     analyzed++;
 
     if (!analysis) continue;
 
     const verdictLabel = { comprar: "Comprar", manter: "Manter", reduzir: "Reduzir" }[analysis.verdict];
-    const description = buildAlertDescription(analysis);
+    const description = [analysis.qualitative, analysis.quantitative, analysis.valuation]
+      .filter(Boolean)
+      .join(" | ");
 
-    // Cria alerta para cada titular que possui o ativo
     for (const { holderId } of entries) {
       const wasCreated = await createAlertDeduped(
         {
@@ -192,10 +215,10 @@ export async function runFundamentalAnalysis(): Promise<{ analyzed: number; crea
           title: `${ticker} — ${verdictLabel} | Análise fundamentalista`,
           description,
           recommendation: analysis.summary,
-          sources: results.slice(0, 3).map((r) => r.url),
+          sources: news.slice(0, 3).map((r) => r.url),
           generated_by: "fundamental-analysis",
         },
-        25 * 24, // janela de 25 dias para evitar duplicatas mensais
+        25 * 24,
         supabase,
       );
       if (wasCreated) created++;
