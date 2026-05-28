@@ -1,25 +1,43 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://localhost:3000";
+const isLocal = BASE_URL === "http://localhost:3000";
+
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env["CI"],
-  retries: process.env["CI"] ? 2 : 0,
-  workers: process.env["CI"] ? 1 : undefined,
-  reporter: "html",
+  retries: 0,
+  workers: 1,
+  reporter: [["html", { outputFolder: "playwright-report", open: "never" }], ["list"]],
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: BASE_URL,
     trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    viewport: { width: 1280, height: 800 },
   },
   projects: [
     {
+      name: "setup",
+      testMatch: "**/auth.setup.ts",
+      use: { storageState: undefined },
+    },
+    {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "playwright/.auth/session.json",
+      },
     },
   ],
-  webServer: {
-    command: "pnpm dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env["CI"],
-  },
+  ...(isLocal
+    ? {
+        webServer: {
+          command: "pnpm dev",
+          url: "http://localhost:3000",
+          reuseExistingServer: true,
+        },
+      }
+    : {}),
 });
