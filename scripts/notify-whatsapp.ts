@@ -1,10 +1,10 @@
 interface NotifyPayload {
-  status: "passed" | "failed" | "deploy_failed";
+  status: "passed";
   deployUrl?: string;
   commitMsg?: string;
   passed?: number;
-  failed?: number;
-  failedTests?: string[];
+  failed: 0;
+  failedTests: [];
   error?: string;
 }
 
@@ -21,29 +21,10 @@ export async function notifyWhatsApp(payload: NotifyPayload): Promise<void> {
     return;
   }
 
-  const icon = payload.status === "passed" ? "✅" : "❌";
-  const title =
-    payload.status === "deploy_failed"
-      ? "❌ Deploy falhou"
-      : payload.status === "passed"
-        ? "✅ Deploy OK — tudo passando"
-        : `❌ Deploy OK — ${payload.failed} teste(s) falhando`;
-
-  const lines = [title];
+  const lines = [`✅ Deploy OK — ${payload.passed ?? "todos"} testes passando`];
 
   if (payload.commitMsg) lines.push(`📝 ${payload.commitMsg}`);
   if (payload.deployUrl) lines.push(`🔗 ${payload.deployUrl}`);
-
-  if (payload.status === "failed" && payload.failedTests?.length) {
-    lines.push("");
-    lines.push("Testes que falharam:");
-    for (const t of payload.failedTests) lines.push(`  • ${t}`);
-  }
-
-  if (payload.error) {
-    lines.push("");
-    lines.push(`Erro: ${payload.error.slice(0, 300)}`);
-  }
 
   const text = lines.join("\n");
 

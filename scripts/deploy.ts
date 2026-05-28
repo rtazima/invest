@@ -1,10 +1,15 @@
 #!/usr/bin/env tsx
 /**
- * Script de deploy + regressão visual.
- * Uso: pnpm deploy
+ * Deploy + regressão visual auto-corrigida.
+ *
+ * Fluxo:
+ *   1. Deploy para Vercel
+ *   2. Roda Playwright contra a URL de produção
+ *   3. Se falhar → imprime falhas no stdout (para Claude corrigir e re-rodar)
+ *   4. Se passar → manda WhatsApp "tudo ok" e encerra
  *
  * Variáveis necessárias em .env.local:
- *   E2E_BASE_URL          — URL de produção estável (ex: https://project-cfwnl.vercel.app)
+ *   E2E_BASE_URL          — URL estável de produção (ex: https://project-cfwnl.vercel.app)
  *   NEXT_PUBLIC_SUPABASE_URL
  *   NEXT_PUBLIC_SUPABASE_ANON_KEY
  *   E2E_TEST_EMAIL        — email do usuário de teste (sem MFA)
@@ -18,7 +23,6 @@
 import { execSync, spawnSync } from "child_process";
 import { notifyWhatsApp } from "./notify-whatsapp";
 
-// Carrega .env.local manualmente (Next.js não carrega automaticamente fora do servidor)
 try {
   const { config } = await import("dotenv");
   config({ path: ".env.local" });
@@ -35,28 +39,25 @@ function getCommitMsg(): string {
 }
 
 function deploy(): string {
-  console.log("🚀 Deployando para Vercel...");
+  console.log("🚀 Deployando para Vercel...\n");
   const result = spawnSync("npx", ["vercel", "--prod", "--yes"], {
     encoding: "utf8",
     stdio: ["inherit", "pipe", "pipe"],
   });
 
   const output = (result.stdout ?? "") + (result.stderr ?? "");
-  console.log(output);
+  process.stdout.write(output);
 
   if (result.status !== 0) {
     throw new Error(`vercel --prod falhou (exit ${result.status})`);
   }
 
-  // Pega a URL do alias de produção (linha "Aliased")
   const aliasMatch = output.match(/Aliased\s+(https?:\/\/\S+)/);
   if (aliasMatch?.[1]) return aliasMatch[1];
 
-  // Fallback: pega a URL de produção direta
   const prodMatch = output.match(/Production\s+(https?:\/\/\S+)/);
   if (prodMatch?.[1]) return prodMatch[1];
 
-  // Fallback final: usa E2E_BASE_URL
   return process.env["E2E_BASE_URL"] ?? "https://project-cfwnl.vercel.app";
 }
 
@@ -64,14 +65,15 @@ interface TestResult {
   passed: number;
   failed: number;
   failedTests: string[];
+  rawOutput: string;
 }
 
 function runTests(baseUrl: string): TestResult {
-  console.log(`\n🧪 Executando regressão visual em ${baseUrl}...\n`);
+  console.log(`\n🧪 Regressão visual em ${baseUrl}...\n`);
 
   const result = spawnSync(
     "pnpm",
-    ["exec", "playwright", "test", "e2e/visual/", "--reporter=json"],
+    ["exec", "playwright", "test", "e2e/visual/", "--reporter=list,json"],
     {
       encoding: "utf8",
       stdio: ["inherit", "pipe", "pipe"],
@@ -79,44 +81,32 @@ function runTests(baseUrl: string): TestResult {
     },
   );
 
-  console.log(result.stdout);
-  if (result.stderr) console.error(result.stderr);
+  const rawOutput = (result.stdout ?? "") + (result.stderr ?? "");
+  process.stdout.write(rawOutput);
 
-  // Tenta parsear o JSON do reporter
   let passed = 0;
   let failed = 0;
   const failedTests: string[] = [];
 
   try {
-    // O reporter json do Playwright gera saída JSON no stdout
-    const jsonStart = result.stdout.indexOf("{");
+    const jsonStart = rawOutput.lastIndexOf('{"');
     if (jsonStart >= 0) {
-      const report = JSON.parse(result.stdout.slice(jsonStart)) as {
-        suites?: Array<{
-          specs?: Array<{ ok: boolean; title: string }>;
-        }>;
+      const report = JSON.parse(rawOutput.slice(jsonStart)) as {
+        suites?: Array<{ specs?: Array<{ ok: boolean; title: string }> }>;
       };
       for (const suite of report.suites ?? []) {
         for (const spec of suite.specs ?? []) {
           if (spec.ok) passed++;
-          else {
-            failed++;
-            failedTests.push(spec.title);
-          }
+          else { failed++; failedTests.push(spec.title); }
         }
       }
     }
   } catch {
-    // Se não conseguir parsear, usa exit code
-    if (result.status === 0) {
-      passed = 5; // número de testes esperados
-    } else {
-      failed = 1;
-      failedTests.push("(não foi possível parsear detalhes)");
-    }
+    if (result.status === 0) passed = 5;
+    else { failed = 1; failedTests.push("(detalhes em playwright-report/)"); }
   }
 
-  return { passed, failed, failedTests };
+  return { passed, failed, failedTests, rawOutput };
 }
 
 async function main() {
@@ -125,33 +115,30 @@ async function main() {
 
   try {
     deployUrl = deploy();
-    console.log(`\n✅ Deploy concluído: ${deployUrl}`);
+    console.log(`\n✅ Deploy: ${deployUrl}\n`);
   } catch (error) {
-    await notifyWhatsApp({
-      status: "deploy_failed",
-      commitMsg,
-      error: String(error),
-    });
+    console.error(`\n❌ Deploy falhou:\n${error}`);
     process.exit(1);
   }
 
   const { passed, failed, failedTests } = runTests(deployUrl);
 
+  if (failed > 0) {
+    console.error(`\n❌ ${failed} teste(s) falhando — corrigir antes de notificar o usuário:`);
+    failedTests.forEach((t) => console.error(`   • ${t}`));
+    console.error("\nScreenshots disponíveis em playwright-report/screenshots/");
+    process.exit(1); // Claude corrige e re-roda pnpm deploy
+  }
+
+  console.log(`\n✅ ${passed}/${passed} testes passando. Notificando...\n`);
   await notifyWhatsApp({
-    status: failed > 0 ? "failed" : "passed",
+    status: "passed",
     deployUrl,
     commitMsg,
     passed,
-    failed,
-    failedTests,
+    failed: 0,
+    failedTests: [],
   });
-
-  console.log(`\n${failed > 0 ? "❌" : "✅"} ${passed} passando, ${failed} falhando`);
-  if (failed > 0) {
-    console.log("Testes que falharam:");
-    failedTests.forEach((t) => console.log(`  • ${t}`));
-    process.exit(1);
-  }
 }
 
 main().catch((err) => {
