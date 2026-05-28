@@ -1,9 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { DBAlert } from "@/types/database";
 import { formatDatetimeBR } from "@/lib/dates";
-import { markReadAction, dismissAction } from "@/app/(app)/alerts/actions";
+import { markReadAction, dismissAction, snoozeAction } from "@/app/(app)/alerts/actions";
 
 const SEV_COLORS: Record<string, string> = {
   info: "var(--color-info)",
@@ -17,13 +17,19 @@ const SEV_LABELS: Record<string, string> = {
   critical: "CRITICAL",
 };
 
+const SNOOZE_OPTIONS = [
+  { label: "7 dias", days: 7 },
+  { label: "30 dias", days: 30 },
+  { label: "Sempre", days: null },
+];
+
 interface Props {
   alert: DBAlert;
 }
 
 export function AlertCard({ alert }: Props) {
   const [pending, startTransition] = useTransition();
-  const sevClass = alert.severity === "warning" ? "sev-warn" : alert.severity === "critical" ? "sev-crit" : "sev-info";
+  const [snoozeOpen, setSnoozeOpen] = useState(false);
   const unread = alert.status === "unread";
 
   function handleRead() {
@@ -36,9 +42,17 @@ export function AlertCard({ alert }: Props) {
     startTransition(() => dismissAction(alert.id));
   }
 
+  function handleSnooze(e: React.MouseEvent, days: number | null) {
+    e.stopPropagation();
+    setSnoozeOpen(false);
+    startTransition(() =>
+      snoozeAction(alert.ticker ?? null, alert.generated_by, days),
+    );
+  }
+
   return (
     <div
-      className={sevClass}
+      className={`sev-${alert.severity === "warning" ? "warn" : alert.severity === "critical" ? "crit" : "info"}`}
       onClick={handleRead}
       style={{
         padding: "16px",
@@ -69,20 +83,88 @@ export function AlertCard({ alert }: Props) {
             {alert.title}
           </span>
         </div>
-        <button
-          onClick={handleDismiss}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--color-text-3)",
-            fontSize: "12px",
-            padding: "0",
-            flexShrink: 0,
-          }}
-        >
-          ✕
-        </button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
+          {/* Snooze */}
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setSnoozeOpen((v) => !v); }}
+              title="Silenciar"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--color-text-3)",
+                fontSize: "13px",
+                padding: "0 2px",
+                lineHeight: 1,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="8" cy="8" r="6.5" />
+                <path d="M8 4.5V8l2.5 2.5" />
+                <path d="M5.5 2L4 3.5M10.5 2L12 3.5" />
+              </svg>
+            </button>
+            {snoozeOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "20px",
+                  right: 0,
+                  backgroundColor: "var(--color-bg-2)",
+                  border: "1px solid var(--color-line)",
+                  borderRadius: "6px",
+                  padding: "4px",
+                  zIndex: 10,
+                  minWidth: "120px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ fontSize: "10px", color: "var(--color-text-3)", padding: "4px 8px 6px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                  Silenciar por
+                </div>
+                {SNOOZE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.label}
+                    onClick={(e) => handleSnooze(e, opt.days)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "6px 8px",
+                      fontSize: "12.5px",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--color-text)",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Dismiss */}
+          <button
+            onClick={handleDismiss}
+            title="Dispensar"
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--color-text-3)",
+              fontSize: "12px",
+              padding: "0 2px",
+            }}
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <p style={{ margin: 0, fontSize: "12.5px", color: "var(--color-text-2)", lineHeight: 1.5 }}>
