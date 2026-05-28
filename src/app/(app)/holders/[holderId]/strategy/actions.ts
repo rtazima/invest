@@ -121,7 +121,7 @@ Regras: inclua só classes relevantes para o perfil; tolerance_pct entre 3-10; s
 
   const client = new Anthropic({ apiKey });
   const msg = await client.messages.create({
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 1024,
     messages: [{ role: "user", content: prompt }],
   });
