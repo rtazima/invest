@@ -103,6 +103,7 @@ export async function runStrategyAlignmentCheck(): Promise<{ created: number }> 
           generated_by: "strategy-alignment",
         },
         48,
+        supabase,
       );
 
       if (wasCreated) created++;

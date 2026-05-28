@@ -112,6 +112,7 @@ export async function runNewsMonitoring(): Promise<{ checked: number; created: n
             generated_by: "news-monitoring",
           },
           24,
+          supabase,
         );
         if (wasCreated) created++;
       }

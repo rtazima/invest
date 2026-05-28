@@ -1,6 +1,9 @@
 import { createServerClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import type { DBAlert, Enums } from "@/types/database";
 import { getActiveMutes, isAlertMuted } from "./alert-mutes";
+
+type AnySupabaseClient = ReturnType<typeof createServiceClient>;
 
 export async function getAlerts(options?: {
   holderId?: string;
@@ -38,8 +41,9 @@ export async function createAlertDeduped(
     generated_by: string;
   },
   windowHours = 24,
+  client?: AnySupabaseClient,
 ): Promise<boolean> {
-  const supabase = await createServerClient();
+  const supabase = client ?? (await createServerClient());
   const since = new Date(Date.now() - windowHours * 3_600_000).toISOString();
 
   let dupQuery = supabase
