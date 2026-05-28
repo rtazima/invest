@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { DBAlert } from "@/types/database";
 import { AlertCard } from "./AlertCard";
 import {
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function AlertsList({ alerts }: Props) {
+  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
 
@@ -44,6 +46,7 @@ export function AlertsList({ alerts }: Props) {
     startTransition(async () => {
       await bulkMarkReadAction([...selected]);
       clearSelection();
+      router.refresh();
     });
   }
 
@@ -51,6 +54,7 @@ export function AlertsList({ alerts }: Props) {
     startTransition(async () => {
       await bulkDismissAction([...selected]);
       clearSelection();
+      router.refresh();
     });
   }
 
@@ -62,6 +66,7 @@ export function AlertsList({ alerts }: Props) {
     startTransition(async () => {
       await bulkSnoozeAction(pairs, 30);
       clearSelection();
+      router.refresh();
     });
   }
 

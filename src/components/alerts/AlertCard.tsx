@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { DBAlert } from "@/types/database";
 import { formatDatetimeBR } from "@/lib/dates";
 import { markReadAction, dismissAction, snoozeAction } from "@/app/(app)/alerts/actions";
@@ -30,26 +31,34 @@ interface Props {
 }
 
 export function AlertCard({ alert, selected = false, onToggle }: Props) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const unread = alert.status === "unread";
 
   function handleRead() {
     if (!unread) return;
-    startTransition(() => markReadAction(alert.id));
+    startTransition(async () => {
+      await markReadAction(alert.id);
+      router.refresh();
+    });
   }
 
   function handleDismiss(e: React.MouseEvent) {
     e.stopPropagation();
-    startTransition(() => dismissAction(alert.id));
+    startTransition(async () => {
+      await dismissAction(alert.id);
+      router.refresh();
+    });
   }
 
   function handleSnooze(e: React.MouseEvent, days: number | null) {
     e.stopPropagation();
     setSnoozeOpen(false);
-    startTransition(() =>
-      snoozeAction(alert.ticker ?? null, alert.generated_by, days),
-    );
+    startTransition(async () => {
+      await snoozeAction(alert.ticker ?? null, alert.generated_by, days);
+      router.refresh();
+    });
   }
 
   return (
