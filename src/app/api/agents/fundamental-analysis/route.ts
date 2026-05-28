@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runFundamentalAnalysis } from "@/lib/alerts/fundamental";
 
+export const maxDuration = 300;
+
 function authorized(req: NextRequest): boolean {
   return req.headers.get("x-agent-secret") === process.env["AGENT_SECRET"];
 }

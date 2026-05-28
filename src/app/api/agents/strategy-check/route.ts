@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runStrategyAlignmentCheck } from "@/lib/alerts/strategy";
 
+export const maxDuration = 300;
+
 function authorized(req: NextRequest): boolean {
   const secret = req.headers.get("x-agent-secret");
   return secret === process.env["AGENT_SECRET"];
