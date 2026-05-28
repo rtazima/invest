@@ -1,8 +1,8 @@
 import { Metadata } from "next";
-import Link from "next/link";
 import { getHolders } from "@/lib/data/holders";
 import { getStrategy } from "@/lib/data/strategies";
 import { RiskProfileBadge } from "@/components/strategy/RiskProfileBadge";
+import { HolderStrategyCard } from "@/components/strategy/HolderStrategyCard";
 
 function isMinor(birthDate: string | null): boolean {
   if (!birthDate) return false;
@@ -45,30 +45,7 @@ export default async function HoldersPage() {
           const color = HOLDER_COLORS[h.slug] ?? "var(--color-brand)";
 
           return (
-            <Link
-              key={h.id}
-              href={`/holders/${h.id}/strategy`}
-              style={{ textDecoration: "none" }}
-            >
-              <div
-                style={{
-                  padding: "16px 20px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--color-line-2)",
-                  backgroundColor: "var(--color-bg-2)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "14px",
-                  transition: "background-color 0.1s, border-color 0.1s",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-bg-3)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-bg-2)";
-                }}
-              >
+            <HolderStrategyCard key={h.id} href={`/holders/${h.id}/strategy`}>
                 {/* Avatar */}
                 <div
                   style={{
@@ -113,8 +90,7 @@ export default async function HoldersPage() {
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--color-text-3)" strokeWidth="1.5">
                   <path d="M6 4l4 4-4 4" />
                 </svg>
-              </div>
-            </Link>
+            </HolderStrategyCard>
           );
         })}
       </div>
