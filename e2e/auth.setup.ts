@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 
 const SESSION_PATH = "playwright/.auth/session.json";
+const BASE_URL = process.env["E2E_BASE_URL"] ?? "http://localhost:3000";
 
 setup("authenticate test user", async ({ page }) => {
   const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
@@ -23,22 +24,47 @@ setup("authenticate test user", async ({ page }) => {
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !data.session) {
-    throw new Error(
-      `Login falhou: ${error?.message ?? "sem sessão"}. Crie um usuário de teste com email+senha no Supabase e habilite Email Provider em Authentication → Providers.`,
-    );
+    throw new Error(`Login falhou: ${error?.message ?? "sem sessão"}`);
   }
 
-  // Injeta a sessão no localStorage da aplicação
-  await page.goto("/");
-  await page.evaluate(
-    ({ session, projectRef }) => {
-      localStorage.setItem(`sb-${projectRef}-auth-token`, JSON.stringify(session));
-    },
-    { session: data.session, projectRef: new URL(supabaseUrl).hostname.split(".")[0] },
-  );
+  const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
+  const domain = new URL(BASE_URL).hostname;
+  const isSecure = BASE_URL.startsWith("https");
 
-  await page.reload();
-  // Aguarda redirecionamento pós-login (dashboard ou holders)
+  // @supabase/ssr armazena sessão em cookies chunked (máx 3180 chars por cookie)
+  const sessionStr = JSON.stringify(data.session);
+  const CHUNK_SIZE = 3180;
+  const cookieName = `sb-${projectRef}-auth-token`;
+
+  const cookiesToSet = [];
+  if (sessionStr.length <= CHUNK_SIZE) {
+    cookiesToSet.push({
+      name: cookieName,
+      value: sessionStr,
+      domain,
+      path: "/",
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: "Lax" as const,
+    });
+  } else {
+    let i = 0;
+    for (let offset = 0; offset < sessionStr.length; offset += CHUNK_SIZE) {
+      cookiesToSet.push({
+        name: `${cookieName}.${i}`,
+        value: sessionStr.slice(offset, offset + CHUNK_SIZE),
+        domain,
+        path: "/",
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: "Lax" as const,
+      });
+      i++;
+    }
+  }
+
+  await page.context().addCookies(cookiesToSet);
+  await page.goto("/");
   await expect(page).toHaveURL(/\/(dashboard|holders|onboarding)/, { timeout: 15_000 });
 
   fs.mkdirSync(path.dirname(SESSION_PATH), { recursive: true });

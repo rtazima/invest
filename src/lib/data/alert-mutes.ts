@@ -24,7 +24,8 @@ export async function getActiveMutes(): Promise<AlertMute[]> {
     .select("*")
     .or(`muted_until.is.null,muted_until.gt.${now}`);
 
-  if (error) throw new Error(`getActiveMutes: ${error.message}`);
+  // Usuário sem família retorna array vazio (sem erro)
+  if (error) return [];
   return (data ?? []) as AlertMute[];
 }
 
