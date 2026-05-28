@@ -1,25 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { getHolders } from "@/lib/data/holders";
-import { getLatestPositions } from "@/lib/data/positions";
+import { createServiceClient } from "@/lib/supabase/service";
 import { createAlertDeduped } from "@/lib/data/alerts";
 import { braveSearch, type BraveResult } from "@/lib/brave/client";
 
 const claude = new Anthropic();
 
-interface TickerNews {
-  ticker: string;
-  results: BraveResult[];
-}
-
-async function searchTickerNews(ticker: string): Promise<BraveResult[]> {
-  // Busca notícias do último dia sobre o ativo
-  return braveSearch(`${ticker} B3 ação FII notícia`, { count: 5, freshness: "pd" });
-}
+const VARIABLE_INCOME_CLASSES = new Set(["stocks_br", "stocks_intl", "fiis", "etf_br", "etf_intl"]);
 
 async function filterRelevantNews(
   ticker: string,
   results: BraveResult[],
-): Promise<{ relevant: boolean; summary: string; severity: "info" | "warning" | "critical" } | null> {
+): Promise<{ summary: string; severity: "info" | "warning" | "critical" } | null> {
   if (results.length === 0) return null;
 
   const snippets = results
@@ -32,16 +23,15 @@ async function filterRelevantNews(
     messages: [
       {
         role: "user",
-        content: `Você é um assistente de análise de investimentos. Avalie se as notícias abaixo sobre ${ticker} são relevantes para um investidor de longo prazo brasileiro.
+        content: `Avalie se as notícias abaixo sobre ${ticker} são relevantes para um investidor de longo prazo brasileiro.
 
-Responda APENAS em JSON neste formato exato:
+Responda APENAS em JSON:
 {"relevant": true/false, "severity": "info"|"warning"|"critical", "summary": "resumo em 1-2 frases se relevante, vazio se não"}
 
-Critérios:
-- relevant=false: notícias genéricas de mercado, inflação geral, artigos educativos, preços sem contexto
-- relevant=true + info: resultado financeiro positivo, dividendo anunciado, expansão de negócio
-- relevant=true + warning: resultado abaixo do esperado, saída de executivo-chave, investigação regulatória leve
-- relevant=true + critical: fraude, recuperação judicial, investigação CVM grave, queda >15% sem explicação
+- relevant=false: notícias genéricas, inflação geral, artigos educativos, análise sem novidade
+- info: resultado positivo, dividendo anunciado, expansão de negócio
+- warning: resultado abaixo do esperado, saída de executivo-chave, investigação leve
+- critical: fraude, recuperação judicial, queda abrupta, investigação CVM grave
 
 Notícias:
 ${snippets}`,
@@ -51,63 +41,82 @@ ${snippets}`,
 
   try {
     const first = msg.content[0];
-    const text = first && first.type === "text" ? first.text : "";
-    const parsed = JSON.parse(text.trim()) as {
+    const text = first && first.type === "text" ? first.text.trim() : "";
+    const parsed = JSON.parse(text) as {
       relevant: boolean;
       severity: "info" | "warning" | "critical";
       summary: string;
     };
-    return parsed.relevant ? parsed : null;
+    return parsed.relevant && parsed.summary ? { summary: parsed.summary, severity: parsed.severity } : null;
   } catch {
     return null;
   }
 }
 
 export async function runNewsMonitoring(): Promise<{ checked: number; created: number }> {
-  const holders = await getHolders();
+  const supabase = createServiceClient();
+
+  const { data: holders } = await supabase.from("holders").select("id, name");
+  if (!holders || holders.length === 0) return { checked: 0, created: 0 };
+
+  const holderIds = holders.map((h) => h.id);
+
+  const { data: batches } = await supabase
+    .from("import_batches")
+    .select("id, holder_id, institution, filename")
+    .eq("status", "completed")
+    .in("holder_id", holderIds)
+    .order("completed_at", { ascending: false });
+
+  const latestBatchId = new Map<string, string>();
+  for (const b of batches ?? []) {
+    const key = `${b.holder_id}:${b.institution}:${b.filename ?? ""}`;
+    if (!latestBatchId.has(key)) latestBatchId.set(key, b.id);
+  }
+
+  const batchIds = Array.from(latestBatchId.values());
+  if (batchIds.length === 0) return { checked: 0, created: 0 };
+
+  const { data: positions } = await supabase
+    .from("positions")
+    .select("holder_id, ticker, asset_class")
+    .in("batch_id", batchIds)
+    .not("ticker", "is", null);
+
   let checked = 0;
   let created = 0;
 
   for (const holder of holders) {
-    const positions = await getLatestPositions(holder.id);
     const tickers = [
       ...new Set(
-        positions
-          .filter((p) => p.ticker && ["stocks_br", "stocks_intl", "fiis", "etf_br", "etf_intl"].includes(p.asset_class))
+        (positions ?? [])
+          .filter((p) => p.holder_id === holder.id && VARIABLE_INCOME_CLASSES.has(p.asset_class))
           .map((p) => p.ticker as string),
       ),
     ];
 
-    if (tickers.length === 0) continue;
-
-    const newsPerTicker: TickerNews[] = [];
     for (const ticker of tickers) {
-      const results = await searchTickerNews(ticker);
-      if (results.length > 0) newsPerTicker.push({ ticker, results });
+      const results = await braveSearch(`${ticker} B3 ação FII notícia`, { count: 5, freshness: "pd" });
       checked++;
-      // Pausa para não estourar rate limit do Brave
-      await new Promise((r) => setTimeout(r, 300));
-    }
 
-    // Filtra e cria alertas por ticker relevante
-    for (const { ticker, results } of newsPerTicker) {
       const analysis = await filterRelevantNews(ticker, results);
-      if (!analysis) continue;
+      if (analysis) {
+        const wasCreated = await createAlertDeduped(
+          {
+            holder_id: holder.id,
+            ticker,
+            severity: analysis.severity,
+            title: `${ticker} — notícia relevante`,
+            description: analysis.summary,
+            sources: results.slice(0, 3).map((r) => r.url),
+            generated_by: "news-monitoring",
+          },
+          24,
+        );
+        if (wasCreated) created++;
+      }
 
-      const wasCreated = await createAlertDeduped(
-        {
-          holder_id: holder.id,
-          ticker,
-          severity: analysis.severity,
-          title: `${ticker} — notícia relevante`,
-          description: analysis.summary,
-          sources: results.slice(0, 3).map((r) => r.url),
-          generated_by: "news-monitoring",
-        },
-        24,
-      );
-
-      if (wasCreated) created++;
+      await new Promise((r) => setTimeout(r, 300));
     }
   }
 
