@@ -13,21 +13,22 @@ export function usePrivacy() {
   return useContext(PrivacyCtx);
 }
 
+function applyPrivacy(hidden: boolean) {
+  document.documentElement.style.setProperty("--privacy-blur", hidden ? "8px" : "0px");
+  document.documentElement.style.setProperty("--privacy-select", hidden ? "none" : "auto");
+}
+
 export function PrivacyShell({ children }: { children: React.ReactNode }) {
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("invest_privacy") === "1";
     setHidden(stored);
-    if (stored) document.documentElement.setAttribute("data-privacy-hidden", "");
+    applyPrivacy(stored);
   }, []);
 
   useEffect(() => {
-    if (hidden) {
-      document.documentElement.setAttribute("data-privacy-hidden", "");
-    } else {
-      document.documentElement.removeAttribute("data-privacy-hidden");
-    }
+    applyPrivacy(hidden);
   }, [hidden]);
 
   function toggle() {

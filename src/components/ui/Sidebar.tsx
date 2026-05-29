@@ -263,6 +263,26 @@ export function Sidebar({ unreadCount, isOwner, userInitials, userName }: Props)
             Sair
           </button>
         </form>
+
+        <div
+          style={{
+            padding: "6px 10px 2px",
+            fontSize: "10.5px",
+            color: "var(--color-text-3)",
+            letterSpacing: "0.01em",
+            display: "flex",
+            gap: "4px",
+            alignItems: "center",
+          }}
+        >
+          <span>v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+          <span style={{ color: "var(--color-line)" }}>·</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px" }}>
+            {process.env.NEXT_PUBLIC_APP_SHA}
+          </span>
+          <span style={{ color: "var(--color-line)" }}>·</span>
+          <span>{process.env.NEXT_PUBLIC_BUILD_DATE}</span>
+        </div>
       </div>
     </aside>
   );
