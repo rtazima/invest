@@ -260,7 +260,7 @@ export function PositionsTable({ positions, totalBrl }: Props) {
 
                   {/* Valor de mercado */}
                   <td style={{ padding: "8px", paddingRight: "8px", textAlign: "right" }}>
-                    <span className="num" style={{ fontWeight: 500 }}>
+                    <span className="num pv" style={{ fontWeight: 500 }}>
                       {fmt(pos.market_value_brl)}
                     </span>
                     {pos.currency === "USD" && (
@@ -312,7 +312,7 @@ export function PositionsTable({ positions, totalBrl }: Props) {
                   Total ({sorted.length} ativo{sorted.length !== 1 ? "s" : ""})
                 </td>
                 <td style={{ padding: "8px", paddingRight: "8px", textAlign: "right" }}>
-                  <span className="num" style={{ fontWeight: 600, fontSize: "13px" }}>
+                  <span className="num pv" style={{ fontWeight: 600, fontSize: "13px" }}>
                     {fmt(sorted.reduce((s, p) => s + p.market_value_brl, 0))}
                   </span>
                 </td>

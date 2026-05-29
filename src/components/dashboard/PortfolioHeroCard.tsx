@@ -119,11 +119,11 @@ export function PortfolioHeroCard({ summary }: Props) {
       {/* Valor principal */}
       <div style={{ marginBottom: "8px" }}>
         <span style={{ display: "flex", alignItems: "baseline", gap: "2px" }}>
-          <span className="num" style={{ fontSize: "14px", color: "var(--color-text-3)" }}>R$</span>
-          <span className="num" style={{ fontSize: "44px", fontWeight: 500, lineHeight: 1, letterSpacing: "-0.02em" }}>
+          <span className="num pv" style={{ fontSize: "14px", color: "var(--color-text-3)" }}>R$</span>
+          <span className="num pv" style={{ fontSize: "44px", fontWeight: 500, lineHeight: 1, letterSpacing: "-0.02em" }}>
             {int}
           </span>
-          <span className="num" style={{ fontSize: "28px", color: "var(--color-text-3)" }}>{dec}</span>
+          <span className="num pv" style={{ fontSize: "28px", color: "var(--color-text-3)" }}>{dec}</span>
         </span>
       </div>
 

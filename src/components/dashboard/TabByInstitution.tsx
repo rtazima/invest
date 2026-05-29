@@ -91,7 +91,7 @@ export function TabByInstitution({ summary, syncStatuses }: Props) {
                 </span>
               </td>
               <td style={{ padding: "8px", textAlign: "right" }}>
-                <span className="num" style={{ fontWeight: 500 }}>{fmt(val)}</span>
+                <span className="num pv" style={{ fontWeight: 500 }}>{fmt(val)}</span>
               </td>
               <td style={{ padding: "8px 16px 8px 8px", textAlign: "right" }}>
                 <span className="num" style={{ color: "var(--color-text-2)" }}>
@@ -109,7 +109,7 @@ export function TabByInstitution({ summary, syncStatuses }: Props) {
               Total
             </td>
             <td style={{ padding: "8px", textAlign: "right" }}>
-              <span className="num" style={{ fontWeight: 600, fontSize: "13px" }}>{fmt(totalBrl)}</span>
+              <span className="num pv" style={{ fontWeight: 600, fontSize: "13px" }}>{fmt(totalBrl)}</span>
             </td>
             <td style={{ padding: "8px 16px 8px 8px", textAlign: "right" }}>
               <span className="num" style={{ fontWeight: 600, fontSize: "13px", color: "var(--color-text-2)" }}>100,00%</span>

@@ -93,7 +93,7 @@ export function TabByHolder({ summary }: Props) {
                 {institutions}
               </td>
               <td style={{ padding: "8px", textAlign: "right" }}>
-                <span className="num" style={{ fontWeight: 500 }}>
+                <span className="num pv" style={{ fontWeight: 500 }}>
                   {fmt(h.totalBrl)}
                 </span>
               </td>

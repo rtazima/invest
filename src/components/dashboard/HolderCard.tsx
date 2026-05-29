@@ -99,8 +99,8 @@ export function HolderCard({ holder, todayPct = 0 }: Props) {
 
       {/* Patrimônio */}
       <div style={{ display: "flex", alignItems: "baseline", gap: "1px" }}>
-        <span className="num" style={{ fontSize: "20px", letterSpacing: "-0.015em", fontWeight: 500 }}>{int}</span>
-        <span className="num" style={{ fontSize: "14px", color: "var(--color-text-3)" }}>{dec}</span>
+        <span className="num pv" style={{ fontSize: "20px", letterSpacing: "-0.015em", fontWeight: 500 }}>{int}</span>
+        <span className="num pv" style={{ fontSize: "14px", color: "var(--color-text-3)" }}>{dec}</span>
       </div>
 
       {/* Sub-linha */}

@@ -121,6 +121,10 @@ body {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
   letter-spacing: -0.005em;
+}
+
+/* ── Modo privacidade: só totalizadores monetários (.pv) ── */
+.pv {
   filter: blur(var(--privacy-blur, 0px));
   user-select: var(--privacy-select, auto);
   transition: filter 0.15s ease;
