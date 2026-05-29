@@ -91,7 +91,7 @@ export function TabByInstitution({ summary, syncStatuses }: Props) {
                 </span>
               </td>
               <td style={{ padding: "8px", textAlign: "right" }}>
-                <span className="num pv" style={{ fontWeight: 500 }}>{fmt(val)}</span>
+                <span className="num" style={{ fontWeight: 500 }}>{fmt(val)}</span>
               </td>
               <td style={{ padding: "8px 16px 8px 8px", textAlign: "right" }}>
                 <span className="num" style={{ color: "var(--color-text-2)" }}>

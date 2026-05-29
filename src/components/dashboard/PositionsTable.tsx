@@ -260,7 +260,7 @@ export function PositionsTable({ positions, totalBrl }: Props) {
 
                   {/* Valor de mercado */}
                   <td style={{ padding: "8px", paddingRight: "8px", textAlign: "right" }}>
-                    <span className="num pv" style={{ fontWeight: 500 }}>
+                    <span className="num" style={{ fontWeight: 500 }}>
                       {fmt(pos.market_value_brl)}
                     </span>
                     {pos.currency === "USD" && (
