@@ -125,7 +125,7 @@ body {
 }
 
 /* ── Modo privacidade: oculta valores numéricos ── */
-[data-privacy-hidden] .num {
+html[data-privacy-hidden] .num {
   filter: blur(8px);
   user-select: none;
 }

@@ -17,8 +17,18 @@ export function PrivacyShell({ children }: { children: React.ReactNode }) {
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
-    setHidden(localStorage.getItem("invest_privacy") === "1");
+    const stored = localStorage.getItem("invest_privacy") === "1";
+    setHidden(stored);
+    if (stored) document.documentElement.setAttribute("data-privacy-hidden", "");
   }, []);
+
+  useEffect(() => {
+    if (hidden) {
+      document.documentElement.setAttribute("data-privacy-hidden", "");
+    } else {
+      document.documentElement.removeAttribute("data-privacy-hidden");
+    }
+  }, [hidden]);
 
   function toggle() {
     setHidden((prev) => {
@@ -30,10 +40,7 @@ export function PrivacyShell({ children }: { children: React.ReactNode }) {
 
   return (
     <PrivacyCtx.Provider value={{ hidden, toggle }}>
-      <div
-        data-privacy-hidden={hidden ? "" : undefined}
-        style={{ display: "flex", minHeight: "100dvh", backgroundColor: "var(--color-bg)" }}
-      >
+      <div style={{ display: "flex", minHeight: "100dvh", backgroundColor: "var(--color-bg)" }}>
         {children}
       </div>
     </PrivacyCtx.Provider>
