@@ -121,6 +121,13 @@ body {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
   letter-spacing: -0.005em;
+  transition: filter 0.15s ease;
+}
+
+/* ── Modo privacidade: oculta valores numéricos ── */
+[data-privacy-hidden] .num {
+  filter: blur(8px);
+  user-select: none;
 }
 
 /* ── Convenção de sinal: − (U+2212), não - ── */

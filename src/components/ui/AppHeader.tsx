@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import type { InstitutionSyncStatus } from "@/lib/data/sync";
 import { formatDatetimeBR } from "@/lib/dates";
+import { usePrivacy } from "@/components/layout/PrivacyShell";
 
 const BREADCRUMBS: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -20,6 +21,7 @@ interface Props {
 
 export function AppHeader({ familyName, syncStatuses }: Props) {
   const pathname = usePathname();
+  const { hidden, toggle } = usePrivacy();
   const pageLabel = Object.entries(BREADCRUMBS).find(([k]) => pathname.startsWith(k))?.[1] ?? "—";
 
   const lastSync = syncStatuses
@@ -75,6 +77,36 @@ export function AppHeader({ familyName, syncStatuses }: Props) {
             </span>
           )}
         </div>
+
+        <button
+          onClick={toggle}
+          title={hidden ? "Mostrar valores" : "Ocultar valores"}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "4px 6px",
+            borderRadius: "6px",
+            backgroundColor: hidden ? "var(--color-bg-3)" : "transparent",
+            color: hidden ? "var(--color-text)" : "var(--color-text-3)",
+            border: "none",
+            cursor: "pointer",
+            transition: "background-color 0.1s, color 0.1s",
+          }}
+        >
+          {hidden ? (
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M2 2l12 12" />
+              <path d="M6.5 6.6A2 2 0 0 0 8 10a2 2 0 0 0 1.4-.6" />
+              <path d="M3.4 3.5A8 8 0 0 0 1 8s2.4 5 7 5a7.2 7.2 0 0 0 4.6-1.6" />
+              <path d="M8.5 3.1A7.7 7.7 0 0 1 15 8a8.3 8.3 0 0 1-.8 1.6" />
+            </svg>
+          ) : (
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M1 8s2.4-5 7-5 7 5 7 5-2.4 5-7 5-7-5-7-5Z" />
+              <circle cx="8" cy="8" r="2" />
+            </svg>
+          )}
+        </button>
 
         <button
           title="Sincronizar"

@@ -6,6 +6,7 @@ import { getInstitutionSyncStatuses } from "@/lib/data/sync";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { ChatTrigger } from "@/components/chat/ChatTrigger";
+import { PrivacyShell } from "@/components/layout/PrivacyShell";
 
 export default async function AppLayout({
   children,
@@ -46,7 +47,7 @@ export default async function AppLayout({
   const familyName = family?.name ?? "Família";
 
   return (
-    <div style={{ display: "flex", minHeight: "100dvh", backgroundColor: "var(--color-bg)" }}>
+    <PrivacyShell>
       <Sidebar unreadCount={unreadCount} isOwner={isOwner} userInitials={userInitials} userName={userName} />
 
       <div style={{ marginLeft: "192px", flex: 1, display: "flex", flexDirection: "column" }}>
@@ -61,6 +62,6 @@ export default async function AppLayout({
         holders={holders.map((h) => ({ id: h.id, name: h.name }))}
         myHolderId={myHolder?.id}
       />
-    </div>
+    </PrivacyShell>
   );
 }
