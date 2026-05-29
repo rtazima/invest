@@ -8,8 +8,7 @@ import { AllocationDonut } from "./AllocationDonut";
 import { TabByHolder } from "./TabByHolder";
 import { TabByInstitution } from "./TabByInstitution";
 import { TabByClass } from "./TabByClass";
-import { AlertsPanel } from "./AlertsPanel";
-import type { ClientPortfolioSummary, ClientPosition, ClientAlert } from "./types";
+import type { ClientPortfolioSummary, ClientPosition } from "./types";
 import type { InstitutionSyncStatus } from "@/lib/data/sync";
 import Link from "next/link";
 
@@ -25,18 +24,16 @@ type TabId = (typeof TABS)[number]["id"];
 interface Props {
   summary: ClientPortfolioSummary;
   positions: ClientPosition[];
-  alerts: ClientAlert[];
   syncStatuses: InstitutionSyncStatus[];
 }
 
-export function DashboardView({ summary, positions, alerts, syncStatuses }: Props) {
+export function DashboardView({ summary, positions, syncStatuses }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("global");
   const hasData = summary.totalBrl > 0;
 
   return (
     <div style={{ display: "flex", gap: "0", position: "relative" }}>
-      {/* Conteúdo principal (com margem direita p/ AlertsPanel) */}
-      <div style={{ flex: 1, minWidth: 0, marginRight: "256px" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         {!hasData ? (
           <EmptyState />
         ) : (
@@ -138,9 +135,6 @@ export function DashboardView({ summary, positions, alerts, syncStatuses }: Prop
           </>
         )}
       </div>
-
-      {/* Painel de alertas (fixed right) */}
-      <AlertsPanel alerts={alerts} />
     </div>
   );
 }

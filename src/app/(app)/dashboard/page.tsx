@@ -1,18 +1,16 @@
 import { Metadata } from "next";
 import { getPortfolioSummary } from "@/lib/data/portfolio";
-import { getAlerts } from "@/lib/data/alerts";
 import { getLatestPositions } from "@/lib/data/positions";
 import { getInstitutionSyncStatuses } from "@/lib/data/sync";
 import { getHolders } from "@/lib/data/holders";
 import { DashboardView } from "@/components/dashboard/DashboardView";
-import type { ClientPortfolioSummary, ClientPosition, ClientAlert } from "@/components/dashboard/types";
+import type { ClientPortfolioSummary, ClientPosition } from "@/components/dashboard/types";
 
 export const metadata: Metadata = { title: "Dashboard — Invest" };
 
 export default async function DashboardPage() {
-  const [summary, alerts, positions, holders, syncStatuses] = await Promise.all([
+  const [summary, positions, holders, syncStatuses] = await Promise.all([
     getPortfolioSummary(),
-    getAlerts({ status: "unread", limit: 30 }),
     getLatestPositions(),
     getHolders(),
     getInstitutionSyncStatuses(),
@@ -71,23 +69,10 @@ export default async function DashboardPage() {
     };
   });
 
-  const clientAlerts: ClientAlert[] = alerts.map((a) => ({
-    id: a.id,
-    holder_id: a.holder_id,
-    ticker: a.ticker,
-    severity: a.severity,
-    status: a.status,
-    title: a.title,
-    description: a.description,
-    recommendation: a.recommendation,
-    generated_at: a.generated_at,
-  }));
-
   return (
     <DashboardView
       summary={clientSummary}
       positions={clientPositions}
-      alerts={clientAlerts}
       syncStatuses={syncStatuses}
     />
   );
