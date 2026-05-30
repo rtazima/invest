@@ -275,8 +275,6 @@ export function Sidebar({ unreadCount, isOwner, userInitials, userName }: Props)
             alignItems: "center",
           }}
         >
-          <span>v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
-          <span style={{ color: "var(--color-line)" }}>·</span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px" }}>
             {process.env.NEXT_PUBLIC_APP_SHA}
           </span>
