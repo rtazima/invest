@@ -82,8 +82,8 @@ export function extractBTGXlsxOwner(buffer: ArrayBuffer): DocumentOwner {
   let cpf: string | null = null;
 
   for (const row of rows) {
-    // BTG extrato: coluna A sempre vazia, dados em coluna B (index 1)
-    const c0 = cell(row[1]);
+    // Capa do BTG extrato: colunas A e B vazias, dados em coluna C (index 2)
+    const c0 = cell(row[2]);
     if (!c0) continue;
 
     const cpfMatch = c0.match(/^CPF:\s*([\d.\-]+)/);
@@ -92,7 +92,6 @@ export function extractBTGXlsxOwner(buffer: ArrayBuffer): DocumentOwner {
       continue;
     }
 
-    // Nome: só letras maiúsculas e espaços, pelo menos 2 palavras
     if (/^[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ\s]+$/.test(c0) && c0.trim().split(/\s+/).length >= 2) {
       names.push(c0.trim());
     }
