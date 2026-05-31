@@ -9,6 +9,7 @@ import { TabByHolder } from "./TabByHolder";
 import { TabByHolderInstitution } from "./TabByHolderInstitution";
 import { TabByInstitution } from "./TabByInstitution";
 import { TabByClass } from "./TabByClass";
+import { TabByIndexer } from "./TabByIndexer";
 import type { ClientPortfolioSummary, ClientPosition } from "./types";
 import type { InstitutionSyncStatus } from "@/lib/data/sync";
 import Link from "next/link";
@@ -18,6 +19,7 @@ const TABS = [
   { id: "titular", label: "Por Titular", shortcut: "T" },
   { id: "titular_inst", label: "Titular × Inst.", shortcut: "X" },
   { id: "instituicao", label: "Por Instituição", shortcut: "I" },
+  { id: "indexador", label: "Por Indexador", shortcut: "N" },
   { id: "classe", label: "Por Classe", shortcut: "C" },
 ] as const;
 
@@ -132,6 +134,7 @@ export function DashboardView({ summary, positions, syncStatuses }: Props) {
                 {activeTab === "instituicao" && (
                   <TabByInstitution summary={summary} syncStatuses={syncStatuses} />
                 )}
+                {activeTab === "indexador" && <TabByIndexer positions={positions} totalBrl={summary.totalBrl} />}
                 {activeTab === "classe" && <TabByClass summary={summary} />}
               </div>
             </div>
