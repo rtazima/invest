@@ -82,7 +82,8 @@ export function extractBTGXlsxOwner(buffer: ArrayBuffer): DocumentOwner {
   let cpf: string | null = null;
 
   for (const row of rows) {
-    const c0 = cell(row[0]);
+    // BTG extrato: coluna A sempre vazia, dados em coluna B (index 1)
+    const c0 = cell(row[1]);
     if (!c0) continue;
 
     const cpfMatch = c0.match(/^CPF:\s*([\d.\-]+)/);
@@ -97,7 +98,8 @@ export function extractBTGXlsxOwner(buffer: ArrayBuffer): DocumentOwner {
     }
   }
 
-  return { name: names.join(" ") || null, cpf };
+  // Retorna apenas o primeiro nome encontrado (evita juntar cônjuge)
+  return { name: names[0] ?? null, cpf };
 }
 
 // ─── Fundos ───────────────────────────────────────────────────────────────────
@@ -114,7 +116,8 @@ function parseFundos(sheet: XLSX.WorkSheet): ParsedPosition[] {
   let inPositions = false;
 
   for (const row of rows) {
-    const c0 = cell(row[0]);
+    // BTG extrato: coluna A sempre vazia, dados em coluna B (index 1)
+    const c0 = cell(row[1]);
 
     if (/^Total em fundos/i.test(c0)) break;
     if (/^(Detalhamento|Movimentaç|Rentabilidade)/i.test(c0)) break;
@@ -126,9 +129,9 @@ function parseFundos(sheet: XLSX.WorkSheet): ParsedPosition[] {
     if (isDateStr(c0)) {
       // Linha de dados do fundo
       if (!currentName) continue;
-      const qty = parseNum(row[2]);
-      const quotaValue = parseNum(row[3]);
-      const marketValue = parseNum(row[4]);
+      const qty = parseNum(row[3]);
+      const quotaValue = parseNum(row[4]);
+      const marketValue = parseNum(row[5]);
       if (!marketValue || marketValue.lte(0)) continue;
 
       const quotaDate = parseDate(c0);
@@ -173,7 +176,8 @@ function parseRendaFixa(sheet: XLSX.WorkSheet): ParsedPosition[] {
   let currentType: string | null = null;
 
   for (const row of rows) {
-    const c0 = cell(row[0]);
+    // BTG extrato: coluna A sempre vazia, dados em coluna B (index 1)
+    const c0 = cell(row[1]);
 
     if (/^Posiç[oõ]es Detalhadas/i.test(c0)) break;
     if (/^Movimentaç/i.test(c0)) break;
@@ -188,19 +192,19 @@ function parseRendaFixa(sheet: XLSX.WorkSheet): ParsedPosition[] {
     if (!currentType) continue;
     if (!c0 || c0 === "Emissor" || c0 === "Total") continue;
 
-    // [0]=Emissor, [1]=Ativo, [3]=Vencimento, [7]=Taxa, [8]=Qtde, [9]=Preço, [10]=Saldo Bruto
+    // [1]=Emissor, [2]=Ativo, [4]=Vencimento, [8]=Taxa, [9]=Qtde, [10]=Preço, [11]=Saldo Bruto
     const emissor = c0;
     if (!emissor) continue;
 
-    const maturityDate = parseDate(row[3]);
-    const taxa = cell(row[7]);
-    const qty = parseNum(row[8]);
-    const unitPrice = parseNum(row[9]);
-    const marketValue = parseNum(row[10]);
+    const maturityDate = parseDate(row[4]);
+    const taxa = cell(row[8]);
+    const qty = parseNum(row[9]);
+    const unitPrice = parseNum(row[10]);
+    const marketValue = parseNum(row[11]);
     if (!marketValue || marketValue.lte(0)) continue;
 
     const { indexer, indexerRate } = parseRate(taxa);
-    const vencStr = cell(row[3]);
+    const vencStr = cell(row[4]);
     const name = vencStr ? `${emissor} — ${vencStr}` : emissor;
 
     positions.push({
@@ -238,7 +242,8 @@ function parseRendaVariavel(sheet: XLSX.WorkSheet): ParsedPosition[] {
   let inStocks = false;
 
   for (const row of rows) {
-    const c0 = cell(row[0]);
+    // BTG extrato: coluna A sempre vazia, dados em coluna B (index 1)
+    const c0 = cell(row[1]);
 
     if (/^Movimentaç/i.test(c0)) break;
 
@@ -247,16 +252,16 @@ function parseRendaVariavel(sheet: XLSX.WorkSheet): ParsedPosition[] {
     if (c0 === "Código" || /^Total/i.test(c0) || !c0) continue;
 
     const ticker = c0;
-    const name = cell(row[1]).replace(/\s+/g, " ").trim() || ticker;
-    const qty = parseNum(row[2]);
-    const currentPrice = parseNum(row[3]);
-    const avgPriceRaw = parseNum(row[4]);
-    const marketValue = parseNum(row[5]);
+    const name = cell(row[2]).replace(/\s+/g, " ").trim() || ticker;
+    const qty = parseNum(row[3]);
+    const currentPrice = parseNum(row[4]);
+    const avgPriceRaw = parseNum(row[5]);
+    const marketValue = parseNum(row[6]);
 
     if (!marketValue || marketValue.lte(0)) continue;
 
-    const assetClass: AssetClass =
-      /11F?$/.test(ticker) ? "fiis" : "stocks_br";
+    // Todos os itens em "Posição > Ações" são ações (BPAC11 é banco, não FII)
+    const assetClass: AssetClass = "stocks_br";
 
     positions.push({
       ticker,
