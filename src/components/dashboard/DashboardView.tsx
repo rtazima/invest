@@ -6,6 +6,7 @@ import { HolderCard } from "./HolderCard";
 import { PositionsTable } from "./PositionsTable";
 import { AllocationDonut } from "./AllocationDonut";
 import { TabByHolder } from "./TabByHolder";
+import { TabByHolderInstitution } from "./TabByHolderInstitution";
 import { TabByInstitution } from "./TabByInstitution";
 import { TabByClass } from "./TabByClass";
 import type { ClientPortfolioSummary, ClientPosition } from "./types";
@@ -15,6 +16,7 @@ import Link from "next/link";
 const TABS = [
   { id: "global", label: "Global", shortcut: "G" },
   { id: "titular", label: "Por Titular", shortcut: "T" },
+  { id: "titular_inst", label: "Titular × Inst.", shortcut: "X" },
   { id: "instituicao", label: "Por Instituição", shortcut: "I" },
   { id: "classe", label: "Por Classe", shortcut: "C" },
 ] as const;
@@ -126,6 +128,7 @@ export function DashboardView({ summary, positions, syncStatuses }: Props) {
                   </div>
                 )}
                 {activeTab === "titular" && <TabByHolder summary={summary} />}
+                {activeTab === "titular_inst" && <TabByHolderInstitution summary={summary} />}
                 {activeTab === "instituicao" && (
                   <TabByInstitution summary={summary} syncStatuses={syncStatuses} />
                 )}
