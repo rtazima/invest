@@ -83,9 +83,77 @@ interface Props {
 
 export function TabByIndexer({ positions, totalBrl }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
   const groups = buildGroups(positions);
 
+  const CIRCUMFERENCE = 2 * Math.PI * 54;
+  let offset = 0;
+  const arcs = groups.map((g) => {
+    const pct = totalBrl > 0 ? g.total / totalBrl : 0;
+    const arc = pct * CIRCUMFERENCE;
+    const dashOffset = CIRCUMFERENCE - offset;
+    offset += arc;
+    return { ...g, pct, arc, dashOffset };
+  });
+
   return (
+    <div>
+      {/* Donut */}
+      <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid var(--color-line-2)", display: "flex", alignItems: "center", gap: "32px" }}>
+        <svg viewBox="-80 -80 160 160" width="148" height="148" style={{ flexShrink: 0 }}>
+          <circle r="54" fill="none" stroke="var(--color-line-2)" strokeWidth="18" />
+          {arcs.map((seg) => (
+            <circle
+              key={seg.id}
+              r="54"
+              fill="none"
+              stroke={seg.color}
+              strokeWidth={hovered === seg.id ? 26 : 18}
+              strokeDasharray={`${seg.arc.toFixed(2)} ${(CIRCUMFERENCE - seg.arc).toFixed(2)}`}
+              strokeDashoffset={seg.dashOffset.toFixed(2)}
+              transform="rotate(-90)"
+              style={{ transition: "stroke-width 0.15s ease", cursor: "pointer" }}
+              onMouseEnter={() => setHovered(seg.id)}
+              onMouseLeave={() => setHovered(null)}
+            />
+          ))}
+          {/* Label central do hover */}
+          {hovered && (() => {
+            const seg = arcs.find((s) => s.id === hovered);
+            if (!seg) return null;
+            return (
+              <>
+                <text textAnchor="middle" dy="-6" style={{ fontSize: "13px", fill: "var(--color-text)", fontWeight: 600 }}>
+                  {(seg.pct * 100).toFixed(1)}%
+                </text>
+                <text textAnchor="middle" dy="10" style={{ fontSize: "9px", fill: "var(--color-text-3)" }}>
+                  {seg.label}
+                </text>
+              </>
+            );
+          })()}
+        </svg>
+
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "7px" }}>
+          {arcs.map((seg) => (
+            <li
+              key={seg.id}
+              style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", cursor: "default" }}
+              onMouseEnter={() => setHovered(seg.id)}
+              onMouseLeave={() => setHovered(null)}
+            >
+              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: seg.color, flexShrink: 0 }} />
+              <span style={{ color: hovered === seg.id ? "var(--color-text)" : "var(--color-text-2)", transition: "color 0.1s" }}>
+                {seg.label}
+              </span>
+              <span className="num pv" style={{ marginLeft: "auto", color: "var(--color-text-3)", paddingLeft: "16px" }}>
+                {(seg.pct * 100).toFixed(1)}%
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
     <table style={{ width: "100%", fontSize: "12.5px", borderCollapse: "collapse" }}>
       <thead>
         <tr
@@ -211,5 +279,6 @@ export function TabByIndexer({ positions, totalBrl }: Props) {
         </tfoot>
       )}
     </table>
+    </div>
   );
 }
