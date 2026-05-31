@@ -134,7 +134,7 @@ export function DashboardView({ summary, positions, syncStatuses }: Props) {
                 {activeTab === "instituicao" && (
                   <TabByInstitution summary={summary} syncStatuses={syncStatuses} />
                 )}
-                {activeTab === "indexador" && <TabByIndexer positions={positions} totalBrl={summary.totalBrl} />}
+                {activeTab === "indexador" && <TabByIndexer positions={positions} summary={summary} />}
                 {activeTab === "classe" && <TabByClass summary={summary} />}
               </div>
             </div>

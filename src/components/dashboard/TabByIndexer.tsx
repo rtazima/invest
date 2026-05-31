@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ClientPosition } from "./types";
+import type { ClientPosition, ClientPortfolioSummary } from "./types";
 
 interface Group {
   id: string;
@@ -31,6 +31,15 @@ const INDEXER_LABELS: Record<string, string> = {
   prefixado: "Pré",
 };
 
+const HOLDER_COLORS: Record<string, string> = {
+  rodrigo: "oklch(0.65 0.10 240)",
+  grasi: "oklch(0.68 0.13 330)",
+  amora: "oklch(0.72 0.15 60)",
+  benicio: "oklch(0.70 0.13 160)",
+};
+
+const CIRCUMFERENCE = 2 * Math.PI * 54;
+
 function fmt(n: number): string {
   return n.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
@@ -41,20 +50,19 @@ function fmtFull(n: number): string {
 
 function pctStr(part: number, total: number): string {
   if (total === 0) return "—";
-  return (part / total * 100).toFixed(1) + "%";
+  return ((part / total) * 100).toFixed(1) + "%";
 }
 
 function buildGroups(positions: ClientPosition[]): Group[] {
-  const posFixado:      Group = { id: "pos_fixado",    label: "Pós-fixado",     sublabel: "CDI · Selic",          color: "oklch(0.62 0.14 232)", positions: [], total: 0 };
-  const inflacao:       Group = { id: "inflacao",      label: "Inflação",       sublabel: "IPCA · IGP-M",         color: "oklch(0.72 0.16 30)",  positions: [], total: 0 };
-  const prefixado:      Group = { id: "prefixado",     label: "Prefixado",      sublabel: "Taxa fixa",            color: "oklch(0.76 0.15 72)",  positions: [], total: 0 };
-  const rv:             Group = { id: "rv",            label: "Renda Variável", sublabel: "Ações · FIIs · ETFs",  color: "oklch(0.68 0.18 152)", positions: [], total: 0 };
-  const fundos:         Group = { id: "fundos",        label: "Fundos",         sublabel: "Multimercado · Crédito", color: "oklch(0.73 0.12 60)", positions: [], total: 0 };
-  const internacional:  Group = { id: "internacional", label: "Internacional",  sublabel: "USD · Globais",        color: "oklch(0.65 0.18 300)", positions: [], total: 0 };
+  const posFixado:     Group = { id: "pos_fixado",    label: "Pós-fixado",     sublabel: "CDI · Selic",           color: "oklch(0.62 0.14 232)", positions: [], total: 0 };
+  const inflacao:      Group = { id: "inflacao",      label: "Inflação",       sublabel: "IPCA · IGP-M",          color: "oklch(0.72 0.16 30)",  positions: [], total: 0 };
+  const prefixado:     Group = { id: "prefixado",     label: "Prefixado",      sublabel: "Taxa fixa",             color: "oklch(0.76 0.15 72)",  positions: [], total: 0 };
+  const rv:            Group = { id: "rv",            label: "Renda Variável", sublabel: "Ações · FIIs · ETFs",   color: "oklch(0.68 0.18 152)", positions: [], total: 0 };
+  const fundos:        Group = { id: "fundos",        label: "Fundos",         sublabel: "Multimercado · Crédito",color: "oklch(0.73 0.12 60)",  positions: [], total: 0 };
+  const internacional: Group = { id: "internacional", label: "Internacional",  sublabel: "USD · Globais",         color: "oklch(0.65 0.18 300)", positions: [], total: 0 };
 
   for (const p of positions) {
     let target: Group;
-
     if (p.currency === "USD" || ["stocks_intl", "etf_intl"].includes(p.asset_class)) {
       target = internacional;
     } else if (p.asset_class === "funds") {
@@ -68,7 +76,6 @@ function buildGroups(positions: ClientPosition[]): Group[] {
     } else {
       target = posFixado;
     }
-
     target.positions.push(p);
     target.total += p.market_value_brl;
   }
@@ -78,15 +85,21 @@ function buildGroups(positions: ClientPosition[]): Group[] {
 
 interface Props {
   positions: ClientPosition[];
-  totalBrl: number;
+  summary: ClientPortfolioSummary;
 }
 
-export function TabByIndexer({ positions, totalBrl }: Props) {
+export function TabByIndexer({ positions, summary }: Props) {
+  const [selectedHolder, setSelectedHolder] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
-  const groups = buildGroups(positions);
 
-  const CIRCUMFERENCE = 2 * Math.PI * 54;
+  const filteredPositions = selectedHolder
+    ? positions.filter((p) => p.holder_id === selectedHolder)
+    : positions;
+
+  const totalBrl = filteredPositions.reduce((acc, p) => acc + p.market_value_brl, 0);
+  const groups = buildGroups(filteredPositions);
+
   let offset = 0;
   const arcs = groups.map((g) => {
     const pct = totalBrl > 0 ? g.total / totalBrl : 0;
@@ -96,8 +109,51 @@ export function TabByIndexer({ positions, totalBrl }: Props) {
     return { ...g, pct, arc, dashOffset };
   });
 
+  const pillBase: React.CSSProperties = {
+    padding: "3px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    border: "1px solid",
+    cursor: "pointer",
+    background: "none",
+    transition: "background-color 0.1s, color 0.1s, border-color 0.1s",
+  };
+
   return (
     <div>
+      {/* Seletor de titular */}
+      <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--color-line-2)", display: "flex", gap: "6px", flexWrap: "wrap" }}>
+        <button
+          onClick={() => setSelectedHolder(null)}
+          style={{
+            ...pillBase,
+            backgroundColor: selectedHolder === null ? "var(--color-text)" : "transparent",
+            color: selectedHolder === null ? "var(--color-bg)" : "var(--color-text-2)",
+            borderColor: selectedHolder === null ? "var(--color-text)" : "var(--color-line)",
+          }}
+        >
+          Todos
+        </button>
+        {summary.byHolder.map((h) => {
+          const active = selectedHolder === h.id;
+          const color = HOLDER_COLORS[h.slug] ?? "var(--color-brand)";
+          return (
+            <button
+              key={h.id}
+              onClick={() => setSelectedHolder(active ? null : h.id)}
+              style={{
+                ...pillBase,
+                backgroundColor: active ? color : "transparent",
+                color: active ? "var(--color-bg)" : "var(--color-text-2)",
+                borderColor: active ? color : "var(--color-line)",
+              }}
+            >
+              {h.name}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Donut */}
       <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid var(--color-line-2)", display: "flex", alignItems: "center", gap: "32px" }}>
         <svg viewBox="-80 -80 160 160" width="148" height="148" style={{ flexShrink: 0 }}>
@@ -117,7 +173,6 @@ export function TabByIndexer({ positions, totalBrl }: Props) {
               onMouseLeave={() => setHovered(null)}
             />
           ))}
-          {/* Label central do hover */}
           {hovered && (() => {
             const seg = arcs.find((s) => s.id === hovered);
             if (!seg) return null;
@@ -154,131 +209,121 @@ export function TabByIndexer({ positions, totalBrl }: Props) {
         </ul>
       </div>
 
-    <table style={{ width: "100%", fontSize: "12.5px", borderCollapse: "collapse" }}>
-      <thead>
-        <tr
-          className="hairline"
-          style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-3)" }}
-        >
-          <th style={{ padding: "8px 8px 8px 16px", textAlign: "left" }}>Bloco</th>
-          <th style={{ padding: "8px", textAlign: "right" }}>Patrimônio</th>
-          <th style={{ padding: "8px", textAlign: "right" }}>%</th>
-          <th style={{ padding: "8px 16px 8px 8px", textAlign: "right" }}>Distribuição</th>
-        </tr>
-      </thead>
-      <tbody>
-        {groups.map((g) => {
-          const pct = totalBrl > 0 ? (g.total / totalBrl) * 100 : 0;
-          const isOpen = expanded === g.id;
+      {/* Tabela */}
+      <table style={{ width: "100%", fontSize: "12.5px", borderCollapse: "collapse" }}>
+        <thead>
+          <tr
+            className="hairline"
+            style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-3)" }}
+          >
+            <th style={{ padding: "8px 8px 8px 16px", textAlign: "left" }}>Bloco</th>
+            <th style={{ padding: "8px", textAlign: "right" }}>Patrimônio</th>
+            <th style={{ padding: "8px", textAlign: "right" }}>%</th>
+            <th style={{ padding: "8px 16px 8px 8px", textAlign: "right" }}>Distribuição</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map((g) => {
+            const pct = totalBrl > 0 ? (g.total / totalBrl) * 100 : 0;
+            const isOpen = expanded === g.id;
 
-          return (
-            <>
-              <tr
-                key={g.id}
-                className="hairline"
-                style={{ cursor: "pointer", transition: "background-color 0.1s" }}
-                onClick={() => setExpanded(isOpen ? null : g.id)}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-bg-3)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isOpen ? "var(--color-bg-3)" : "transparent"; }}
-              >
-                <td style={{ padding: "10px 8px 10px 16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span
-                      style={{
-                        width: "8px", height: "8px", borderRadius: "2px",
-                        backgroundColor: g.color, flexShrink: 0,
-                      }}
-                    />
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{g.label}</div>
-                      <div style={{ fontSize: "11px", color: "var(--color-text-3)", marginTop: "1px" }}>
-                        {g.sublabel}
+            return (
+              <>
+                <tr
+                  key={g.id}
+                  className="hairline"
+                  style={{ cursor: "pointer", transition: "background-color 0.1s" }}
+                  onClick={() => setExpanded(isOpen ? null : g.id)}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-bg-3)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = isOpen ? "var(--color-bg-3)" : "transparent"; }}
+                >
+                  <td style={{ padding: "10px 8px 10px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: g.color, flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{g.label}</div>
+                        <div style={{ fontSize: "11px", color: "var(--color-text-3)", marginTop: "1px" }}>{g.sublabel}</div>
+                      </div>
+                      <span style={{ marginLeft: "4px", fontSize: "10px", color: "var(--color-text-3)" }}>
+                        {isOpen ? "▲" : "▼"}
+                      </span>
+                    </div>
+                  </td>
+                  <td style={{ padding: "10px 8px", textAlign: "right" }}>
+                    <span className="num pv" style={{ fontWeight: 500 }}>R$ {fmt(g.total)}</span>
+                  </td>
+                  <td style={{ padding: "10px 8px", textAlign: "right" }}>
+                    <span className="num" style={{ color: "var(--color-text-2)" }}>{pct.toFixed(1)}%</span>
+                  </td>
+                  <td style={{ padding: "10px 16px 10px 8px", textAlign: "right" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+                      <div style={{ width: "128px", height: "6px", borderRadius: "3px", backgroundColor: "var(--color-bg-3)", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${Math.min(pct, 100)}%`, backgroundColor: g.color, transition: "width 0.3s" }} />
                       </div>
                     </div>
-                    <span style={{ marginLeft: "4px", fontSize: "10px", color: "var(--color-text-3)" }}>
-                      {isOpen ? "▲" : "▼"}
-                    </span>
-                  </div>
-                </td>
-                <td style={{ padding: "10px 8px", textAlign: "right" }}>
-                  <span className="num pv" style={{ fontWeight: 500 }}>R$ {fmt(g.total)}</span>
-                </td>
-                <td style={{ padding: "10px 8px", textAlign: "right" }}>
-                  <span className="num" style={{ color: "var(--color-text-2)" }}>
-                    {pct.toFixed(1)}%
-                  </span>
-                </td>
-                <td style={{ padding: "10px 16px 10px 8px", textAlign: "right" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                    <div style={{ width: "128px", height: "6px", borderRadius: "3px", backgroundColor: "var(--color-bg-3)", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${Math.min(pct, 100)}%`, backgroundColor: g.color, transition: "width 0.3s" }} />
-                    </div>
-                  </div>
-                </td>
-              </tr>
+                  </td>
+                </tr>
 
-              {isOpen && g.positions
-                .sort((a, b) => b.market_value_brl - a.market_value_brl)
-                .map((p) => {
-                  const tag = p.indexer
-                    ? (INDEXER_LABELS[p.indexer] ?? p.indexer)
-                    : (ASSET_CLASS_LABELS[p.asset_class] ?? p.asset_class);
+                {isOpen && g.positions
+                  .sort((a, b) => b.market_value_brl - a.market_value_brl)
+                  .map((p) => {
+                    const tag = p.indexer
+                      ? (INDEXER_LABELS[p.indexer] ?? p.indexer)
+                      : (ASSET_CLASS_LABELS[p.asset_class] ?? p.asset_class);
 
-                  return (
-                    <tr
-                      key={p.id}
-                      style={{ backgroundColor: "var(--color-bg-3)" }}
-                    >
-                      <td style={{ padding: "6px 8px 6px 36px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <span style={{ fontSize: "11px", color: "var(--color-text-3)", fontFamily: "var(--font-mono)" }}>
-                            {p.ticker ?? "—"}
+                    return (
+                      <tr key={p.id} style={{ backgroundColor: "var(--color-bg-3)" }}>
+                        <td style={{ padding: "6px 8px 6px 36px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "11px", color: "var(--color-text-3)", fontFamily: "var(--font-mono)" }}>
+                              {p.ticker ?? "—"}
+                            </span>
+                            <span style={{ color: "var(--color-text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "240px" }}>
+                              {p.name}
+                            </span>
+                            {!selectedHolder && (
+                              <span style={{ fontSize: "10px", color: "var(--color-text-3)", flexShrink: 0 }}>
+                                {p.holder_name}
+                              </span>
+                            )}
+                            <span style={{ fontSize: "10px", padding: "1px 5px", borderRadius: "3px", backgroundColor: "var(--color-bg-2)", color: "var(--color-text-3)", border: "1px solid var(--color-line-2)", flexShrink: 0 }}>
+                              {tag}
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                          <span className="num pv" style={{ fontSize: "12px" }}>R$ {fmtFull(p.market_value_brl)}</span>
+                        </td>
+                        <td style={{ padding: "6px 8px", textAlign: "right" }}>
+                          <span className="num" style={{ fontSize: "11px", color: "var(--color-text-3)" }}>
+                            {pctStr(p.market_value_brl, totalBrl)}
                           </span>
-                          <span style={{ color: "var(--color-text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "260px" }}>
-                            {p.name}
-                          </span>
-                          <span style={{
-                            fontSize: "10px", padding: "1px 5px", borderRadius: "3px",
-                            backgroundColor: "var(--color-bg-2)", color: "var(--color-text-3)",
-                            border: "1px solid var(--color-line-2)", flexShrink: 0,
-                          }}>
-                            {tag}
-                          </span>
-                        </div>
-                      </td>
-                      <td style={{ padding: "6px 8px", textAlign: "right" }}>
-                        <span className="num pv" style={{ fontSize: "12px" }}>R$ {fmtFull(p.market_value_brl)}</span>
-                      </td>
-                      <td style={{ padding: "6px 8px", textAlign: "right" }}>
-                        <span className="num" style={{ fontSize: "11px", color: "var(--color-text-3)" }}>
-                          {pctStr(p.market_value_brl, totalBrl)}
-                        </span>
-                      </td>
-                      <td style={{ padding: "6px 16px 6px 8px" }} />
-                    </tr>
-                  );
-                })}
-            </>
-          );
-        })}
-      </tbody>
-      {groups.length > 0 && (
-        <tfoot>
-          <tr style={{ borderTop: "1px solid var(--color-line)" }}>
-            <td style={{ padding: "8px 8px 8px 16px", fontSize: "11.5px", color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Total
-            </td>
-            <td style={{ padding: "8px", textAlign: "right" }}>
-              <span className="num pv" style={{ fontWeight: 600, fontSize: "13px" }}>R$ {fmt(totalBrl)}</span>
-            </td>
-            <td style={{ padding: "8px", textAlign: "right" }}>
-              <span className="num" style={{ fontWeight: 600, fontSize: "13px", color: "var(--color-text-2)" }}>100%</span>
-            </td>
-            <td style={{ padding: "8px 16px 8px 8px" }} />
-          </tr>
-        </tfoot>
-      )}
-    </table>
+                        </td>
+                        <td style={{ padding: "6px 16px 6px 8px" }} />
+                      </tr>
+                    );
+                  })}
+              </>
+            );
+          })}
+        </tbody>
+        {groups.length > 0 && (
+          <tfoot>
+            <tr style={{ borderTop: "1px solid var(--color-line)" }}>
+              <td style={{ padding: "8px 8px 8px 16px", fontSize: "11.5px", color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Total
+              </td>
+              <td style={{ padding: "8px", textAlign: "right" }}>
+                <span className="num pv" style={{ fontWeight: 600, fontSize: "13px" }}>R$ {fmt(totalBrl)}</span>
+              </td>
+              <td style={{ padding: "8px", textAlign: "right" }}>
+                <span className="num" style={{ fontWeight: 600, fontSize: "13px", color: "var(--color-text-2)" }}>100%</span>
+              </td>
+              <td style={{ padding: "8px 16px 8px 8px" }} />
+            </tr>
+          </tfoot>
+        )}
+      </table>
     </div>
   );
 }
