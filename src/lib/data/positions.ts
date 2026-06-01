@@ -177,5 +177,6 @@ function enrichPosition(row: DBPosition): EnrichedPosition {
     pnlDecimal,
     pnlPctDecimal,
     isStaleQuota: row.asset_class === "funds" ? isStaleQuota(row.quota_date) : false,
+    structureRefs: [],
   };
 }

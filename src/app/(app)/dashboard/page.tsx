@@ -3,17 +3,19 @@ import { getPortfolioSummary } from "@/lib/data/portfolio";
 import { getLatestPositions } from "@/lib/data/positions";
 import { getInstitutionSyncStatuses } from "@/lib/data/sync";
 import { getHolders } from "@/lib/data/holders";
+import { getStructuresForAllHolders } from "@/lib/data/structures";
 import { DashboardView } from "@/components/dashboard/DashboardView";
 import type { ClientPortfolioSummary, ClientPosition } from "@/components/dashboard/types";
 
 export const metadata: Metadata = { title: "Dashboard — Invest" };
 
 export default async function DashboardPage() {
-  const [summary, positions, holders, syncStatuses] = await Promise.all([
+  const [summary, positions, holders, syncStatuses, structureMap] = await Promise.all([
     getPortfolioSummary(),
     getLatestPositions(),
     getHolders(),
     getInstitutionSyncStatuses(),
+    getStructuresForAllHolders(),
   ]);
 
   const holderMap = new Map(holders.map((h) => [h.id, h]));
@@ -44,6 +46,8 @@ export default async function DashboardPage() {
 
   const clientPositions: ClientPosition[] = positions.map((p) => {
     const holder = holderMap.get(p.holder_id);
+    const structureKey = p.ticker ? `${p.holder_id}:${p.ticker.toUpperCase()}` : null;
+    const structures = structureKey ? (structureMap.get(structureKey) ?? null) : null;
     return {
       id: p.id,
       holder_id: p.holder_id,
@@ -66,6 +70,7 @@ export default async function DashboardPage() {
       liquidity_days: p.liquidity_days,
       quota_date: p.quota_date,
       is_stale_quota: p.isStaleQuota,
+      structures: structures && structures.length > 0 ? structures : null,
     };
   });
 

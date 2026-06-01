@@ -38,6 +38,7 @@ export interface ClientPosition {
   liquidity_days: number | null;
   quota_date: string | null;
   is_stale_quota: boolean;
+  structures: Array<{ id: string; name: string; type: string; role: string }> | null;
 }
 
 export interface ClientAlert {

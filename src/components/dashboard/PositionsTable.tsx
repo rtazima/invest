@@ -15,6 +15,20 @@ const ASSET_CLASS_LABELS: Record<string, string> = {
   liquidity: "Liq",
 };
 
+const STRUCTURE_TYPE_LABELS: Record<string, string> = {
+  covered_call: "CC",
+  synthetic_dividend: "SD",
+  collar: "Collar",
+  protective_put: "PP",
+};
+
+const STRUCTURE_TYPE_COLORS: Record<string, string> = {
+  covered_call: "oklch(0.65 0.15 200)",
+  synthetic_dividend: "oklch(0.62 0.18 145)",
+  collar: "oklch(0.62 0.14 50)",
+  protective_put: "oklch(0.60 0.16 20)",
+};
+
 const HOLDER_COLORS: Record<string, string> = {
   rodrigo: "oklch(0.65 0.10 240)",
   grasi: "oklch(0.68 0.13 330)",
@@ -210,6 +224,20 @@ export function PositionsTable({ positions, totalBrl }: Props) {
                           D+1
                         </span>
                       )}
+                      {pos.structures?.map((s) => (
+                        <span
+                          key={s.id}
+                          className="pill"
+                          title={`${s.name} — ${s.role}`}
+                          style={{
+                            color: STRUCTURE_TYPE_COLORS[s.type] ?? "var(--color-text-2)",
+                            borderColor: STRUCTURE_TYPE_COLORS[s.type] ?? "var(--color-line)",
+                            fontSize: "10px",
+                          }}
+                        >
+                          {STRUCTURE_TYPE_LABELS[s.type] ?? s.type}
+                        </span>
+                      ))}
                     </div>
                   </td>
 

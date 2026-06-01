@@ -12,6 +12,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      position_structures: {
+        Row: {
+          id: string
+          holder_id: string
+          name: string
+          type: "covered_call" | "synthetic_dividend" | "collar" | "protective_put"
+          status: "active" | "expired" | "closed"
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          holder_id: string
+          name: string
+          type: "covered_call" | "synthetic_dividend" | "collar" | "protective_put"
+          status?: "active" | "expired" | "closed"
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          holder_id?: string
+          name?: string
+          type?: "covered_call" | "synthetic_dividend" | "collar" | "protective_put"
+          status?: "active" | "expired" | "closed"
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [{ foreignKeyName: "position_structures_holder_id_fkey"; columns: ["holder_id"]; referencedRelation: "holders"; referencedColumns: ["id"] }]
+      }
+      position_structure_legs: {
+        Row: {
+          id: string
+          structure_id: string
+          role: "underlying" | "short_call" | "long_put" | "short_put" | "long_call"
+          ticker: string | null
+          asset_class: string | null
+          strike: number | null
+          expiration_date: string | null
+          contracts: number | null
+          premium: number | null
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          structure_id: string
+          role: "underlying" | "short_call" | "long_put" | "short_put" | "long_call"
+          ticker?: string | null
+          asset_class?: string | null
+          strike?: number | null
+          expiration_date?: string | null
+          contracts?: number | null
+          premium?: number | null
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          structure_id?: string
+          role?: "underlying" | "short_call" | "long_put" | "short_put" | "long_call"
+          ticker?: string | null
+          asset_class?: string | null
+          strike?: number | null
+          expiration_date?: string | null
+          contracts?: number | null
+          premium?: number | null
+          sort_order?: number
+        }
+        Relationships: [{ foreignKeyName: "position_structure_legs_structure_id_fkey"; columns: ["structure_id"]; referencedRelation: "position_structures"; referencedColumns: ["id"] }]
+      }
       council_sessions: {
         Row: {
           id: string
@@ -716,6 +788,8 @@ export type DBPosition = Database["public"]["Tables"]["positions"]["Row"]
 export type DBImportBatch = Database["public"]["Tables"]["import_batches"]["Row"]
 export type DBAlert = Database["public"]["Tables"]["alerts"]["Row"]
 export type DBExchangeRate = Database["public"]["Tables"]["exchange_rates"]["Row"]
+export type DBPositionStructure = Database["public"]["Tables"]["position_structures"]["Row"]
+export type DBPositionStructureLeg = Database["public"]["Tables"]["position_structure_legs"]["Row"]
 export type DBCouncilSession = Database["public"]["Tables"]["council_sessions"]["Row"]
 export type DBCouncilParticipant = Database["public"]["Tables"]["council_participants"]["Row"]
 export type DBCouncilMessage = Database["public"]["Tables"]["council_messages"]["Row"]

@@ -58,20 +58,20 @@ export default async function StrategyPage({ params }: Props) {
             {holder.name}
           </h1>
           {strategy && <RiskProfileBadge profile={strategy.risk_profile} />}
-          <Link
-            href={`/holders/${holderId}/council`}
-            style={{
-              marginLeft: "auto",
-              fontSize: "12.5px",
-              padding: "5px 12px",
-              borderRadius: "5px",
-              border: "1px solid var(--color-line)",
-              color: "var(--color-text-2)",
-              textDecoration: "none",
-            }}
-          >
-            Conselho
-          </Link>
+          <div style={{ marginLeft: "auto", display: "flex", gap: "6px" }}>
+            <Link
+              href={`/holders/${holderId}/structures`}
+              style={{ fontSize: "12.5px", padding: "5px 12px", borderRadius: "5px", border: "1px solid var(--color-line)", color: "var(--color-text-2)", textDecoration: "none" }}
+            >
+              Estruturas
+            </Link>
+            <Link
+              href={`/holders/${holderId}/council`}
+              style={{ fontSize: "12.5px", padding: "5px 12px", borderRadius: "5px", border: "1px solid var(--color-line)", color: "var(--color-text-2)", textDecoration: "none" }}
+            >
+              Conselho
+            </Link>
+          </div>
         </div>
       </div>
 

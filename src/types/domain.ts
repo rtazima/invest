@@ -1,5 +1,8 @@
 import Decimal from "decimal.js";
 import type { DBHolder, DBPosition, DBAlert, DBStrategy, DBStrategyAllocation } from "./database";
+import type { PositionStructureRef } from "@/lib/data/structures";
+
+export type { PositionStructureRef };
 
 // Re-exporta tipos DB para uso nos componentes
 export type { DBHolder, DBPosition, DBAlert, DBStrategy, DBStrategyAllocation };
@@ -26,6 +29,7 @@ export interface EnrichedPosition extends DBPosition {
   pnlDecimal: Decimal | null;
   pnlPctDecimal: Decimal | null;
   isStaleQuota: boolean;
+  structureRefs: PositionStructureRef[];
 }
 
 export function emptyPortfolioSummary(): PortfolioSummary {
