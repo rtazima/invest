@@ -2,7 +2,9 @@ import { createServerClient } from "@/lib/supabase/server";
 import type { DBCouncilSession, DBCouncilParticipant, DBCouncilMessage } from "@/types/database";
 
 export type CouncilStatus = DBCouncilSession["status"];
+export type CouncilMode = DBCouncilSession["mode"];
 export type ParticipantType = DBCouncilParticipant["type"];
+export type MessageType = DBCouncilMessage["message_type"];
 export type CouncilModel = "claude-opus-4-7" | "gpt-4o";
 
 export interface CouncilParticipantInput {
@@ -19,11 +21,26 @@ export interface CouncilParticipantFull extends DBCouncilParticipant {
 
 export interface CouncilSessionFull extends DBCouncilSession {
   participants: CouncilParticipantFull[];
-  synthesis: DBCouncilMessage | null;
+  allMessages: DBCouncilMessage[];
 }
 
-export interface CouncilSessionSummary extends DBCouncilSession {
+export interface CouncilSessionSummary {
+  id: string;
+  holder_id: string;
+  title: string;
+  mode: CouncilMode;
+  status: CouncilStatus;
+  current_round: number;
+  max_rounds: number;
   participant_count: number;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface JudgeResult {
+  converged: boolean;
+  summary: string;
+  key_disagreements: string[];
 }
 
 export async function getCouncilSessions(holderId: string): Promise<CouncilSessionSummary[]> {
@@ -41,10 +58,13 @@ export async function getCouncilSessions(holderId: string): Promise<CouncilSessi
     id: s.id,
     holder_id: s.holder_id,
     title: s.title,
+    mode: s.mode,
     status: s.status,
+    current_round: s.current_round,
+    max_rounds: s.max_rounds,
+    participant_count: Array.isArray(s.council_participants) ? s.council_participants.length : 0,
     created_at: s.created_at,
     completed_at: s.completed_at,
-    participant_count: Array.isArray(s.council_participants) ? s.council_participants.length : 0,
   }));
 }
 
@@ -77,30 +97,36 @@ export async function getCouncilSession(sessionId: string): Promise<CouncilSessi
   if (msgErr) throw new Error(`getCouncilSession/messages: ${msgErr.message}`);
 
   const allMessages = messages ?? [];
-  const synthesis = allMessages.find((m) => m.round === 0) ?? null;
 
   const participantsFull: CouncilParticipantFull[] = (participants ?? []).map((p) => ({
     ...p,
     messages: allMessages.filter((m) => m.participant_id === p.id),
   }));
 
-  return {
-    ...session,
-    participants: participantsFull,
-    synthesis,
-  };
+  return { ...session, participants: participantsFull, allMessages };
 }
 
 export async function createCouncilSession(
   holderId: string,
   title: string,
+  mode: CouncilMode,
+  initialPrompt: string,
+  maxRounds: number,
   participants: CouncilParticipantInput[],
 ): Promise<string> {
   const supabase = await createServerClient();
 
   const { data: session, error: sessErr } = await supabase
     .from("council_sessions")
-    .insert({ holder_id: holderId, title, status: "round1_pending" })
+    .insert({
+      holder_id: holderId,
+      title,
+      mode,
+      initial_prompt: initialPrompt,
+      max_rounds: maxRounds,
+      status: "pending",
+      current_round: 0,
+    })
     .select()
     .single();
 
@@ -119,37 +145,43 @@ export async function saveCouncilMessage(
   sessionId: string,
   participantId: string | null,
   round: number,
+  messageType: MessageType,
   content: string,
 ): Promise<void> {
   const supabase = await createServerClient();
   const { error } = await supabase
     .from("council_messages")
-    .insert({ session_id: sessionId, participant_id: participantId, round, content });
+    .insert({ session_id: sessionId, participant_id: participantId, round, message_type: messageType, content });
 
   if (error) throw new Error(`saveCouncilMessage: ${error.message}`);
 }
 
-export async function advanceSessionStatus(sessionId: string, status: CouncilStatus): Promise<void> {
+export async function advanceSession(
+  sessionId: string,
+  status: CouncilStatus,
+  currentRound?: number,
+): Promise<void> {
   const supabase = await createServerClient();
   const update: Record<string, unknown> = { status };
-  if (status === "completed") update["completed_at"] = new Date().toISOString();
+  if (currentRound !== undefined) update["current_round"] = currentRound;
+  if (status === "completed" || status === "no_consensus") update["completed_at"] = new Date().toISOString();
 
-  const { error } = await supabase
-    .from("council_sessions")
-    .update(update)
-    .eq("id", sessionId);
-
-  if (error) throw new Error(`advanceSessionStatus: ${error.message}`);
+  const { error } = await supabase.from("council_sessions").update(update).eq("id", sessionId);
+  if (error) throw new Error(`advanceSession: ${error.message}`);
 }
 
-export async function countMessages(sessionId: string, round: number): Promise<number> {
-  const supabase = await createServerClient();
-  const { count, error } = await supabase
-    .from("council_messages")
-    .select("id", { count: "exact", head: true })
-    .eq("session_id", sessionId)
-    .eq("round", round);
+export function getJudgeResult(session: CouncilSessionFull, round: number): JudgeResult | null {
+  const msg = session.allMessages.find(
+    (m) => m.message_type === "round_judge" && m.round === round,
+  );
+  if (!msg) return null;
+  try {
+    return JSON.parse(msg.content) as JudgeResult;
+  } catch {
+    return null;
+  }
+}
 
-  if (error) throw new Error(`countMessages: ${error.message}`);
-  return count ?? 0;
+export function getSynthesis(session: CouncilSessionFull): DBCouncilMessage | null {
+  return session.allMessages.find((m) => m.message_type === "synthesis") ?? null;
 }

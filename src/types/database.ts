@@ -89,7 +89,11 @@ export type Database = {
           id: string
           holder_id: string
           title: string
-          status: "round1_pending" | "round2_pending" | "synthesizing" | "completed"
+          mode: "advisor_first" | "user_first"
+          initial_prompt: string
+          current_round: number
+          max_rounds: number
+          status: "pending" | "running" | "awaiting_human" | "synthesizing" | "completed" | "no_consensus"
           created_at: string
           completed_at: string | null
         }
@@ -97,7 +101,11 @@ export type Database = {
           id?: string
           holder_id: string
           title: string
-          status?: "round1_pending" | "round2_pending" | "synthesizing" | "completed"
+          mode?: "advisor_first" | "user_first"
+          initial_prompt?: string
+          current_round?: number
+          max_rounds?: number
+          status?: "pending" | "running" | "awaiting_human" | "synthesizing" | "completed" | "no_consensus"
           created_at?: string
           completed_at?: string | null
         }
@@ -105,7 +113,11 @@ export type Database = {
           id?: string
           holder_id?: string
           title?: string
-          status?: "round1_pending" | "round2_pending" | "synthesizing" | "completed"
+          mode?: "advisor_first" | "user_first"
+          initial_prompt?: string
+          current_round?: number
+          max_rounds?: number
+          status?: "pending" | "running" | "awaiting_human" | "synthesizing" | "completed" | "no_consensus"
           created_at?: string
           completed_at?: string | null
         }
@@ -147,6 +159,7 @@ export type Database = {
           session_id: string
           participant_id: string | null
           round: number
+          message_type: "llm" | "human_user" | "human_advisor" | "round_judge" | "synthesis"
           content: string
           created_at: string
         }
@@ -155,6 +168,7 @@ export type Database = {
           session_id: string
           participant_id?: string | null
           round: number
+          message_type?: "llm" | "human_user" | "human_advisor" | "round_judge" | "synthesis"
           content: string
           created_at?: string
         }
@@ -163,6 +177,7 @@ export type Database = {
           session_id?: string
           participant_id?: string | null
           round?: number
+          message_type?: "llm" | "human_user" | "human_advisor" | "round_judge" | "synthesis"
           content?: string
           created_at?: string
         }

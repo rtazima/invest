@@ -1,12 +1,16 @@
-interface MessageRef {
-  participantName: string;
-  roleFocus: string;
-  content: string;
-}
+import type { CouncilMode, JudgeResult } from "@/lib/data/council";
 
 export interface BuiltPrompt {
   system: string;
   user: string;
+}
+
+interface HistoryMessage {
+  participantName: string;
+  roleFocus: string;
+  messageType: "llm" | "human_user" | "human_advisor" | "round_judge";
+  round: number;
+  content: string;
 }
 
 const BASE_ANALYST_RULES = `# Honestidade (inegociável)
@@ -31,7 +35,7 @@ Raciocine em retorno total (renda mais valorização), ajustado a risco. Sempre 
 
 function buildParticipantSystem(roleFocus: string): string {
   const roleClause = roleFocus
-    ? `Você representa a perspectiva de ${roleFocus} neste conselho. Argumente a partir desse ângulo — não ceda sem argumento real, mesmo que os outros participantes discordam.`
+    ? `Você representa a perspectiva de ${roleFocus} neste conselho. Argumente a partir desse ângulo — não ceda sem argumento real, mesmo que os outros participantes discordem.`
     : `Você é analista de investimentos, atuando como sparring de decisão de igual para igual.`;
 
   return `# Papel
@@ -40,52 +44,95 @@ ${roleClause} Seu trabalho é defender sua perspectiva com rigor, atualizar sua 
 ${BASE_ANALYST_RULES}`;
 }
 
-export function buildRound1Prompt(params: {
+function buildInitialPromptSection(mode: CouncilMode, initialPrompt: string): string {
+  const label = mode === "advisor_first"
+    ? "Recomendação do assessor (ponto de partida do debate)"
+    : "Questão proposta pelo investidor (ponto de partida do debate)";
+  return `${label}:\n${initialPrompt}`;
+}
+
+function buildHistorySection(history: HistoryMessage[]): string {
+  if (history.length === 0) return "";
+
+  const byRound = new Map<number, HistoryMessage[]>();
+  for (const m of history) {
+    const arr = byRound.get(m.round) ?? [];
+    arr.push(m);
+    byRound.set(m.round, arr);
+  }
+
+  const rounds = Array.from(byRound.keys()).sort((a, b) => a - b);
+  const sections: string[] = [];
+
+  for (const r of rounds) {
+    const msgs = byRound.get(r)!;
+    const lines: string[] = [`--- Rodada ${r} ---`];
+
+    for (const m of msgs) {
+      if (m.messageType === "llm") {
+        lines.push(`\n${m.participantName} (${m.roleFocus || "análise geral"}):\n${m.content}`);
+      } else if (m.messageType === "human_user") {
+        lines.push(`\nContribuição do investidor:\n${m.content}`);
+      } else if (m.messageType === "human_advisor") {
+        lines.push(`\nResposta do assessor:\n${m.content}`);
+      } else if (m.messageType === "round_judge") {
+        try {
+          const j = JSON.parse(m.content) as JudgeResult;
+          const status = j.converged ? "Convergência detectada" : "Sem convergência";
+          const disagreements = j.key_disagreements.length > 0
+            ? `\nPrincipais divergências: ${j.key_disagreements.join("; ")}`
+            : "";
+          lines.push(`\nAvaliação do mediador: ${status}\n${j.summary}${disagreements}`);
+        } catch {
+          lines.push(`\nAvaliação do mediador: ${m.content}`);
+        }
+      }
+    }
+
+    sections.push(lines.join("\n"));
+  }
+
+  return `\nHistórico do debate:\n\n${sections.join("\n\n")}`;
+}
+
+export function buildRoundPrompt(params: {
   participantName: string;
   roleFocus: string;
   holderContext: string;
+  mode: CouncilMode;
+  initialPrompt: string;
+  round: number;
+  history: HistoryMessage[];
 }): BuiltPrompt {
-  return {
-    system: buildParticipantSystem(params.roleFocus),
-    user: `Contexto do investidor:
-${params.holderContext}
+  const historySection = buildHistorySection(params.history);
+  const isFirstRound = params.round === 1;
 
-Esta é sua posição inicial no conselho (Rodada 1). Estruture assim:
+  const roundInstructions = isFirstRound
+    ? `Esta é sua posição inicial (Rodada 1). Estruture assim:
 1. Tese central — direto, uma a três frases.
 2. Raciocínio pelos três horizontes (curto, médio, longo).
 3. Alocação sugerida por classe de ativo com percentuais e tolerâncias.
 4. O contra-argumento mais forte à sua própria tese.
 5. O que precisa ser verificado ou decidido para fechar.
 
-De colega para colega, sem corporativês.`,
-  };
-}
+De colega para colega, sem corporativês.`
+    : `Esta é sua participação na Rodada ${params.round}. Avance o debate:
+- Responda diretamente aos argumentos que merecem resposta — cite pelo nome.
+- Onde concordar, diga por quê. Onde discordar, mostre o furo no argumento.
+- Atualize sua posição onde o argumento dos outros for mais forte. Mantenha onde não for — e diga por quê.
+- Se as contribuições humanas mudarem alguma premissa, incorpore.
 
-export function buildRound2Prompt(params: {
-  participantName: string;
-  roleFocus: string;
-  holderContext: string;
-  otherMessages: MessageRef[];
-}): BuiltPrompt {
-  const othersSection = params.otherMessages
-    .map((m) => `=== ${m.participantName} (${m.roleFocus || "análise geral"}) ===\n${m.content}`)
-    .join("\n\n");
+Não repita toda a análise anterior. Avance.`;
 
   return {
     system: buildParticipantSystem(params.roleFocus),
     user: `Contexto do investidor:
 ${params.holderContext}
 
-Posições dos outros participantes (Rodada 1):
-${othersSection}
+${buildInitialPromptSection(params.mode, params.initialPrompt)}
+${historySection}
 
-Esta é sua resposta na Rodada 2. Seja direto e específico:
-- Responda aos argumentos que merecem resposta — cite pelo nome de quem argumentou.
-- Onde concordar, diga por quê. Onde discordar, mostre o furo no argumento deles.
-- Atualize sua posição onde o argumento dos outros for mais forte. Mantenha onde não for — e diga por quê mantém.
-- Se o debate revelou algo novo sobre o perfil ou o portfólio, aponte.
-
-Não repita toda a análise da Rodada 1. Avance o debate.`,
+${roundInstructions}`,
   };
 }
 
@@ -96,30 +143,22 @@ ${BASE_ANALYST_RULES}`;
 
 export function buildSynthesisPrompt(params: {
   holderContext: string;
-  round1Messages: MessageRef[];
-  round2Messages: MessageRef[];
+  mode: CouncilMode;
+  initialPrompt: string;
+  history: HistoryMessage[];
 }): BuiltPrompt {
-  const formatRound = (messages: MessageRef[]) =>
-    messages
-      .map((m) => `=== ${m.participantName} (${m.roleFocus || "análise geral"}) ===\n${m.content}`)
-      .join("\n\n");
-
-  const debateSection =
-    params.round2Messages.length > 0
-      ? `\nRodada 2 — Debate:\n${formatRound(params.round2Messages)}`
-      : "";
+  const historySection = buildHistorySection(params.history);
 
   return {
     system: SYNTHESIS_SYSTEM,
     user: `Contexto do investidor:
 ${params.holderContext}
 
-Rodada 1 — Posições iniciais:
-${formatRound(params.round1Messages)}
-${debateSection}
+${buildInitialPromptSection(params.mode, params.initialPrompt)}
+${historySection}
 
 Sintetize o debate em:
-1. Pontos de convergência — onde os participantes concordaram ou convergiram após o debate.
+1. Pontos de convergência — onde os participantes concordaram ou convergiram.
 2. Pontos de divergência real — o que ficou em aberto e por quê importa para a decisão.
 3. Alocação recomendada por classe de ativo com percentuais e tolerâncias, refletindo o consenso onde ele existe e apresentando os dois cenários onde não existe.
 4. Riscos prioritários identificados no debate.
@@ -128,3 +167,5 @@ Sintetize o debate em:
 Se dois participantes chegaram a conclusões opostas com argumentos válidos, diga isso explicitamente — não escolha um só para parecer decisivo.`,
   };
 }
+
+export type { HistoryMessage };

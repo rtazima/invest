@@ -3,116 +3,121 @@ import { createServerClient } from "@/lib/supabase/server";
 import {
   getCouncilSession,
   saveCouncilMessage,
-  advanceSessionStatus,
-  countMessages,
+  advanceSession,
+  type CouncilSessionFull,
 } from "@/lib/data/council";
 import { buildCouncilContext } from "@/lib/council/context-builder";
-import { buildRound1Prompt, buildRound2Prompt, buildSynthesisPrompt } from "@/lib/council/prompt-builder";
+import { buildRoundPrompt, buildSynthesisPrompt, type HistoryMessage } from "@/lib/council/prompt-builder";
 import { runLlmMessage, SYNTHESIS_MODEL } from "@/lib/council/llm-runner";
+import { judgeRound } from "@/lib/council/judge";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-async function runRound(sessionId: string, round: 1 | 2 | 0) {
+function buildHistory(session: CouncilSessionFull, upToRound: number): HistoryMessage[] {
+  const participantMap = new Map(session.participants.map((p) => [p.id, p]));
+
+  return session.allMessages
+    .filter((m) => m.round < upToRound && m.message_type !== "synthesis")
+    .map((m) => {
+      const p = m.participant_id ? participantMap.get(m.participant_id) : null;
+      return {
+        participantName: p?.name ?? "Participante",
+        roleFocus: p?.role_focus ?? "",
+        messageType: m.message_type as HistoryMessage["messageType"],
+        round: m.round,
+        content: m.content,
+      };
+    });
+}
+
+async function executeRound(sessionId: string, round: number) {
   const session = await getCouncilSession(sessionId);
   if (!session) return;
 
   const holderContext = await buildCouncilContext(session.holder_id);
+  const history = buildHistory(session, round);
 
-  if (round === 0) {
-    await runSynthesis(session, holderContext);
-    return;
-  }
-
+  // Run all LLM participants in parallel
   const llmParticipants = session.participants.filter(
-    (p) => p.type === "llm" && p.model && !p.messages.some((m) => m.round === round),
+    (p) => p.type === "llm" && p.model,
   );
 
   await Promise.allSettled(
     llmParticipants.map(async (p) => {
       try {
-        let built: ReturnType<typeof buildRound1Prompt>;
-        if (round === 1) {
-          built = buildRound1Prompt({
-            participantName: p.name,
-            roleFocus: p.role_focus ?? "",
-            holderContext,
-          });
-        } else {
-          const otherMessages = session.participants
-            .filter((other) => other.id !== p.id)
-            .flatMap((other) =>
-              other.messages.filter((m) => m.round === 1).map((m) => ({
-                participantName: other.name,
-                roleFocus: other.role_focus ?? "",
-                content: m.content,
-              })),
-            );
-          built = buildRound2Prompt({
-            participantName: p.name,
-            roleFocus: p.role_focus ?? "",
-            holderContext,
-            otherMessages,
-          });
-        }
-        const content = await runLlmMessage({ model: p.model!, system: built.system, user: built.user });
-        await saveCouncilMessage(sessionId, p.id, round, content);
+        const { system, user } = buildRoundPrompt({
+          participantName: p.name,
+          roleFocus: p.role_focus ?? "",
+          holderContext,
+          mode: session.mode,
+          initialPrompt: session.initial_prompt,
+          round,
+          history,
+        });
+        const content = await runLlmMessage({ model: p.model!, system, user });
+        await saveCouncilMessage(sessionId, p.id, round, "llm", content);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        await saveCouncilMessage(sessionId, p.id, round, `[Erro: ${errMsg}]`);
+        await saveCouncilMessage(sessionId, p.id, round, "llm", `[Erro: ${errMsg}]`);
       }
     }),
   );
 
-  // Check if all participants have responded
-  const totalParticipants = session.participants.length;
-  const msgCount = await countMessages(sessionId, round);
+  // Re-fetch to get messages just saved
+  const sessionAfterLLMs = await getCouncilSession(sessionId);
+  if (!sessionAfterLLMs) return;
 
-  if (msgCount >= totalParticipants) {
-    if (round === 1) {
-      await advanceSessionStatus(sessionId, "round2_pending");
-    } else {
-      // Round 2 complete — run synthesis
-      await advanceSessionStatus(sessionId, "synthesizing");
-      const updated = await getCouncilSession(sessionId);
-      if (updated) await runSynthesis(updated, holderContext);
-    }
-  } else if (round === 1) {
-    // LLMs done but humans still pending — advance to round2_pending so human form shows
-    await advanceSessionStatus(sessionId, "round2_pending");
+  const roundLLMMessages = sessionAfterLLMs.allMessages.filter(
+    (m) => m.round === round && m.message_type === "llm",
+  );
+
+  const judgeInputs = roundLLMMessages.map((m) => {
+    const p = m.participant_id
+      ? sessionAfterLLMs.participants.find((x) => x.id === m.participant_id)
+      : null;
+    return {
+      participantName: p?.name ?? "Participante",
+      roleFocus: p?.role_focus ?? "",
+      content: m.content,
+    };
+  });
+
+  const judgeResult = await judgeRound(round, judgeInputs);
+  await saveCouncilMessage(sessionId, null, round, "round_judge", JSON.stringify(judgeResult));
+
+  if (judgeResult.converged) {
+    await advanceSession(sessionId, "synthesizing", round);
+    const sessionForSynth = await getCouncilSession(sessionId);
+    if (sessionForSynth) await executeSynthesis(sessionForSynth, holderContext);
+    return;
   }
+
+  if (round >= session.max_rounds) {
+    await advanceSession(sessionId, "no_consensus", round);
+    return;
+  }
+
+  await advanceSession(sessionId, "awaiting_human", round);
 }
 
-async function runSynthesis(
-  session: Awaited<ReturnType<typeof getCouncilSession>>,
-  holderContext: string,
-) {
-  if (!session) return;
-
-  const r1 = session.participants.flatMap((p) =>
-    p.messages.filter((m) => m.round === 1).map((m) => ({
-      participantName: p.name,
-      roleFocus: p.role_focus ?? "",
-      content: m.content,
-    })),
-  );
-  const r2 = session.participants.flatMap((p) =>
-    p.messages.filter((m) => m.round === 2).map((m) => ({
-      participantName: p.name,
-      roleFocus: p.role_focus ?? "",
-      content: m.content,
-    })),
-  );
+async function executeSynthesis(session: CouncilSessionFull, holderContext: string) {
+  const history = buildHistory(session, 999);
 
   try {
-    const { system, user } = buildSynthesisPrompt({ holderContext, round1Messages: r1, round2Messages: r2 });
+    const { system, user } = buildSynthesisPrompt({
+      holderContext,
+      mode: session.mode,
+      initialPrompt: session.initial_prompt,
+      history,
+    });
     const content = await runLlmMessage({ model: SYNTHESIS_MODEL, system, user, maxTokens: 4096 });
-    await saveCouncilMessage(session.id, null, 0, content);
-    await advanceSessionStatus(session.id, "completed");
+    await saveCouncilMessage(session.id, null, 0, "synthesis", content);
+    await advanceSession(session.id, "completed");
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    await saveCouncilMessage(session.id, null, 0, `[Erro na síntese: ${errMsg}]`);
-    await advanceSessionStatus(session.id, "completed");
+    await saveCouncilMessage(session.id, null, 0, "synthesis", `[Erro na síntese: ${errMsg}]`);
+    await advanceSession(session.id, "completed");
   }
 }
 
@@ -121,19 +126,24 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return new Response("Não autorizado", { status: 401 });
 
-  let body: { sessionId: string; round: 1 | 2 | 0 };
+  let body: { sessionId: string };
   try {
     body = await request.json() as typeof body;
   } catch {
     return new Response("Body inválido", { status: 400 });
   }
 
-  const { sessionId, round } = body;
-
+  const { sessionId } = body;
   const session = await getCouncilSession(sessionId);
   if (!session) return new Response("Sessão não encontrada", { status: 404 });
 
-  // Return immediately — work runs in background via waitUntil
-  waitUntil(runRound(sessionId, round));
-  return Response.json({ ok: true, started: true });
+  if (session.status !== "pending" && session.status !== "awaiting_human") {
+    return new Response("Sessão não está aguardando rodada", { status: 409 });
+  }
+
+  const nextRound = session.current_round + 1;
+  await advanceSession(sessionId, "running", nextRound);
+
+  waitUntil(executeRound(sessionId, nextRound));
+  return Response.json({ ok: true, round: nextRound });
 }
