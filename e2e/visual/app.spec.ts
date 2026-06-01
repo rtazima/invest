@@ -74,4 +74,67 @@ test.describe("regressão visual", () => {
     await shot(page, "alerts");
     expect(errors.filter((e) => !e.includes("favicon"))).toHaveLength(0);
   });
+
+  test("conselho — lista de sessões renderiza", async ({ page }) => {
+    await page.goto("/holders");
+    const firstHolder = page.locator("a[href*='/holders/']").first();
+    await firstHolder.waitFor({ timeout: 10_000 });
+    const href = await firstHolder.getAttribute("href");
+    const holderId = href?.match(/\/holders\/([^/]+)/)?.[1];
+    if (!holderId) throw new Error("Nenhum titular encontrado");
+
+    const errors = await noConsoleErrors(page);
+    await page.goto(`/holders/${holderId}/council`);
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: 10_000 });
+    await shot(page, "council-list");
+    expect(errors.filter((e) => !e.includes("favicon"))).toHaveLength(0);
+  });
+
+  test("conselho — nova sessão renderiza (modo e prompt)", async ({ page }) => {
+    await page.goto("/holders");
+    const firstHolder = page.locator("a[href*='/holders/']").first();
+    await firstHolder.waitFor({ timeout: 10_000 });
+    const href = await firstHolder.getAttribute("href");
+    const holderId = href?.match(/\/holders\/([^/]+)/)?.[1];
+    if (!holderId) throw new Error("Nenhum titular encontrado");
+
+    const errors = await noConsoleErrors(page);
+    await page.goto(`/holders/${holderId}/council/new`);
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: 10_000 });
+    // Botões de modo devem aparecer
+    await expect(page.getByText("Eu tenho uma ideia")).toBeVisible();
+    await expect(page.getByText("Assessor propõe algo")).toBeVisible();
+    await shot(page, "council-new");
+    expect(errors.filter((e) => !e.includes("favicon"))).toHaveLength(0);
+  });
+
+  test("estruturas — lista renderiza", async ({ page }) => {
+    await page.goto("/holders");
+    const firstHolder = page.locator("a[href*='/holders/']").first();
+    await firstHolder.waitFor({ timeout: 10_000 });
+    const href = await firstHolder.getAttribute("href");
+    const holderId = href?.match(/\/holders\/([^/]+)/)?.[1];
+    if (!holderId) throw new Error("Nenhum titular encontrado");
+
+    const errors = await noConsoleErrors(page);
+    await page.goto(`/holders/${holderId}/structures`);
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: 10_000 });
+    await shot(page, "structures-list");
+    expect(errors.filter((e) => !e.includes("favicon"))).toHaveLength(0);
+  });
+
+  test("estruturas — nova estrutura renderiza", async ({ page }) => {
+    await page.goto("/holders");
+    const firstHolder = page.locator("a[href*='/holders/']").first();
+    await firstHolder.waitFor({ timeout: 10_000 });
+    const href = await firstHolder.getAttribute("href");
+    const holderId = href?.match(/\/holders\/([^/]+)/)?.[1];
+    if (!holderId) throw new Error("Nenhum titular encontrado");
+
+    const errors = await noConsoleErrors(page);
+    await page.goto(`/holders/${holderId}/structures/new`);
+    await expect(page.locator("h1").first()).toBeVisible({ timeout: 10_000 });
+    await shot(page, "structures-new");
+    expect(errors.filter((e) => !e.includes("favicon"))).toHaveLength(0);
+  });
 });
