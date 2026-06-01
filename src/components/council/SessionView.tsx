@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { CouncilSessionFull, JudgeResult } from "@/lib/data/council";
 import { addInterjectionAction } from "@/app/(app)/holders/[holderId]/council/actions";
+import { Markdown } from "@/components/ui/Markdown";
 
 interface Props {
   session: CouncilSessionFull;
@@ -92,9 +93,7 @@ export function SessionView({ session, holderId }: Props) {
         <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-3)", marginBottom: "8px" }}>
           {session.mode === "advisor_first" ? "Recomendação do assessor" : "Questão proposta"}
         </div>
-        <p style={{ margin: 0, fontSize: "13.5px", lineHeight: 1.6, color: "var(--color-text)", whiteSpace: "pre-wrap" }}>
-          {session.initial_prompt}
-        </p>
+        <Markdown>{session.initial_prompt}</Markdown>
       </div>
 
       {/* Pending state */}
@@ -145,9 +144,10 @@ export function SessionView({ session, holderId }: Props) {
                   <div style={{ fontSize: "11.5px", fontWeight: 600, color: "var(--color-text-3)", marginBottom: "10px" }}>
                     {p?.name ?? "Participante"}{p?.role_focus ? ` — ${p.role_focus}` : ""}
                   </div>
-                  <p style={{ margin: 0, fontSize: "13.5px", lineHeight: 1.65, color: isError ? "var(--color-crit)" : "var(--color-text)", whiteSpace: "pre-wrap" }}>
-                    {m.content}
-                  </p>
+                  {isError
+                    ? <p style={{ margin: 0, fontSize: "13.5px", color: "var(--color-crit)" }}>{m.content}</p>
+                    : <Markdown>{m.content}</Markdown>
+                  }
                 </div>
               );
             })}
@@ -157,9 +157,7 @@ export function SessionView({ session, holderId }: Props) {
                 <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-3)", marginBottom: "6px" }}>
                   {m.message_type === "human_advisor" ? "Resposta do assessor" : "Sua contribuição"}
                 </div>
-                <p style={{ margin: 0, fontSize: "13px", lineHeight: 1.6, color: "var(--color-text-2)", whiteSpace: "pre-wrap" }}>
-                  {m.content}
-                </p>
+                <Markdown>{m.content}</Markdown>
               </div>
             ))}
 
@@ -191,9 +189,7 @@ export function SessionView({ session, holderId }: Props) {
           <div style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-gain)", marginBottom: "12px" }}>
             Síntese final
           </div>
-          <p style={{ margin: 0, fontSize: "13.5px", lineHeight: 1.65, color: "var(--color-text)", whiteSpace: "pre-wrap" }}>
-            {synthesis.content}
-          </p>
+          <Markdown>{synthesis.content}</Markdown>
         </div>
       )}
 

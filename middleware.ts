@@ -57,6 +57,11 @@ export async function middleware(request: NextRequest) {
   // Rotas MFA e onboarding: acessíveis sem aal2
   if (isMfaRoute || isOnboarding) return supabaseResponse;
 
+  // Bypass para usuário de teste E2E (apenas em desenvolvimento)
+  const isE2EUser = process.env.NODE_ENV === "development" &&
+    user.email === process.env.E2E_TEST_EMAIL;
+  if (isE2EUser) return supabaseResponse;
+
   // Verifica onboarding concluído (lido do JWT — sem roundtrip ao DB)
   const isOnboarded = user.user_metadata?.["onboarded"] === true;
   if (!isOnboarded && !isPublic) {

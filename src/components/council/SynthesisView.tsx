@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { DBCouncilMessage } from "@/types/database";
+import { Markdown } from "@/components/ui/Markdown";
 
 interface Props {
   message: DBCouncilMessage;
@@ -31,9 +32,7 @@ export function SynthesisView({ message }: Props) {
           {copied ? "Copiado!" : "Copiar"}
         </button>
       </div>
-      <p style={{ margin: 0, fontSize: "13.5px", lineHeight: 1.65, color: "var(--color-text)", whiteSpace: "pre-wrap" }}>
-        {message.content}
-      </p>
+      <Markdown>{message.content}</Markdown>
     </div>
   );
 }
