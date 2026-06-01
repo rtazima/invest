@@ -171,10 +171,14 @@ export function SessionConfig({ holderId, holderName }: Props) {
                 {p.type === "llm" && (
                   <div>
                     <label style={labelStyle}>Modelo</label>
-                    <select value={p.model ?? ""} onChange={(e) => updateParticipant(idx, "model", e.target.value)} style={inputStyle}>
-                      <option value="claude-opus-4-7">Claude Opus</option>
-                      <option value="gpt-4o">GPT-4o</option>
-                    </select>
+                    <input
+                      type="text"
+                      list="model-suggestions"
+                      value={p.model ?? ""}
+                      onChange={(e) => updateParticipant(idx, "model", e.target.value)}
+                      placeholder="claude-opus-4-7"
+                      style={inputStyle}
+                    />
                   </div>
                 )}
                 <button
@@ -193,6 +197,17 @@ export function SessionConfig({ holderId, holderName }: Props) {
           ))}
         </div>
       </div>
+
+      <datalist id="model-suggestions">
+        <option value="claude-opus-4-7" />
+        <option value="claude-sonnet-4-6" />
+        <option value="claude-haiku-4-5-20251001" />
+        <option value="gpt-4o" />
+        <option value="gpt-4o-mini" />
+        <option value="gpt-4.5-preview" />
+        <option value="o3" />
+        <option value="o4-mini" />
+      </datalist>
 
       {error && <p style={{ margin: 0, fontSize: "12.5px", color: "var(--color-crit)" }}>{error}</p>}
 

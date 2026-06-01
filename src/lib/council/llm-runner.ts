@@ -11,7 +11,7 @@ export async function runLlmMessage(params: {
 }): Promise<string> {
   const { model, system, user, maxTokens = 2048 } = params;
 
-  if (model === "claude-opus-4-7" || model.startsWith("claude-")) {
+  if (model.startsWith("claude-")) {
     const apiKey = process.env["ANTHROPIC_API_KEY"];
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada");
 
@@ -28,24 +28,21 @@ export async function runLlmMessage(params: {
     return block.text;
   }
 
-  if (model === "gpt-4o" || model.startsWith("gpt-")) {
-    const apiKey = process.env["OPENAI_API_KEY"];
-    if (!apiKey) throw new Error("OPENAI_API_KEY não configurada");
+  // Tudo que não começa com "claude-" vai para OpenAI (gpt-*, o1, o3, o4-mini, etc.)
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) throw new Error("OPENAI_API_KEY não configurada");
 
-    const client = new OpenAI({ apiKey });
-    const completion = await client.chat.completions.create({
-      model,
-      max_tokens: maxTokens,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    });
+  const client = new OpenAI({ apiKey });
+  const completion = await client.chat.completions.create({
+    model,
+    max_tokens: maxTokens,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+  });
 
-    const text = completion.choices[0]?.message.content;
-    if (!text) throw new Error("Resposta vazia da OpenAI");
-    return text;
-  }
-
-  throw new Error(`Modelo não suportado: ${model}`);
+  const text = completion.choices[0]?.message.content;
+  if (!text) throw new Error("Resposta vazia da OpenAI");
+  return text;
 }
