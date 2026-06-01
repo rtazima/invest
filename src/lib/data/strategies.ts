@@ -25,7 +25,7 @@ export async function upsertStrategy(
   const supabase = await createServerClient();
   const { data, error } = await supabase
     .from("strategies")
-    .upsert({ ...values, holder_id: holderId, updated_at: new Date().toISOString() })
+    .upsert({ ...values, holder_id: holderId, updated_at: new Date().toISOString() }, { onConflict: "holder_id" })
     .select()
     .single();
 
