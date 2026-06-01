@@ -31,9 +31,9 @@ async function runRound(sessionId: string, round: 1 | 2 | 0) {
   await Promise.allSettled(
     llmParticipants.map(async (p) => {
       try {
-        let prompt: string;
+        let built: ReturnType<typeof buildRound1Prompt>;
         if (round === 1) {
-          prompt = buildRound1Prompt({
+          built = buildRound1Prompt({
             participantName: p.name,
             roleFocus: p.role_focus ?? "",
             holderContext,
@@ -48,14 +48,14 @@ async function runRound(sessionId: string, round: 1 | 2 | 0) {
                 content: m.content,
               })),
             );
-          prompt = buildRound2Prompt({
+          built = buildRound2Prompt({
             participantName: p.name,
             roleFocus: p.role_focus ?? "",
             holderContext,
             otherMessages,
           });
         }
-        const content = await runLlmMessage({ model: p.model!, prompt });
+        const content = await runLlmMessage({ model: p.model!, system: built.system, user: built.user });
         await saveCouncilMessage(sessionId, p.id, round, content);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
@@ -105,8 +105,8 @@ async function runSynthesis(
   );
 
   try {
-    const prompt = buildSynthesisPrompt({ holderContext, round1Messages: r1, round2Messages: r2 });
-    const content = await runLlmMessage({ model: SYNTHESIS_MODEL, prompt, maxTokens: 4096 });
+    const { system, user } = buildSynthesisPrompt({ holderContext, round1Messages: r1, round2Messages: r2 });
+    const content = await runLlmMessage({ model: SYNTHESIS_MODEL, system, user, maxTokens: 4096 });
     await saveCouncilMessage(session.id, null, 0, content);
     await advanceSessionStatus(session.id, "completed");
   } catch (err) {

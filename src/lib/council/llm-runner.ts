@@ -5,10 +5,11 @@ export const SYNTHESIS_MODEL = "claude-opus-4-7" as const;
 
 export async function runLlmMessage(params: {
   model: string;
-  prompt: string;
+  system: string;
+  user: string;
   maxTokens?: number;
 }): Promise<string> {
-  const { model, prompt, maxTokens = 2048 } = params;
+  const { model, system, user, maxTokens = 2048 } = params;
 
   if (model === "claude-opus-4-7" || model.startsWith("claude-")) {
     const apiKey = process.env["ANTHROPIC_API_KEY"];
@@ -18,7 +19,8 @@ export async function runLlmMessage(params: {
     const msg = await client.messages.create({
       model,
       max_tokens: maxTokens,
-      messages: [{ role: "user", content: prompt }],
+      system,
+      messages: [{ role: "user", content: user }],
     });
 
     const block = msg.content[0];
@@ -34,7 +36,10 @@ export async function runLlmMessage(params: {
     const completion = await client.chat.completions.create({
       model,
       max_tokens: maxTokens,
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
     });
 
     const text = completion.choices[0]?.message.content;
