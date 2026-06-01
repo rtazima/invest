@@ -11,8 +11,8 @@ const TICKER_ONLY_RE = /^[A-Z]{1,6}$/;
 const DATA_LINE_RE = /^\d+\.\d{6}/;
 
 // Type-code prefixes merged with ticker in single-line descriptions (Pershing PDF layout).
-// Ordered longest-first so "EUR" is tried before "E", "EQ" before "E", etc.
-const TYPE_PREFIXES = ["COM", "ETF", "SHS", "EQ", "BD", "EUR", "E"];
+// "E" before "EUR": "EURNM" = E+URNM (uranium miners ETF), not EUR+NM.
+const TYPE_PREFIXES = ["COM", "ETF", "SHS", "EQ", "BD", "E", "EUR"];
 
 async function extractText(buffer: ArrayBuffer): Promise<string> {
   // pdf-parse v1.1.1 bundles pdfjs-dist v2 — no workers, no browser APIs.
@@ -57,7 +57,7 @@ function splitTypeAndTicker(token: string): { ticker: string; isCommon: boolean 
   for (const prefix of TYPE_PREFIXES) {
     if (token.startsWith(prefix)) {
       const rest = token.slice(prefix.length);
-      if (/^[A-Z]{3,6}$/.test(rest)) {
+      if (/^[A-Z]{1,6}$/.test(rest)) {
         return { ticker: rest, isCommon: prefix === "COM" };
       }
     }
@@ -127,70 +127,54 @@ export async function parseNomadPdf(
   const lines = text.split("\n").map((l) => l.trim());
   const positions: ParsedPosition[] = [];
 
-  // 1. FDIC deposit — match header case-insensitively to handle v1 format variation
+  // 1. FDIC deposit
+  // The Pershing PDF has two types of "FDIC INSURED DEPOSITS" lines:
+  //   a) Summary line in the portfolio overview (has digits): "FDIC Insured Deposits25.07 10,382.88"
+  //   b) Section header (no digits): "FDIC INSURED DEPOSITS BANK BALANCES"
+  // We must skip (a) and parse the bank balance line that follows (b).
   for (let i = 0; i < lines.length; i++) {
-    if ((lines[i]?.toUpperCase() ?? "").includes("FDIC INSURED DEPOSITS")) {
-      for (let j = i + 1; j < Math.min(i + 15, lines.length); j++) {
-        const line = lines[j] ?? "";
-        if (!line) continue;
-        const upper = line.toUpperCase();
-        if (upper.startsWith("TOTAL") || upper.includes("FDIC INSURED")) continue;
+    const lineUpper = lines[i]?.toUpperCase() ?? "";
+    if (!lineUpper.includes("FDIC INSURED DEPOSITS")) continue;
+    if (/\d/.test(lines[i] ?? "")) continue; // skip summary rows that mix text + numbers
 
-        // v1: numbers may be concatenated — match last two decimal values
-        const stripped = line.replace(/\s+/g, "");
-        const balMatch = stripped.match(/([\d,]+\.\d{2})([\d,]+\.\d{2})$/);
-        if (balMatch) {
-          const balance = parseUSD(balMatch[1] ?? "");
-          if (balance && balance.gt(0)) {
-            positions.push({
-              ticker: null,
-              name: "FDIC Insured Deposit",
-              assetClass: "liquidity",
-              currency: "USD",
-              quantity: new Decimal(1),
-              avgPrice: null,
-              currentPrice: balance,
-              marketValue: balance,
-              maturityDate: null,
-              indexer: null,
-              indexerRate: null,
-              liquidityDays: null,
-              quotaValue: null,
-              quotaDate: null,
-              rawData: { section: "fdic_deposit" },
-            });
-          }
-          break;
+    // Found the section header — scan the next lines for a bank balance row.
+    // Format (concatenated by pdf-parse): "<Bank Name><City, ST><balance><accrued_interest>"
+    // The last two decimal values are balance and accrued interest.
+    for (let j = i + 1; j < Math.min(i + 30, lines.length); j++) {
+      const line = lines[j] ?? "";
+      if (!line) continue;
+      const upper = line.toUpperCase();
+      if (upper.startsWith("TOTAL") || upper.includes("FDIC INSURED")) continue;
+      if (upper.includes("DESCRIPTION") || upper.includes("LOCATION")) continue;
+
+      const stripped = line.replace(/\s+/g, "");
+      // Last two decimal values: <balance><accrued_interest>
+      const balMatch = stripped.match(/([\d,]+\.\d{2})([\d,]+\.\d{2})$/);
+      if (balMatch) {
+        const balance = parseUSD(balMatch[1] ?? "");
+        if (balance && balance.gt(0)) {
+          positions.push({
+            ticker: null,
+            name: "FDIC Insured Deposit",
+            assetClass: "liquidity",
+            currency: "USD",
+            quantity: balance,
+            avgPrice: new Decimal(1),
+            currentPrice: new Decimal(1),
+            marketValue: balance,
+            maturityDate: null,
+            indexer: null,
+            indexerRate: null,
+            liquidityDays: 0,
+            quotaValue: null,
+            quotaDate: null,
+            rawData: { section: "fdic_deposit" },
+          });
         }
-        // Spaced format fallback
-        const parts = line.split(/\s+/);
-        const lastTwo = parts.slice(-2);
-        if (lastTwo.length === 2 && lastTwo.every((p) => /^[\d,]+\.\d+$/.test(p))) {
-          const balance = parseUSD(lastTwo[0] ?? "");
-          if (balance && balance.gt(0)) {
-            positions.push({
-              ticker: null,
-              name: "FDIC Insured Deposit",
-              assetClass: "liquidity",
-              currency: "USD",
-              quantity: new Decimal(1),
-              avgPrice: null,
-              currentPrice: balance,
-              marketValue: balance,
-              maturityDate: null,
-              indexer: null,
-              indexerRate: null,
-              liquidityDays: null,
-              quotaValue: null,
-              quotaDate: null,
-              rawData: { section: "fdic_deposit" },
-            });
-          }
-          break;
-        }
+        break;
       }
-      break;
     }
+    break;
   }
 
   // 2. PORTFOLIO section
@@ -259,16 +243,20 @@ export async function parseNomadPdf(
     const lastDescLine = descLines[descLines.length - 1] ?? "";
 
     if (TICKER_ONLY_RE.test(lastDescLine)) {
-      // Ticker is on its own line (multi-line description with hyphenation)
-      ticker = lastDescLine;
+      // Could be a standalone ticker OR a merged token like EQSCHD/COMPG — always strip prefixes
+      const extracted = splitTypeAndTicker(lastDescLine);
+      ticker = extracted.ticker;
+      isCommon = extracted.isCommon;
       nameLines = descLines.slice(0, -1);
     } else {
       const words = lastDescLine.split(/\s+/);
       const lastWord = words[words.length - 1] ?? "";
 
       if (TICKER_ONLY_RE.test(lastWord)) {
-        // Ticker cleanly separated as last word
-        ticker = lastWord;
+        // Could be clean ticker or merged token (e.g. "COMAMD", "SHSVOO") — always strip prefixes
+        const extracted = splitTypeAndTicker(lastWord);
+        ticker = extracted.ticker;
+        isCommon = extracted.isCommon;
         nameLines = [...descLines.slice(0, -1), words.slice(0, -1).join(" ")];
       } else {
         // Merged token: type-code prefix + ticker (e.g. "COMAMD", "ETFSMH", "1QQQ")

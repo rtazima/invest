@@ -170,6 +170,14 @@ function parseStocksRow(row: unknown[]): ParsedPosition | null {
   };
 }
 
+function inferFundLiquidityDays(name: string): number | null {
+  if (/liquidez/i.test(name)) return 0;
+  if (/referenciado\s+di/i.test(name)) return 0;
+  if (/firf\s*ref/i.test(name)) return 0;
+  if (/\bcash\b/i.test(name)) return 0;
+  return null;
+}
+
 function parseFundsRow(
   row: unknown[],
   indexer: Indexer | null,
@@ -189,6 +197,7 @@ function parseFundsRow(
     ticker && /11$/.test(ticker) ? "fiis" : "funds";
 
   const costBasis = parseBRL(row[5]);
+  const liquidityDays = inferFundLiquidityDays(name);
 
   return {
     ticker,
@@ -202,7 +211,7 @@ function parseFundsRow(
     maturityDate: null,
     indexer,
     indexerRate: null,
-    liquidityDays: null,
+    liquidityDays,
     quotaValue: null,
     quotaDate: null,
     rawData: { section: assetClass, indexer: indexer ?? "" },

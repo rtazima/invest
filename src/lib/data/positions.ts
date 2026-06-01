@@ -165,8 +165,14 @@ function enrichPosition(row: DBPosition): EnrichedPosition {
   const pnlDecimal = row.pnl !== null ? toDecimal(row.pnl) : null;
   const pnlPctDecimal = row.pnl_pct !== null ? toDecimal(row.pnl_pct) : null;
 
+  const effectiveAssetClass =
+    row.liquidity_days !== null && row.liquidity_days <= 7
+      ? ("liquidity" as const)
+      : row.asset_class;
+
   return {
     ...row,
+    asset_class: effectiveAssetClass,
     marketValueBrl,
     pnlDecimal,
     pnlPctDecimal,

@@ -12,6 +12,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      council_sessions: {
+        Row: {
+          id: string
+          holder_id: string
+          title: string
+          status: "round1_pending" | "round2_pending" | "synthesizing" | "completed"
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          holder_id: string
+          title: string
+          status?: "round1_pending" | "round2_pending" | "synthesizing" | "completed"
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          holder_id?: string
+          title?: string
+          status?: "round1_pending" | "round2_pending" | "synthesizing" | "completed"
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: [{ foreignKeyName: "council_sessions_holder_id_fkey"; columns: ["holder_id"]; referencedRelation: "holders"; referencedColumns: ["id"] }]
+      }
+      council_participants: {
+        Row: {
+          id: string
+          session_id: string
+          name: string
+          type: "llm" | "human"
+          model: string | null
+          role_focus: string | null
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          name: string
+          type: "llm" | "human"
+          model?: string | null
+          role_focus?: string | null
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          name?: string
+          type?: "llm" | "human"
+          model?: string | null
+          role_focus?: string | null
+          sort_order?: number
+        }
+        Relationships: [{ foreignKeyName: "council_participants_session_id_fkey"; columns: ["session_id"]; referencedRelation: "council_sessions"; referencedColumns: ["id"] }]
+      }
+      council_messages: {
+        Row: {
+          id: string
+          session_id: string
+          participant_id: string | null
+          round: number
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          participant_id?: string | null
+          round: number
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          participant_id?: string | null
+          round?: number
+          content?: string
+          created_at?: string
+        }
+        Relationships: [
+          { foreignKeyName: "council_messages_session_id_fkey"; columns: ["session_id"]; referencedRelation: "council_sessions"; referencedColumns: ["id"] },
+          { foreignKeyName: "council_messages_participant_id_fkey"; columns: ["participant_id"]; referencedRelation: "council_participants"; referencedColumns: ["id"] }
+        ]
+      }
       alerts: {
         Row: {
           description: string
@@ -629,3 +716,6 @@ export type DBPosition = Database["public"]["Tables"]["positions"]["Row"]
 export type DBImportBatch = Database["public"]["Tables"]["import_batches"]["Row"]
 export type DBAlert = Database["public"]["Tables"]["alerts"]["Row"]
 export type DBExchangeRate = Database["public"]["Tables"]["exchange_rates"]["Row"]
+export type DBCouncilSession = Database["public"]["Tables"]["council_sessions"]["Row"]
+export type DBCouncilParticipant = Database["public"]["Tables"]["council_participants"]["Row"]
+export type DBCouncilMessage = Database["public"]["Tables"]["council_messages"]["Row"]

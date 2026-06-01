@@ -26,6 +26,7 @@
     "decimal.js": "^10.5.0",
     "lucide-react": "^1.14.0",
     "next": "15.5.18",
+    "openai": "^6.39.1",
     "pdf-parse": "1.1.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

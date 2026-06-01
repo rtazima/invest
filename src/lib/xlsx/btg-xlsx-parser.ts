@@ -101,6 +101,15 @@ export function extractBTGXlsxOwner(buffer: ArrayBuffer): DocumentOwner {
   return { name: names[0] ?? null, cpf };
 }
 
+// Retorna 0 para fundos com nome sugestivo de liquidez diária, null caso contrário
+function inferFundLiquidityDays(name: string): number | null {
+  if (/liquidez/i.test(name)) return 0;
+  if (/referenciado\s+di/i.test(name)) return 0;
+  if (/firf\s*ref/i.test(name)) return 0;
+  if (/\bcash\b/i.test(name)) return 0;
+  return null;
+}
+
 // ─── Fundos ───────────────────────────────────────────────────────────────────
 
 function parseFundos(sheet: XLSX.WorkSheet): ParsedPosition[] {
@@ -135,6 +144,7 @@ function parseFundos(sheet: XLSX.WorkSheet): ParsedPosition[] {
 
       const quotaDate = parseDate(c0);
       const assetClass: AssetClass = isFii(currentName) ? "fiis" : "funds";
+      const liquidityDays = inferFundLiquidityDays(currentName);
 
       positions.push({
         ticker: null,
@@ -148,7 +158,7 @@ function parseFundos(sheet: XLSX.WorkSheet): ParsedPosition[] {
         maturityDate: null,
         indexer: null,
         indexerRate: null,
-        liquidityDays: null,
+        liquidityDays,
         quotaValue,
         quotaDate,
         rawData: { section: assetClass },
@@ -191,11 +201,15 @@ function parseRendaFixa(sheet: XLSX.WorkSheet): ParsedPosition[] {
     if (!currentType) continue;
     if (!c0 || c0 === "Emissor" || c0 === "Total") continue;
 
-    // [1]=Emissor, [2]=Ativo, [4]=Vencimento, [8]=Taxa, [9]=Qtde, [10]=Preço, [11]=Saldo Bruto
+    // [1]=Emissor, [2]=Ativo, [4]=Vencimento, [5]=Liquidez(Sim/Não), [6]=DiasCarência, [8]=Taxa, [9]=Qtde, [10]=Preço, [11]=Saldo Bruto
     const emissor = c0;
     if (!emissor) continue;
 
     const maturityDate = parseDate(row[4]);
+    const liquidezStr = cell(row[5]).toLowerCase();
+    const carenciaStr = cell(row[6]);
+    const liquidityDays =
+      liquidezStr === "sim" ? (parseInt(carenciaStr) || 0) : null;
     const taxa = cell(row[8]);
     const qty = parseNum(row[9]);
     const unitPrice = parseNum(row[10]);
@@ -218,7 +232,7 @@ function parseRendaFixa(sheet: XLSX.WorkSheet): ParsedPosition[] {
       maturityDate,
       indexer,
       indexerRate,
-      liquidityDays: null,
+      liquidityDays,
       quotaValue: null,
       quotaDate: null,
       rawData: { section: "fixed_income", type: currentType },
