@@ -26,12 +26,9 @@ export async function getAdvisors(familyId: string): Promise<FamilyAdvisor[]> {
 
 export async function getAdvisorByToken(token: string): Promise<FamilyAdvisor | null> {
   const supabase = await createServerClient();
-  const { data, error } = await supabase
-    .from("family_advisors")
-    .select("id, family_id, invited_email, user_id, role, status, invite_token, invited_at, accepted_at")
-    .eq("invite_token", token)
-    .single();
-  if (error?.code === "PGRST116") return null;
+  // Usa RPC com SECURITY DEFINER para funcionar sem autenticação (página pública de convite)
+  const { data, error } = await supabase.rpc("get_invite_by_token", { p_token: token });
   if (error) throw new Error(`getAdvisorByToken: ${error.message}`);
-  return data as FamilyAdvisor;
+  const row = Array.isArray(data) ? data[0] : null;
+  return row ? (row as FamilyAdvisor) : null;
 }
