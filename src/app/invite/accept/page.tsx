@@ -94,7 +94,10 @@ export default async function InviteAcceptPage({ searchParams }: Props) {
           <p style={{ ...descStyle, fontSize: "0.75rem" }}>
             Para aceitar, faça login com o email <strong>{advisor.invited_email}</strong>.
           </p>
-          <a href={`/login`} style={btnStyle}>
+          <a
+            href={`/login?email=${encodeURIComponent(advisor.invited_email)}&next=${encodeURIComponent(`/invite/accept?token=${token}`)}`}
+            style={btnStyle}
+          >
             Fazer login
           </a>
         </div>

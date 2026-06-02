@@ -7,6 +7,8 @@ export function LoginForm() {
   const params = useSearchParams();
   const message = params.get("message");
   const error = params.get("error");
+  const prefillEmail = params.get("email") ?? "";
+  const next = params.get("next") ?? "";
 
   if (message === "check-email") {
     return (
@@ -54,6 +56,7 @@ export function LoginForm() {
         </p>
       )}
 
+      {next && <input type="hidden" name="next" value={next} />}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
         <label
           htmlFor="email"
@@ -67,7 +70,8 @@ export function LoginForm() {
           type="email"
           required
           autoComplete="email"
-          placeholder="rodrigo@tazima.com.br"
+          defaultValue={prefillEmail}
+          placeholder="seu@email.com"
           style={{
             padding: "0.5rem 0.75rem",
             backgroundColor: "var(--color-bg)",
