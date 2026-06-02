@@ -14,10 +14,23 @@ export async function signInWithOtp(formData: FormData) {
   const nextPath = typeof next === "string" && next.startsWith("/") ? next : "/dashboard";
   const supabase = await createServerClient();
 
+  // Salva o destino pós-login num cookie — não passa na URL do emailRedirectTo
+  // pois query params no emailRedirectTo quebram o PKCE code verifier do Supabase
+  if (nextPath !== "/dashboard") {
+    const { cookies } = await import("next/headers");
+    (await cookies()).set("auth_redirect", nextPath, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60, // 1 hora
+      path: "/",
+    });
+  }
+
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+      emailRedirectTo: `${siteUrl}/auth/callback`,
     },
   });
 
