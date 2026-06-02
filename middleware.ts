@@ -7,7 +7,7 @@ function getEnvVar(name: string): string {
   return value;
 }
 
-const PUBLIC_ROUTES = ["/login", "/register", "/auth/callback"];
+const PUBLIC_ROUTES = ["/login", "/register", "/auth/callback", "/invite"];
 const MFA_ROUTES = ["/mfa/enroll", "/mfa/verify"];
 const ONBOARDING_ROUTE = "/onboarding";
 

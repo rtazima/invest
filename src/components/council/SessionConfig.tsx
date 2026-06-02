@@ -43,6 +43,7 @@ export function SessionConfig({ holderId, holderName }: Props) {
   const [mode, setMode] = useState<CouncilMode>("user_first");
   const [initialPrompt, setInitialPrompt] = useState("");
   const [maxRounds, setMaxRounds] = useState(5);
+  const [autonomous, setAutonomous] = useState(false);
   const [participants, setParticipants] = useState<CouncilParticipantInput[]>(DEFAULT_PARTICIPANTS);
 
   function updateParticipant(idx: number, field: keyof CouncilParticipantInput, value: string) {
@@ -77,7 +78,7 @@ export function SessionConfig({ holderId, holderName }: Props) {
 
     startTransition(async () => {
       try {
-        const { sessionId } = await createSessionAction(holderId, title, mode, initialPrompt, maxRounds, participants);
+        const { sessionId } = await createSessionAction(holderId, title, mode, initialPrompt, maxRounds, participants, autonomous);
         router.push(`/holders/${holderId}/council/${sessionId}`);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Erro ao criar sessão.");
@@ -136,11 +137,41 @@ export function SessionConfig({ holderId, holderName }: Props) {
           />
         </div>
 
-        <div style={{ width: "160px" }}>
-          <label style={labelStyle}>Máx. de rodadas</label>
-          <select value={maxRounds} onChange={(e) => setMaxRounds(Number(e.target.value))} style={inputStyle}>
-            {[3, 5, 7, 10].map((n) => <option key={n} value={n}>{n} rodadas</option>)}
-          </select>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: "12px" }}>
+          <div style={{ width: "160px" }}>
+            <label style={labelStyle}>Máx. de rodadas</label>
+            <select value={maxRounds} onChange={(e) => setMaxRounds(Number(e.target.value))} style={inputStyle}>
+              {[3, 5, 7, 10].map((n) => <option key={n} value={n}>{n} rodadas</option>)}
+            </select>
+          </div>
+
+          <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", paddingBottom: "8px" }}>
+            <div
+              onClick={() => setAutonomous((v) => !v)}
+              style={{
+                width: "36px",
+                height: "20px",
+                borderRadius: "10px",
+                backgroundColor: autonomous ? "var(--color-text)" : "var(--color-line)",
+                position: "relative",
+                cursor: "pointer",
+                transition: "background-color 0.15s",
+                flexShrink: 0,
+              }}
+            >
+              <div style={{
+                position: "absolute",
+                top: "2px",
+                left: autonomous ? "18px" : "2px",
+                width: "16px",
+                height: "16px",
+                borderRadius: "50%",
+                backgroundColor: autonomous ? "var(--color-bg)" : "var(--color-text-3)",
+                transition: "left 0.15s",
+              }} />
+            </div>
+            <span style={{ fontSize: "12.5px", color: "var(--color-text-2)" }}>Rodar de forma autônoma</span>
+          </label>
         </div>
       </div>
 

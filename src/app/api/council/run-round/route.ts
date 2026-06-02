@@ -98,6 +98,12 @@ async function executeRound(sessionId: string, round: number) {
     return;
   }
 
+  if (session.autonomous) {
+    await advanceSession(sessionId, "running", round + 1);
+    await executeRound(sessionId, round + 1);
+    return;
+  }
+
   await advanceSession(sessionId, "awaiting_human", round);
 }
 

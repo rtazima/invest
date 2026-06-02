@@ -2,8 +2,10 @@ import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { getHolders } from "@/lib/data/holders";
+import { getAdvisors } from "@/lib/data/advisors";
 import { AddMemberForm } from "@/components/familia/AddMemberForm";
 import { EditMemberForm } from "@/components/familia/EditMemberForm";
+import { AdvisorsPanel } from "@/components/familia/AdvisorsPanel";
 import { formatCPF } from "@/lib/cpf";
 import { computeIsMinor } from "./actions";
 import { DeleteMemberButton } from "@/components/familia/DeleteMemberButton";
@@ -37,6 +39,7 @@ export default async function FamiliaPage({ searchParams }: Props) {
   }
 
   const familyId = myHolder.family_id;
+  const advisors = familyId ? await getAdvisors(familyId) : [];
   const params = await searchParams;
   const editHolderId = params.edit ?? null;
   const errorMsg = params.error ?? null;
@@ -194,6 +197,25 @@ export default async function FamiliaPage({ searchParams }: Props) {
           })}
         </div>
       </section>
+
+      {/* Assessores */}
+      {familyId && !editHolderId && (
+        <section style={{ marginBottom: "2rem" }}>
+          <h2 style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--color-text-muted)", marginBottom: "0.75rem" }}>
+            Assessores
+          </h2>
+          <div
+            style={{
+              padding: "1.25rem",
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+            }}
+          >
+            <AdvisorsPanel familyId={familyId} advisors={advisors} />
+          </div>
+        </section>
+      )}
 
       {/* Adicionar membro */}
       {familyId && !editHolderId && (

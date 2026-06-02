@@ -94,6 +94,7 @@ export type Database = {
           current_round: number
           max_rounds: number
           status: "pending" | "running" | "awaiting_human" | "synthesizing" | "completed" | "no_consensus"
+          autonomous: boolean
           created_at: string
           completed_at: string | null
         }
@@ -106,6 +107,7 @@ export type Database = {
           current_round?: number
           max_rounds?: number
           status?: "pending" | "running" | "awaiting_human" | "synthesizing" | "completed" | "no_consensus"
+          autonomous?: boolean
           created_at?: string
           completed_at?: string | null
         }
@@ -118,6 +120,7 @@ export type Database = {
           current_round?: number
           max_rounds?: number
           status?: "pending" | "running" | "awaiting_human" | "synthesizing" | "completed" | "no_consensus"
+          autonomous?: boolean
           created_at?: string
           completed_at?: string | null
         }
@@ -292,6 +295,45 @@ export type Database = {
           owner_user_id?: string
         }
         Relationships: []
+      }
+      family_advisors: {
+        Row: {
+          id: string
+          family_id: string
+          invited_email: string
+          user_id: string | null
+          role: "advisor_read" | "advisor_write"
+          status: "pending" | "active" | "revoked"
+          invite_token: string
+          invited_by: string
+          invited_at: string
+          accepted_at: string | null
+        }
+        Insert: {
+          id?: string
+          family_id: string
+          invited_email: string
+          user_id?: string | null
+          role: "advisor_read" | "advisor_write"
+          status?: "pending" | "active" | "revoked"
+          invite_token?: string
+          invited_by: string
+          invited_at?: string
+          accepted_at?: string | null
+        }
+        Update: {
+          id?: string
+          family_id?: string
+          invited_email?: string
+          user_id?: string | null
+          role?: "advisor_read" | "advisor_write"
+          status?: "pending" | "active" | "revoked"
+          invite_token?: string
+          invited_by?: string
+          invited_at?: string
+          accepted_at?: string | null
+        }
+        Relationships: [{ foreignKeyName: "family_advisors_family_id_fkey"; columns: ["family_id"]; referencedRelation: "families"; referencedColumns: ["id"] }]
       }
       family_cpfs: {
         Row: {

@@ -30,6 +30,7 @@ export interface CouncilSessionSummary {
   title: string;
   mode: CouncilMode;
   status: CouncilStatus;
+  autonomous: boolean;
   current_round: number;
   max_rounds: number;
   participant_count: number;
@@ -60,6 +61,7 @@ export async function getCouncilSessions(holderId: string): Promise<CouncilSessi
     title: s.title,
     mode: s.mode,
     status: s.status,
+    autonomous: s.autonomous,
     current_round: s.current_round,
     max_rounds: s.max_rounds,
     participant_count: Array.isArray(s.council_participants) ? s.council_participants.length : 0,
@@ -113,6 +115,7 @@ export async function createCouncilSession(
   initialPrompt: string,
   maxRounds: number,
   participants: CouncilParticipantInput[],
+  autonomous: boolean = false,
 ): Promise<string> {
   const supabase = await createServerClient();
 
@@ -124,6 +127,7 @@ export async function createCouncilSession(
       mode,
       initial_prompt: initialPrompt,
       max_rounds: maxRounds,
+      autonomous,
       status: "pending",
       current_round: 0,
     })
