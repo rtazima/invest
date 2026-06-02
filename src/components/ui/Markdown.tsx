@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 
 const components: Components = {
@@ -70,6 +71,30 @@ const components: Components = {
   hr: () => (
     <hr style={{ border: "none", borderTop: "1px solid var(--color-line)", margin: "14px 0" }} />
   ),
+  table: ({ children }) => (
+    <div style={{ overflowX: "auto", marginBottom: "10px" }}>
+      <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "13px" }}>
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead style={{ borderBottom: "2px solid var(--color-line-2)" }}>{children}</thead>
+  ),
+  tbody: ({ children }) => <tbody>{children}</tbody>,
+  tr: ({ children }) => (
+    <tr style={{ borderBottom: "1px solid var(--color-line)" }}>{children}</tr>
+  ),
+  th: ({ children }) => (
+    <th style={{ padding: "6px 12px", textAlign: "left", fontWeight: 600, color: "var(--color-text-3)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td style={{ padding: "6px 12px", color: "var(--color-text)", verticalAlign: "top" }}>
+      {children}
+    </td>
+  ),
 };
 
 interface Props {
@@ -80,7 +105,7 @@ interface Props {
 export function Markdown({ children, className }: Props) {
   return (
     <div className={className} style={{ minWidth: 0 }}>
-      <ReactMarkdown components={components}>{children}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{children}</ReactMarkdown>
     </div>
   );
 }
