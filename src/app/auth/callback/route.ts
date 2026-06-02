@@ -22,6 +22,9 @@ export async function GET(request: Request) {
       }
       return response;
     }
+    console.error("[auth/callback] exchangeCodeForSession falhou:", error.message, error.status);
+  } else {
+    console.error("[auth/callback] nenhum code na URL:", request.url);
   }
 
   return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`);
