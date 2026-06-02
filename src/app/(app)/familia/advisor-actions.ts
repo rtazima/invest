@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerClient } from "@/lib/supabase/server";
+import { sendAdvisorInviteEmail } from "@/lib/email";
 
 export async function inviteAdvisorAction(
   familyId: string,
@@ -26,8 +27,18 @@ export async function inviteAdvisorAction(
   if (error?.code === "23505") throw new Error("Este email já tem um convite ativo.");
   if (error) throw new Error(`Erro ao criar convite: ${error.message}`);
 
+  const token = data.invite_token as string;
+  const siteUrl = process.env["NEXT_PUBLIC_SITE_URL"] ?? "https://invest.tazima.com.br";
+  const inviteUrl = `${siteUrl}/invite/accept?token=${token}`;
+  const inviterName = user.user_metadata?.["full_name"] ?? user.email ?? "Um usuário";
+
+  // Dispara o email em background — não bloqueia a resposta
+  sendAdvisorInviteEmail({ toEmail: email.toLowerCase().trim(), inviterName, role, inviteUrl }).catch(
+    (err) => console.error("sendAdvisorInviteEmail falhou:", err),
+  );
+
   revalidatePath("/familia");
-  return { inviteToken: data.invite_token as string };
+  return { inviteToken: token };
 }
 
 export async function revokeAdvisorAction(advisorId: string): Promise<void> {
