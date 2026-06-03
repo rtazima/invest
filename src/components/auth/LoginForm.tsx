@@ -2,10 +2,21 @@
 
 import { useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserClient } from "@supabase/ssr";
 import { setAuthRedirectCookie } from "@/app/(auth)/login/actions";
 
-const SITE_URL = process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
+// Magic links are clicked in a different browser/device than where they were
+// requested — PKCE fails because the code_verifier isn't in that device's storage.
+// Implicit flow delivers tokens in the URL hash, no verifier needed.
+function createOtpClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url) throw new Error("Variável de ambiente ausente: NEXT_PUBLIC_SUPABASE_URL");
+  if (!key) throw new Error("Variável de ambiente ausente: NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  return createBrowserClient(url, key, { auth: { flowType: "implicit" } });
+}
 
 export function LoginForm() {
   const params = useSearchParams();
@@ -51,7 +62,7 @@ export function LoginForm() {
         await setAuthRedirectCookie(nextPath);
       }
 
-      const supabase = createClient();
+      const supabase = createOtpClient();
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: `${SITE_URL}/auth/callback` },
