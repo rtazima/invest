@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { setAuthRedirectCookie, getSiteUrl } from "@/app/(auth)/login/actions";
+import { setAuthRedirectCookie } from "@/app/(auth)/login/actions";
+
+const SITE_URL = process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000";
 
 export function LoginForm() {
   const params = useSearchParams();
@@ -43,7 +45,6 @@ export function LoginForm() {
     setError("");
 
     startTransition(async () => {
-      const siteUrl = await getSiteUrl();
       const nextPath = next || "/dashboard";
 
       if (nextPath !== "/dashboard") {
@@ -53,7 +54,7 @@ export function LoginForm() {
       const supabase = createClient();
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: `${siteUrl}/auth/callback` },
+        options: { emailRedirectTo: `${SITE_URL}/auth/callback` },
       });
 
       if (otpError) {
