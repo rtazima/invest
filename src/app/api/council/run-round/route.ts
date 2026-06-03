@@ -10,6 +10,7 @@ import { buildCouncilContext } from "@/lib/council/context-builder";
 import { buildRoundPrompt, buildSynthesisPrompt, type HistoryMessage } from "@/lib/council/prompt-builder";
 import { runLlmMessage, SYNTHESIS_MODEL } from "@/lib/council/llm-runner";
 import { judgeRound } from "@/lib/council/judge";
+import { logAudit } from "@/lib/audit";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -146,6 +147,14 @@ export async function POST(request: Request) {
   if (session.status !== "pending" && session.status !== "awaiting_human") {
     return new Response("Sessão não está aguardando rodada", { status: 409 });
   }
+
+  void logAudit({
+    user_id: user.id,
+    user_email: user.email ?? null,
+    action: "council_query",
+    resource: sessionId,
+    metadata: { mode: session.mode },
+  });
 
   const nextRound = session.current_round + 1;
   await advanceSession(sessionId, "running", nextRound);

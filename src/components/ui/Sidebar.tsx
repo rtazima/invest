@@ -73,6 +73,16 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  {
+    href: "/admin/logs",
+    label: "Logs",
+    ownerOnly: true,
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M2 4h12M2 8h8M2 12h5" />
+      </svg>
+    ),
+  },
 ] as const;
 
 interface Props {

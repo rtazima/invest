@@ -29,6 +29,12 @@ export default function AuthCallbackPage() {
       if (!ok) { fail(reason ?? "Falha na autenticação."); return; }
       const next = getCookieValue("auth_redirect") ?? "/dashboard";
       document.cookie = "auth_redirect=; path=/; max-age=0; samesite=lax";
+      fetch("/api/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "login" }),
+        keepalive: true,
+      }).catch(() => undefined);
       router.replace(next);
     };
 
