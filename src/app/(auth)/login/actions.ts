@@ -11,7 +11,7 @@ export function getSiteUrl(): string {
 export async function setAuthRedirectCookie(nextPath: string): Promise<void> {
   if (!nextPath.startsWith("/")) return;
   (await cookies()).set("auth_redirect", nextPath, {
-    httpOnly: true,
+    // não httpOnly: o client component em /auth/callback precisa ler via document.cookie
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: 60 * 60,
