@@ -21,19 +21,32 @@ export async function getPositionsForReview(): Promise<PositionForReview[]> {
   // Pega batches mais recentes (mesmo algoritmo de getLatestPositions)
   const { data: batches, error: batchErr } = await supabase
     .from("import_batches")
-    .select("id, holder_id, institution, filename, completed_at")
+    .select("id, holder_id, institution, filename, source, completed_at")
     .eq("status", "completed")
     .order("completed_at", { ascending: false });
 
   if (batchErr) throw new Error(`getPositionsForReview/batches: ${batchErr.message}`);
 
-  const latestBatchId = new Map<string, string>();
+  const pluggyLatest = new Map<string, string>();
   for (const b of batches ?? []) {
-    const key = `${b.holder_id}:${b.institution}:${b.filename ?? ""}`;
-    if (!latestBatchId.has(key)) latestBatchId.set(key, b.id);
+    if (b.source !== "pluggy") continue;
+    const hk = `${b.holder_id}:${b.institution}`;
+    if (!pluggyLatest.has(hk)) pluggyLatest.set(hk, b.id);
   }
 
-  const batchIds = Array.from(latestBatchId.values());
+  const selected = new Map<string, string>();
+  for (const b of batches ?? []) {
+    const hk = `${b.holder_id}:${b.institution}`;
+    const pluggyId = pluggyLatest.get(hk);
+    if (pluggyId !== undefined) {
+      if (b.id === pluggyId) selected.set(hk, b.id);
+    } else {
+      const key = `${hk}:${b.filename ?? ""}`;
+      if (!selected.has(key)) selected.set(key, b.id);
+    }
+  }
+
+  const batchIds = Array.from(selected.values());
   if (batchIds.length === 0) return [];
 
   const { data: positions, error: posErr } = await supabase
@@ -83,7 +96,7 @@ export async function getLatestPositions(holderId?: string): Promise<EnrichedPos
   // Pega batches completed, ordenados do mais recente para o mais antigo
   let batchQuery = supabase
     .from("import_batches")
-    .select("id, holder_id, institution, filename, completed_at")
+    .select("id, holder_id, institution, filename, source, completed_at")
     .eq("status", "completed")
     .order("completed_at", { ascending: false });
 
@@ -92,16 +105,31 @@ export async function getLatestPositions(holderId?: string): Promise<EnrichedPos
   const { data: batches, error: batchErr } = await batchQuery;
   if (batchErr) throw new Error(`getLatestPositions/batches: ${batchErr.message}`);
 
-  // Dedup por (holder_id, institution, filename): cada arquivo-fonte tem seu próprio slot.
-  // Re-importar o mesmo arquivo substitui o batch anterior; arquivos diferentes coexistem
-  // (útil quando a mesma instituição exporta sub-contas em arquivos separados).
-  const latestBatchId = new Map<string, string>();
+  // Regra de deduplicação:
+  // - Se existe batch Pluggy para (holder, institution), ele representa o estado atual;
+  //   batches CSV/XLSX/PDF da mesma dupla são ignorados no dashboard (mas preservados no banco).
+  // - Se não existe batch Pluggy, dedup por (holder, institution, filename): re-importar o
+  //   mesmo arquivo substitui; arquivos distintos coexistem (sub-contas separadas).
+  const pluggyLatest = new Map<string, string>(); // "holderId:institution" → batchId
   for (const b of batches ?? []) {
-    const key = `${b.holder_id}:${b.institution}:${b.filename ?? ""}`;
-    if (!latestBatchId.has(key)) latestBatchId.set(key, b.id);
+    if (b.source !== "pluggy") continue;
+    const hk = `${b.holder_id}:${b.institution}`;
+    if (!pluggyLatest.has(hk)) pluggyLatest.set(hk, b.id); // já ordenado desc
   }
 
-  const batchIds = Array.from(latestBatchId.values());
+  const selected = new Map<string, string>(); // chave de dedup → batchId
+  for (const b of batches ?? []) {
+    const hk = `${b.holder_id}:${b.institution}`;
+    const pluggyId = pluggyLatest.get(hk);
+    if (pluggyId !== undefined) {
+      if (b.id === pluggyId) selected.set(hk, b.id);
+    } else {
+      const key = `${hk}:${b.filename ?? ""}`;
+      if (!selected.has(key)) selected.set(key, b.id);
+    }
+  }
+
+  const batchIds = Array.from(selected.values());
   if (batchIds.length === 0) return [];
 
   const { data, error } = await supabase

@@ -9,10 +9,155 @@ import { parseXPXlsx, extractXPXlsxOwner } from "@/lib/xlsx/xp-xlsx-parser";
 import { parseBTGXlsx, extractBTGXlsxOwner } from "@/lib/xlsx/btg-xlsx-parser";
 import { parseNomadPdf, extractNomadPdfOwner } from "@/lib/pdf/nomad-pdf-parser";
 import { validateDocumentOwner } from "@/lib/import/owner-validator";
+import { fetchPositionsFromPluggy } from "@/lib/pluggy/client";
 import type { ParsedPosition } from "@/lib/csv/types";
 import { toDecimal } from "@/lib/decimal";
 import Decimal from "decimal.js";
 import type { Enums } from "@/types/database";
+
+// ── Pluggy sync ────────────────────────────────────────────────────────────
+
+// Item IDs por instituição — futuramente virão do banco por titular.
+const PLUGGY_ITEM_IDS: Partial<Record<Enums<"institution">, string | undefined>> = {
+  btg: process.env.PLUGGY_ITEM_ID_BTG,
+};
+
+export type PluggyInstitution = "btg";
+
+export interface PluggySyncResult {
+  success: boolean;
+  rowCount?: number;
+  skipped?: number;
+  errorMessage?: string;
+}
+
+export async function syncPluggy(
+  holderId: string,
+  institution: PluggyInstitution,
+): Promise<PluggySyncResult> {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const itemId = PLUGGY_ITEM_IDS[institution];
+  const clientId = process.env.PLUGGY_CLIENT_ID;
+  const clientSecret = process.env.PLUGGY_CLIENT_SECRET;
+
+  if (!itemId)
+    return { success: false, errorMessage: `Item Pluggy para ${institution.toUpperCase()} não configurado no servidor.` };
+  if (!clientId || !clientSecret)
+    return { success: false, errorMessage: "Credenciais Pluggy ausentes no servidor." };
+
+  const holders = await getHolders();
+  const holder = holders.find((h) => h.id === holderId);
+  if (!holder) return { success: false, errorMessage: "Titular não encontrado." };
+
+  // Remove apenas batches Pluggy anteriores para esse titular + instituição.
+  // Batches CSV/XLSX/PDF são preservados como histórico; a deduplicação em
+  // getLatestPositions() exclui eles do dashboard quando há um batch Pluggy ativo.
+  const { data: oldPluggyBatches } = await supabase
+    .from("import_batches")
+    .select("id")
+    .eq("holder_id", holderId)
+    .eq("institution", institution)
+    .eq("source", "pluggy");
+
+  if (oldPluggyBatches && oldPluggyBatches.length > 0) {
+    const oldIds = oldPluggyBatches.map((b) => b.id);
+    await supabase.from("positions").delete().in("batch_id", oldIds);
+    await supabase.from("import_batches").delete().in("id", oldIds);
+  }
+
+  const { data: batch, error: batchErr } = await supabase
+    .from("import_batches")
+    .insert({
+      holder_id: holderId,
+      institution,
+      status: "processing",
+      source: "pluggy",
+      filename: `pluggy-${institution}-${new Date().toISOString().split("T")[0]}`,
+      imported_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (batchErr || !batch)
+    return { success: false, errorMessage: `Erro ao criar batch: ${batchErr?.message}` };
+
+  try {
+    const { positions, skipped } = await fetchPositionsFromPluggy(itemId, clientId, clientSecret);
+
+    if (positions.length === 0) {
+      await supabase
+        .from("import_batches")
+        .update({ status: "failed", error_message: "Nenhuma posição retornada pela Pluggy." })
+        .eq("id", batch.id);
+      return { success: false, skipped, errorMessage: "Nenhuma posição válida retornada pela Pluggy." };
+    }
+
+    const rows = positions.map((p) => {
+      const costBasis = p.avgPrice ? p.avgPrice.times(p.quantity) : null;
+      const pnl = costBasis ? p.marketValue.minus(costBasis) : null;
+      const pnlPct = costBasis?.gt(0) && pnl ? pnl.div(costBasis) : null;
+      return {
+        batch_id: batch.id,
+        holder_id: holderId,
+        institution,
+        ticker: p.ticker,
+        name: p.name,
+        asset_class: p.assetClass,
+        currency: p.currency,
+        quantity: p.quantity.toNumber(),
+        avg_price: p.avgPrice?.toNumber() ?? null,
+        current_price: p.currentPrice?.toNumber() ?? null,
+        market_value: p.marketValue.toNumber(),
+        cost_basis: costBasis?.toNumber() ?? null,
+        pnl: pnl?.toNumber() ?? null,
+        pnl_pct: pnlPct?.toNumber() ?? null,
+        exchange_rate: null,
+        market_value_brl: p.marketValue.toNumber(),
+        maturity_date: p.maturityDate?.toISOString().split("T")[0] ?? null,
+        indexer: p.indexer,
+        indexer_rate: p.indexerRate?.toNumber() ?? null,
+        liquidity_days: p.liquidityDays,
+        quota_value: p.quotaValue?.toNumber() ?? null,
+        quota_date: p.quotaDate?.toISOString().split("T")[0] ?? null,
+        raw_data: p.rawData,
+      };
+    });
+
+    const { error: insertErr } = await supabase.from("positions").insert(rows);
+    if (insertErr) {
+      await supabase
+        .from("import_batches")
+        .update({ status: "failed", error_message: insertErr.message })
+        .eq("id", batch.id);
+      return { success: false, errorMessage: `Erro ao salvar posições: ${insertErr.message}` };
+    }
+
+    await supabase
+      .from("import_batches")
+      .update({ status: "completed", row_count: positions.length, completed_at: new Date().toISOString() })
+      .eq("id", batch.id);
+
+    revalidatePath("/dashboard");
+    revalidatePath("/import");
+    revalidatePath("/holders");
+
+    return { success: true, rowCount: positions.length, skipped };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro inesperado";
+    await supabase
+      .from("import_batches")
+      .update({ status: "failed", error_message: msg })
+      .eq("id", batch.id);
+    return { success: false, errorMessage: msg };
+  }
+}
+
+// ── Importação manual (CSV/XLSX/PDF) ────────────────────────────────────────
 
 export interface DeleteBatchResult {
   success: boolean;
