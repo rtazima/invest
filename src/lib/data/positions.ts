@@ -28,17 +28,20 @@ export async function getPositionsForReview(): Promise<PositionForReview[]> {
   if (batchErr) throw new Error(`getPositionsForReview/batches: ${batchErr.message}`);
 
   const pluggyLatest = new Map<string, string>();
+  const supplementLatest = new Map<string, string>();
   for (const b of batches ?? []) {
-    if (b.source !== "pluggy") continue;
     const hk = `${b.holder_id}:${b.institution}`;
-    if (!pluggyLatest.has(hk)) pluggyLatest.set(hk, b.id);
+    if (b.source === "pluggy" && !pluggyLatest.has(hk)) pluggyLatest.set(hk, b.id);
+    if (b.source === "csv_supplement" && !supplementLatest.has(hk)) supplementLatest.set(hk, b.id);
   }
 
   const selected = new Map<string, string>();
   for (const b of batches ?? []) {
     const hk = `${b.holder_id}:${b.institution}`;
     const pluggyId = pluggyLatest.get(hk);
-    if (pluggyId !== undefined) {
+    if (b.source === "csv_supplement") {
+      if (supplementLatest.get(hk) === b.id) selected.set(`${hk}:supplement`, b.id);
+    } else if (pluggyId !== undefined) {
       if (b.id === pluggyId) selected.set(hk, b.id);
     } else {
       const key = `${hk}:${b.filename ?? ""}`;
@@ -105,23 +108,29 @@ export async function getLatestPositions(holderId?: string): Promise<EnrichedPos
   const { data: batches, error: batchErr } = await batchQuery;
   if (batchErr) throw new Error(`getLatestPositions/batches: ${batchErr.message}`);
 
-  // Regra de deduplicação:
-  // - Se existe batch Pluggy para (holder, institution), ele representa o estado atual;
-  //   batches CSV/XLSX/PDF da mesma dupla são ignorados no dashboard (mas preservados no banco).
-  // - Se não existe batch Pluggy, dedup por (holder, institution, filename): re-importar o
-  //   mesmo arquivo substitui; arquivos distintos coexistem (sub-contas separadas).
+  // Regras de deduplicação:
+  // 1. Se existe batch Pluggy para (holder, institution), é a fonte principal — batches
+  //    CSV/XLSX/PDF normais da mesma dupla ficam ocultos no dashboard (mas preservados no banco).
+  // 2. Batches com source='csv_supplement' (Tesouro Direto importado manualmente para
+  //    complementar o Pluggy) sempre aparecem junto com o Pluggy — nunca são ocultados.
+  // 3. Sem Pluggy: dedup por (holder, institution, filename); re-importar o mesmo arquivo
+  //    substitui; arquivos distintos coexistem (sub-contas separadas).
   const pluggyLatest = new Map<string, string>(); // "holderId:institution" → batchId
+  const supplementLatest = new Map<string, string>(); // "holderId:institution" → batchId
+
   for (const b of batches ?? []) {
-    if (b.source !== "pluggy") continue;
     const hk = `${b.holder_id}:${b.institution}`;
-    if (!pluggyLatest.has(hk)) pluggyLatest.set(hk, b.id); // já ordenado desc
+    if (b.source === "pluggy" && !pluggyLatest.has(hk)) pluggyLatest.set(hk, b.id);
+    if (b.source === "csv_supplement" && !supplementLatest.has(hk)) supplementLatest.set(hk, b.id);
   }
 
   const selected = new Map<string, string>(); // chave de dedup → batchId
   for (const b of batches ?? []) {
     const hk = `${b.holder_id}:${b.institution}`;
     const pluggyId = pluggyLatest.get(hk);
-    if (pluggyId !== undefined) {
+    if (b.source === "csv_supplement") {
+      if (supplementLatest.get(hk) === b.id) selected.set(`${hk}:supplement`, b.id);
+    } else if (pluggyId !== undefined) {
       if (b.id === pluggyId) selected.set(hk, b.id);
     } else {
       const key = `${hk}:${b.filename ?? ""}`;

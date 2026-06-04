@@ -10,6 +10,7 @@ import { parseBTGXlsx, extractBTGXlsxOwner } from "@/lib/xlsx/btg-xlsx-parser";
 import { parseNomadPdf, extractNomadPdfOwner } from "@/lib/pdf/nomad-pdf-parser";
 import { validateDocumentOwner } from "@/lib/import/owner-validator";
 import { fetchPositionsFromPluggy } from "@/lib/pluggy/client";
+import { detectTesouroBondType } from "@/lib/tesouro/client";
 import type { ParsedPosition } from "@/lib/csv/types";
 import { toDecimal } from "@/lib/decimal";
 import Decimal from "decimal.js";
@@ -200,6 +201,7 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
   const file = formData.get("file") as File | null;
   const exchangeRateStr = formData.get("exchange_rate") as string | null;
   const exchangeRateDateStr = formData.get("exchange_rate_date") as string | null;
+  const tesouoOnly = formData.get("tesouro_only") === "true";
 
   if (!holderId || !institution || !file) {
     return { success: false, errorMessage: "Titular, instituição e arquivo são obrigatórios." };
@@ -219,13 +221,30 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
 
   const exchangeRate = exchangeRateStr ? toDecimal(exchangeRateStr.replace(",", ".")) : new Decimal(1);
 
+  // No modo suplemento, remove batches de suplemento anteriores para não acumular
+  if (tesouoOnly) {
+    const { data: oldSupps } = await supabase
+      .from("import_batches")
+      .select("id")
+      .eq("holder_id", holderId)
+      .eq("institution", institution)
+      .eq("source", "csv_supplement");
+    if (oldSupps && oldSupps.length > 0) {
+      const ids = oldSupps.map((b) => b.id);
+      await supabase.from("positions").delete().in("batch_id", ids);
+      await supabase.from("import_batches").delete().in("id", ids);
+    }
+  }
+
+  const batchSource = tesouoOnly ? "csv_supplement" : isXlsx ? "xlsx" : isPdf ? "pdf" : "csv";
+
   const { data: batch, error: batchErr } = await supabase
     .from("import_batches")
     .insert({
       holder_id: holderId,
       institution,
       status: "processing",
-      source: isXlsx ? "xlsx" : isPdf ? "pdf" : "csv",
+      source: batchSource,
       filename: file.name,
       imported_by: user.id,
       exchange_rate: institution === "nomad" ? exchangeRate.toNumber() : null,
@@ -294,12 +313,22 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
       ({ positions, errors } = parseCSV(csvText, format as "xp" | "btg" | "nomad", exchangeRate));
     }
 
+    // Modo suplemento: mantém apenas posições de Tesouro Direto para complementar Pluggy
+    if (tesouoOnly) {
+      positions = positions.filter(
+        (p) => detectTesouroBondType(p.ticker, p.name ?? "") !== null,
+      );
+    }
+
     if (positions.length === 0) {
+      const errMsg = tesouoOnly
+        ? "Nenhuma posição de Tesouro Direto encontrada no arquivo."
+        : "Nenhuma posição válida encontrada no CSV.";
       await supabase
         .from("import_batches")
-        .update({ status: "failed", error_message: "Nenhuma posição válida encontrada no CSV." })
+        .update({ status: "failed", error_message: errMsg })
         .eq("id", batch.id);
-      return { success: false, batchId: batch.id, errorMessage: "Nenhuma posição válida encontrada.", errors };
+      return { success: false, batchId: batch.id, errorMessage: errMsg, errors };
     }
 
     const rows = positions.map((p) => {

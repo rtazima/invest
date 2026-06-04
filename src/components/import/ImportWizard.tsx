@@ -46,6 +46,7 @@ export function ImportWizard({ holders }: Props) {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [tesouoOnly, setTesouoOnly] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isNomad = institution === "nomad";
@@ -77,6 +78,7 @@ export function ImportWizard({ holders }: Props) {
       fd.set("exchange_rate", exchangeRate);
       fd.set("exchange_rate_date", exchangeRateDate);
     }
+    if (tesouoOnly) fd.set("tesouro_only", "true");
 
     const res = await processCSVImport(fd);
     setResult(res);
@@ -88,6 +90,7 @@ export function ImportWizard({ holders }: Props) {
     setStep("titular");
     setFile(null);
     setExchangeRate("");
+    setTesouoOnly(false);
     setResult(null);
   }
 
@@ -345,6 +348,28 @@ export function ImportWizard({ holders }: Props) {
             </div>
           )}
 
+          {/* Suplemento Tesouro Direto (só BTG, quando Pluggy já sincronizou) */}
+          {institution === "btg" && (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "16px",
+                cursor: "pointer",
+                fontSize: "13px",
+                color: "var(--color-text-2)",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={tesouoOnly}
+                onChange={(e) => setTesouoOnly(e.target.checked)}
+              />
+              Apenas Tesouro Direto (suplementar sync Pluggy)
+            </label>
+          )}
+
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={() => setStep("instituicao")} style={{ ...inputStyle, width: "auto", cursor: "pointer" }}>
               Voltar
@@ -387,6 +412,7 @@ export function ImportWizard({ holders }: Props) {
               ["Instituição", INSTITUTIONS.find((i) => i.value === institution)?.label ?? institution],
               ["Arquivo", file?.name ?? "—"],
               ...(isNomad ? [["Cotação USD/BRL", `R$ ${exchangeRate}`]] : []),
+              ...(tesouoOnly ? [["Modo", "Apenas Tesouro Direto"]] : []),
             ].map(([label, value]) => (
               <div
                 key={label}
