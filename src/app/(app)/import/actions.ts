@@ -10,13 +10,67 @@ import { parseBTGXlsx, extractBTGXlsxOwner } from "@/lib/xlsx/btg-xlsx-parser";
 import { parseNomadPdf, extractNomadPdfOwner } from "@/lib/pdf/nomad-pdf-parser";
 import { validateDocumentOwner } from "@/lib/import/owner-validator";
 import { fetchPositionsFromPluggy } from "@/lib/pluggy/client";
-import { detectTesouroBondType } from "@/lib/tesouro/client";
+import { detectTesouroBondType, fetchTesouroPrices, lookupPU } from "@/lib/tesouro/client";
 import type { ParsedPosition } from "@/lib/csv/types";
 import { toDecimal } from "@/lib/decimal";
 import Decimal from "decimal.js";
 import type { Enums } from "@/types/database";
 
 // ── Pluggy sync ────────────────────────────────────────────────────────────
+
+// Atualiza market_value e current_price dos suplementos de Tesouro Direto usando
+// o Tesouro Transparente. Chamado automaticamente ao final de cada syncPluggy.
+async function refreshSupplementPrices(
+  supabase: Awaited<ReturnType<typeof import("@/lib/supabase/server").createServerClient>>,
+  holderId: string,
+  institution: string,
+): Promise<void> {
+  const { data: suppBatches } = await supabase
+    .from("import_batches")
+    .select("id")
+    .eq("holder_id", holderId)
+    .eq("institution", institution)
+    .eq("source", "csv_supplement");
+
+  if (!suppBatches || suppBatches.length === 0) return;
+
+  const suppIds = suppBatches.map((b: { id: string }) => b.id);
+  const { data: suppPositions } = await supabase
+    .from("positions")
+    .select("id, name, ticker, maturity_date, quantity, cost_basis")
+    .in("batch_id", suppIds)
+    .eq("asset_class", "fixed_income");
+
+  if (!suppPositions || suppPositions.length === 0) return;
+
+  try {
+    const prices = await fetchTesouroPrices();
+    for (const pos of suppPositions) {
+      const bondType = detectTesouroBondType(pos.ticker, pos.name ?? "");
+      if (!bondType || !pos.maturity_date) continue;
+      const maturity = new Date(pos.maturity_date + "T12:00:00Z");
+      const pu = lookupPU(prices, bondType, maturity);
+      if (!pu) continue;
+      const qty = pos.quantity ?? 0;
+      const marketValue = pu.puVenda * qty;
+      const costBasis = pos.cost_basis ?? 0;
+      const pnl = marketValue - costBasis;
+      const pnlPct = costBasis > 0 ? pnl / costBasis : 0;
+      await supabase
+        .from("positions")
+        .update({
+          current_price: pu.puVenda,
+          market_value: marketValue,
+          market_value_brl: marketValue,
+          pnl,
+          pnl_pct: pnlPct,
+        })
+        .eq("id", pos.id);
+    }
+  } catch {
+    // Tesouro Transparente pode estar fora do ar — não bloqueia o sync
+  }
+}
 
 // Item IDs por instituição — futuramente virão do banco por titular.
 const PLUGGY_ITEM_IDS: Partial<Record<Enums<"institution">, string | undefined>> = {
@@ -142,6 +196,10 @@ export async function syncPluggy(
       .from("import_batches")
       .update({ status: "completed", row_count: positions.length, completed_at: new Date().toISOString() })
       .eq("id", batch.id);
+
+    // Atualiza preços dos suplementos de Tesouro Direto existentes (NTNB, LFT, etc.)
+    // para que o sync via Pluggy também refresque o PU automaticamente.
+    await refreshSupplementPrices(supabase, holderId, institution);
 
     revalidatePath("/dashboard");
     revalidatePath("/import");
