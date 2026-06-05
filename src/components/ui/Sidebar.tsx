@@ -49,6 +49,13 @@ const NAV_ITEMS = [
         <path d="M5 6v7" />
       </svg>
     ),
+    children: [
+      {
+        href: "/transfers",
+        label: "Transferências",
+        transferBadge: true,
+      },
+    ],
   },
   {
     href: "/import",
@@ -57,17 +64,6 @@ const NAV_ITEMS = [
       <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
         <path d="M8 2v9M4 8l4 4 4-4" />
         <path d="M2 13h12" />
-      </svg>
-    ),
-  },
-  {
-    href: "/transfers",
-    label: "Transferências",
-    transferBadge: true,
-    icon: (
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M2 5h12M10 2l4 3-4 3" />
-        <path d="M14 11H2M6 8l-4 3 4 3" />
       </svg>
     ),
   },
@@ -161,67 +157,108 @@ export function Sidebar({ unreadCount, pendingTransfers, isOwner, userInitials, 
       {/* Nav */}
       <nav style={{ display: "flex", flexDirection: "column", gap: "2px", flex: 1 }}>
         {visibleItems.map((item) => {
-          const active = pathname.startsWith(item.href);
+          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          const hasChildren = "children" in item && item.children.length > 0;
+          // Expand children when on the parent or any child route
+          const expanded = hasChildren && (
+            pathname.startsWith(item.href)
+          );
+
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                gap: "9px",
-                padding: "7px 10px",
-                borderRadius: "6px",
-                backgroundColor: active ? "var(--color-bg-3)" : "transparent",
-                color: active ? "var(--color-text)" : "var(--color-text-3)",
-                textDecoration: "none",
-                fontSize: "13px",
-                fontWeight: active ? 500 : 400,
-                transition: "background-color 0.1s, color 0.1s",
-              }}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-              {"badge" in item && item.badge && unreadCount > 0 && (
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    minWidth: "16px",
-                    height: "16px",
-                    borderRadius: "999px",
-                    backgroundColor: "var(--color-crit)",
-                    color: "white",
-                    fontSize: "10px",
-                    fontWeight: 600,
-                    display: "grid",
-                    placeItems: "center",
-                    padding: "0 4px",
-                  }}
-                >
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
+            <div key={item.href}>
+              <Link
+                href={item.href}
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "9px",
+                  padding: "7px 10px",
+                  borderRadius: "6px",
+                  backgroundColor: active && !expanded ? "var(--color-bg-3)" : expanded ? "var(--color-bg-3)" : "transparent",
+                  color: active || expanded ? "var(--color-text)" : "var(--color-text-3)",
+                  textDecoration: "none",
+                  fontSize: "13px",
+                  fontWeight: active || expanded ? 500 : 400,
+                  transition: "background-color 0.1s, color 0.1s",
+                }}
+              >
+                {"icon" in item && item.icon}
+                <span>{item.label}</span>
+                {"badge" in item && item.badge && unreadCount > 0 && (
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      minWidth: "16px",
+                      height: "16px",
+                      borderRadius: "999px",
+                      backgroundColor: "var(--color-crit)",
+                      color: "white",
+                      fontSize: "10px",
+                      fontWeight: 600,
+                      display: "grid",
+                      placeItems: "center",
+                      padding: "0 4px",
+                    }}
+                  >
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+
+              {/* Sub-items */}
+              {hasChildren && expanded && (
+                <div style={{ marginTop: "2px", marginBottom: "2px" }}>
+                  {item.children.map((child) => {
+                    const childActive = pathname === child.href || pathname.startsWith(child.href + "/");
+                    return (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "5px 10px 5px 34px",
+                          borderRadius: "6px",
+                          backgroundColor: childActive ? "var(--color-bg-3)" : "transparent",
+                          color: childActive ? "var(--color-text)" : "var(--color-text-3)",
+                          textDecoration: "none",
+                          fontSize: "12.5px",
+                          fontWeight: childActive ? 500 : 400,
+                          transition: "background-color 0.1s, color 0.1s",
+                        }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.5 }}>
+                          <path d="M2 5h8M6 2l4 3-4 3" />
+                          <path d="M10 7H2M5 4l-3 3 3 3" />
+                        </svg>
+                        <span>{child.label}</span>
+                        {"transferBadge" in child && child.transferBadge && pendingTransfers > 0 && (
+                          <span
+                            style={{
+                              marginLeft: "auto",
+                              minWidth: "16px",
+                              height: "16px",
+                              borderRadius: "999px",
+                              backgroundColor: "var(--color-warn)",
+                              color: "var(--color-bg)",
+                              fontSize: "10px",
+                              fontWeight: 600,
+                              display: "grid",
+                              placeItems: "center",
+                              padding: "0 4px",
+                            }}
+                          >
+                            {pendingTransfers > 9 ? "9+" : pendingTransfers}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
               )}
-              {"transferBadge" in item && item.transferBadge && pendingTransfers > 0 && (
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    minWidth: "16px",
-                    height: "16px",
-                    borderRadius: "999px",
-                    backgroundColor: "var(--color-warn)",
-                    color: "var(--color-bg)",
-                    fontSize: "10px",
-                    fontWeight: 600,
-                    display: "grid",
-                    placeItems: "center",
-                    padding: "0 4px",
-                  }}
-                >
-                  {pendingTransfers > 9 ? "9+" : pendingTransfers}
-                </span>
-              )}
-            </Link>
+            </div>
           );
         })}
       </nav>

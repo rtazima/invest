@@ -24,7 +24,7 @@ test("dashboard — tabela com posições exibe checkboxes (ou estado vazio se s
   }
 });
 
-test("sidebar — link Transferências presente", async ({ page }) => {
-  await page.goto("/dashboard");
+test("sidebar — link Transferências aparece como sub-item de Posições", async ({ page }) => {
+  await page.goto("/positions");
   await expect(page.locator("nav a[href='/transfers']")).toBeVisible();
 });
