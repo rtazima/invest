@@ -61,6 +61,17 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/transfers",
+    label: "Transferências",
+    transferBadge: true,
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M2 5h12M10 2l4 3-4 3" />
+        <path d="M14 11H2M6 8l-4 3 4 3" />
+      </svg>
+    ),
+  },
+  {
     href: "/familia",
     label: "Família",
     ownerOnly: true,
@@ -87,12 +98,13 @@ const NAV_ITEMS = [
 
 interface Props {
   unreadCount: number;
+  pendingTransfers: number;
   isOwner: boolean;
   userInitials: string;
   userName: string;
 }
 
-export function Sidebar({ unreadCount, isOwner, userInitials, userName }: Props) {
+export function Sidebar({ unreadCount, pendingTransfers, isOwner, userInitials, userName }: Props) {
   const pathname = usePathname();
 
   const visibleItems = NAV_ITEMS.filter(
@@ -188,6 +200,25 @@ export function Sidebar({ unreadCount, isOwner, userInitials, userName }: Props)
                   }}
                 >
                   {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+              {"transferBadge" in item && item.transferBadge && pendingTransfers > 0 && (
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    minWidth: "16px",
+                    height: "16px",
+                    borderRadius: "999px",
+                    backgroundColor: "var(--color-warn)",
+                    color: "var(--color-bg)",
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    display: "grid",
+                    placeItems: "center",
+                    padding: "0 4px",
+                  }}
+                >
+                  {pendingTransfers > 9 ? "9+" : pendingTransfers}
                 </span>
               )}
             </Link>

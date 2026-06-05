@@ -1,6 +1,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { toDecimal } from "@/lib/decimal";
 import { isStaleQuota } from "@/lib/dates";
+import { getActiveTransfers } from "@/lib/data/transfers";
 import type { DBPosition, DBImportBatch, Enums } from "@/types/database";
 import type { EnrichedPosition } from "@/types/domain";
 
@@ -141,14 +142,19 @@ export async function getLatestPositions(holderId?: string): Promise<EnrichedPos
   const batchIds = Array.from(selected.values());
   if (batchIds.length === 0) return [];
 
-  const { data, error } = await supabase
-    .from("positions")
-    .select("*")
-    .in("batch_id", batchIds)
-    .order("market_value_brl", { ascending: false });
+  const [{ data, error }, activeTransfers] = await Promise.all([
+    supabase
+      .from("positions")
+      .select("*")
+      .in("batch_id", batchIds)
+      .order("market_value_brl", { ascending: false }),
+    getActiveTransfers(),
+  ]);
 
   if (error) throw new Error(`getLatestPositions/positions: ${error.message}`);
-  return (data ?? []).map(enrichPosition);
+
+  const rows = applyTransferFilter(data ?? [], activeTransfers);
+  return rows.map(enrichPosition);
 }
 
 export async function getPositionsByBatch(batchId: string): Promise<EnrichedPosition[]> {
@@ -195,6 +201,51 @@ export async function getLatestBatchByInstitution(
   if (error?.code === "PGRST116") return null;
   if (error) throw new Error(`getLatestBatchByInstitution: ${error.message}`);
   return data;
+}
+
+function applyTransferFilter(
+  rows: DBPosition[],
+  transfers: Awaited<ReturnType<typeof getActiveTransfers>>,
+): DBPosition[] {
+  if (transfers.length === 0) return rows;
+
+  // Build a map: "holderId:institution:ticker_or_name" → transferred quantity
+  const tMap = new Map<string, number>();
+  for (const t of transfers) {
+    const key = t.ticker
+      ? `${t.holder_id}:${t.from_institution}:t:${t.ticker.toUpperCase()}`
+      : `${t.holder_id}:${t.from_institution}:n:${t.asset_name}`;
+    tMap.set(key, (tMap.get(key) ?? 0) + t.quantity);
+  }
+
+  const result: DBPosition[] = [];
+  for (const pos of rows) {
+    const tickerKey = pos.ticker
+      ? `${pos.holder_id}:${pos.institution}:t:${pos.ticker.toUpperCase()}`
+      : null;
+    const nameKey = `${pos.holder_id}:${pos.institution}:n:${pos.name}`;
+
+    const transferred = (tickerKey !== null ? (tMap.get(tickerKey) ?? 0) : 0) || (tMap.get(nameKey) ?? 0);
+    if (transferred <= 0) {
+      result.push(pos);
+      continue;
+    }
+
+    const posQty = Number(pos.quantity ?? 0);
+    if (transferred >= posQty) continue; // full transfer — suppress
+
+    // Partial transfer: scale values proportionally
+    const ratio = (posQty - transferred) / posQty;
+    result.push({
+      ...pos,
+      quantity: posQty - transferred,
+      market_value: (Number(pos.market_value ?? 0)) * ratio,
+      market_value_brl: (Number(pos.market_value_brl ?? pos.market_value ?? 0)) * ratio,
+      pnl: pos.pnl !== null ? Number(pos.pnl) * ratio : null,
+      cost_basis: pos.cost_basis !== null ? Number(pos.cost_basis) * ratio : null,
+    } as unknown as DBPosition);
+  }
+  return result;
 }
 
 function enrichPosition(row: DBPosition): EnrichedPosition {

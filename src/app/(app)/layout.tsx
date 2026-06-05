@@ -8,6 +8,7 @@ import { AppHeader } from "@/components/ui/AppHeader";
 import { ChatTrigger } from "@/components/chat/ChatTrigger";
 import { PrivacyShell } from "@/components/layout/PrivacyShell";
 import { AuditBeacon } from "@/components/ui/AuditBeacon";
+import { countPendingTransfers } from "@/lib/data/transfers";
 
 export default async function AppLayout({
   children,
@@ -21,10 +22,11 @@ export default async function AppLayout({
 
   if (!user) redirect("/login");
 
-  const [holders, unreadCount, syncStatuses] = await Promise.all([
+  const [holders, unreadCount, syncStatuses, pendingTransfers] = await Promise.all([
     getHolders(),
     countUnreadAlerts(),
     getInstitutionSyncStatuses(),
+    countPendingTransfers(),
   ]);
 
   const myHolder = holders.find((h) => h.user_id === user.id);
@@ -49,7 +51,7 @@ export default async function AppLayout({
 
   return (
     <PrivacyShell>
-      <Sidebar unreadCount={unreadCount} isOwner={isOwner} userInitials={userInitials} userName={userName} />
+      <Sidebar unreadCount={unreadCount} pendingTransfers={pendingTransfers} isOwner={isOwner} userInitials={userInitials} userName={userName} />
 
       <div style={{ marginLeft: "192px", flex: 1, display: "flex", flexDirection: "column" }}>
         <AppHeader familyName={familyName} syncStatuses={syncStatuses} />
