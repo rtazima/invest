@@ -5,6 +5,7 @@ import { getHolders } from "@/lib/data/holders";
 import { getImportBatches } from "@/lib/data/positions";
 import { ImportWizard } from "@/components/import/ImportWizard";
 import { ImportHistoryList } from "@/components/import/ImportHistoryList";
+import { PluggySyncSection } from "@/components/import/PluggySyncSection";
 
 export const metadata: Metadata = { title: "Importar — Invest" };
 
@@ -17,6 +18,32 @@ export default async function ImportPage() {
 
   const [holders, batches] = await Promise.all([getHolders(), getImportBatches()]);
 
+  // Última sync Pluggy por instituição
+  const lastPluggySync = (inst: string) => {
+    const b = batches
+      .filter((x) => x.source === "pluggy" && x.institution === inst && x.status === "completed")
+      .sort((a, b) => new Date(b.completed_at ?? 0).getTime() - new Date(a.completed_at ?? 0).getTime())[0];
+    return {
+      lastSyncAt: b?.completed_at ?? null,
+      lastSyncCount: b?.row_count ?? null,
+    };
+  };
+
+  const pluggyConnections = [
+    {
+      institution: "btg",
+      label: "BTG Pactual Investimentos",
+      connected: !!process.env.PLUGGY_ITEM_ID_BTG,
+      ...lastPluggySync("btg"),
+    },
+    {
+      institution: "xp",
+      label: "XP Investimentos",
+      connected: !!process.env.PLUGGY_ITEM_ID_XP,
+      ...lastPluggySync("xp"),
+    },
+  ];
+
   return (
     <div style={{ maxWidth: "700px" }}>
       <div style={{ marginBottom: "32px" }}>
@@ -24,9 +51,11 @@ export default async function ImportPage() {
           Importar portfólio
         </h1>
         <p style={{ margin: 0, fontSize: "13px", color: "var(--color-text-3)" }}>
-          Importe posições de XP, BTG e Nomad via CSV.
+          Sincronize via Pluggy ou importe o extrato manual das corretoras.
         </p>
       </div>
+
+      <PluggySyncSection holders={holders} connections={pluggyConnections} />
 
       <div
         style={{
@@ -37,6 +66,14 @@ export default async function ImportPage() {
           marginBottom: "32px",
         }}
       >
+        <div style={{ marginBottom: "16px" }}>
+          <h2 style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)", margin: "0 0 4px" }}>
+            Importação manual
+          </h2>
+          <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: 0 }}>
+            CSV/XLSX para XP e BTG, PDF para Nomad. Necessário para Tesouro Direto e posições BTG.
+          </p>
+        </div>
         <ImportWizard holders={holders} />
       </div>
 
