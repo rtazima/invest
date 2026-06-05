@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import type { ClientPosition } from "./types";
 import { PnlValue } from "@/components/ui/PnlValue";
-import { TransferModal, type TransferablePosition } from "@/components/transfers/TransferModal";
 
 const ASSET_CLASS_LABELS: Record<string, string> = {
   fixed_income: "RF",
@@ -60,8 +59,6 @@ export function PositionsTable({ positions, totalBrl }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filterClass, setFilterClass] = useState<string>("");
   const [filterInst, setFilterInst] = useState<string>("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [transferOpen, setTransferOpen] = useState(false);
 
   const classes = useMemo(
     () => [...new Set(positions.map((p) => p.asset_class))].sort(),
@@ -100,45 +97,6 @@ export function PositionsTable({ positions, totalBrl }: Props) {
     }
   }
 
-  function toggleSelect(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    if (selected.size === sorted.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(sorted.map((p) => p.id)));
-    }
-  }
-
-  const selectedPositions = sorted.filter((p) => selected.has(p.id));
-
-  // Validate selection: all must be from the same institution for a custody transfer
-  const selectedInstitutions = new Set(selectedPositions.map((p) => p.institution));
-  const canTransfer = selected.size > 0 && selectedInstitutions.size === 1;
-
-  function handleTransferSuccess() {
-    setTransferOpen(false);
-    setSelected(new Set());
-  }
-
-  const transferablePositions: TransferablePosition[] = selectedPositions.map((p) => ({
-    id: p.id,
-    holder_id: p.holder_id,
-    holder_name: p.holder_name,
-    institution: p.institution,
-    asset_name: p.name,
-    ticker: p.ticker,
-    quantity: p.quantity,
-    market_value_brl: p.market_value_brl,
-  }));
-
   const thStyle = (key?: SortKey): React.CSSProperties => ({
     padding: "8px",
     textAlign: "right" as const,
@@ -161,58 +119,11 @@ export function PositionsTable({ positions, totalBrl }: Props) {
           justifyContent: "space-between",
           padding: "8px 0",
           marginBottom: "4px",
-          gap: "8px",
-          flexWrap: "wrap",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span className="num" style={{ fontSize: "11.5px", color: "var(--color-text-3)" }}>
-            {sorted.length} ativo{sorted.length !== 1 ? "s" : ""}
-          </span>
-          {selected.size > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontSize: "11.5px", color: "var(--color-text-2)" }}>
-                {selected.size} selecionado{selected.size !== 1 ? "s" : ""}
-              </span>
-              {!canTransfer && selected.size > 0 && (
-                <span style={{ fontSize: "11px", color: "var(--color-warn)" }}>
-                  (instituições diferentes)
-                </span>
-              )}
-              {canTransfer && (
-                <button
-                  onClick={() => setTransferOpen(true)}
-                  style={{
-                    padding: "4px 12px",
-                    borderRadius: "5px",
-                    border: "1px solid var(--color-line)",
-                    backgroundColor: "var(--color-bg-2)",
-                    color: "var(--color-text)",
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                  }}
-                >
-                  Transferir custódia
-                </button>
-              )}
-              <button
-                onClick={() => setSelected(new Set())}
-                style={{
-                  padding: "3px 8px",
-                  borderRadius: "5px",
-                  border: "1px solid var(--color-line)",
-                  backgroundColor: "transparent",
-                  color: "var(--color-text-3)",
-                  cursor: "pointer",
-                  fontSize: "11.5px",
-                }}
-              >
-                Limpar
-              </button>
-            </div>
-          )}
-        </div>
+        <span className="num" style={{ fontSize: "11.5px", color: "var(--color-text-3)" }}>
+          {sorted.length} ativo{sorted.length !== 1 ? "s" : ""} · ordenado por valor
+        </span>
         <div style={{ display: "flex", gap: "6px" }}>
           <select
             value={filterClass}
@@ -261,19 +172,7 @@ export function PositionsTable({ positions, totalBrl }: Props) {
         <table style={{ width: "100%", fontSize: "12.5px", borderCollapse: "collapse" }}>
           <thead>
             <tr className="hairline" style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              {/* Checkbox all */}
-              <th style={{ padding: "8px 4px 8px 16px", width: "28px" }}>
-                <input
-                  type="checkbox"
-                  checked={sorted.length > 0 && selected.size === sorted.length}
-                  ref={(el) => {
-                    if (el) el.indeterminate = selected.size > 0 && selected.size < sorted.length;
-                  }}
-                  onChange={toggleAll}
-                  style={{ cursor: "pointer", accentColor: "var(--color-text)" }}
-                />
-              </th>
-              <th style={{ ...thStyle(), textAlign: "left" }} onClick={() => toggleSort("name")}>
+              <th style={{ ...thStyle(), textAlign: "left", paddingLeft: "16px" }} onClick={() => toggleSort("name")}>
                 Ativo
               </th>
               <th style={{ ...thStyle(), textAlign: "left" }}>Titular</th>
@@ -300,37 +199,21 @@ export function PositionsTable({ positions, totalBrl }: Props) {
             {sorted.map((pos) => {
               const holderColor = HOLDER_COLORS[pos.holder_slug] ?? "var(--color-brand)";
               const portPct = totalBrl > 0 ? (pos.market_value_brl / totalBrl) * 100 : 0;
-              const isSelected = selected.has(pos.id);
 
               return (
                 <tr
                   key={pos.id}
                   className="hairline"
-                  style={{
-                    transition: "background-color 0.1s",
-                    cursor: "pointer",
-                    backgroundColor: isSelected ? "var(--color-bg-3)" : "transparent",
-                  }}
-                  onClick={() => toggleSelect(pos.id)}
+                  style={{ transition: "background-color 0.1s" }}
                   onMouseEnter={(e) => {
-                    if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-bg-3)";
+                    (e.currentTarget as HTMLElement).style.backgroundColor = "var(--color-bg-3)";
                   }}
                   onMouseLeave={(e) => {
-                    if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+                    (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
                   }}
                 >
-                  {/* Checkbox */}
-                  <td style={{ padding: "8px 4px 8px 16px" }} onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSelect(pos.id)}
-                      style={{ cursor: "pointer", accentColor: "var(--color-text)" }}
-                    />
-                  </td>
-
                   {/* Ativo */}
-                  <td style={{ padding: "8px", whiteSpace: "nowrap" }}>
+                  <td style={{ padding: "8px", paddingLeft: "16px", whiteSpace: "nowrap" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <span className="num" style={{ fontWeight: 500 }}>
                         {pos.ticker ?? pos.name.split(" ").slice(0, 2).join(" ")}
@@ -444,7 +327,7 @@ export function PositionsTable({ positions, totalBrl }: Props) {
 
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={11} style={{ padding: "32px", textAlign: "center", color: "var(--color-text-3)" }}>
+                <td colSpan={10} style={{ padding: "32px", textAlign: "center", color: "var(--color-text-3)" }}>
                   Nenhuma posição encontrada
                 </td>
               </tr>
@@ -453,7 +336,7 @@ export function PositionsTable({ positions, totalBrl }: Props) {
           {sorted.length > 0 && (
             <tfoot>
               <tr style={{ borderTop: "1px solid var(--color-line)" }}>
-                <td colSpan={7} style={{ padding: "8px 8px 8px 16px", fontSize: "11.5px", color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                <td colSpan={6} style={{ padding: "8px 8px 8px 16px", fontSize: "11.5px", color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   Total ({sorted.length} ativo{sorted.length !== 1 ? "s" : ""})
                 </td>
                 <td style={{ padding: "8px", paddingRight: "8px", textAlign: "right" }}>
@@ -474,14 +357,6 @@ export function PositionsTable({ positions, totalBrl }: Props) {
           )}
         </table>
       </div>
-
-      {transferOpen && (
-        <TransferModal
-          positions={transferablePositions}
-          onClose={() => setTransferOpen(false)}
-          onSuccess={handleTransferSuccess}
-        />
-      )}
     </div>
   );
 }

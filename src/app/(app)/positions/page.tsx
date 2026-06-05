@@ -14,7 +14,7 @@ export default async function PositionsPage() {
           Posições
         </h1>
         <p style={{ margin: "6px 0 0", fontSize: "13px", color: "var(--color-text-3)" }}>
-          Revise e corrija a classe de ativo de cada posição. As alterações são salvas automaticamente.
+          Corrija a classe de ativo e inicie transferências de custódia. Selecione posições da mesma instituição para transferir.
         </p>
       </div>
 

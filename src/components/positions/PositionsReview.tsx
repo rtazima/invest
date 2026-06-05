@@ -3,6 +3,7 @@
 import { useState, useTransition, useMemo } from "react";
 import type { PositionForReview } from "@/lib/data/positions";
 import { updatePositionAssetClassAction } from "@/app/(app)/positions/actions";
+import { TransferModal, type TransferablePosition } from "@/components/transfers/TransferModal";
 
 const ASSET_CLASS_LABELS: Record<string, string> = {
   fixed_income: "Renda Fixa",
@@ -28,20 +29,36 @@ function fmtBRL(v: number): string {
 
 interface RowProps {
   position: PositionForReview;
+  selected: boolean;
   saving: boolean;
   saved: boolean;
+  onSelect: (id: string) => void;
   onChange: (id: string, newClass: string) => void;
 }
 
-function PositionRow({ position: p, saving, saved, onChange }: RowProps) {
+function PositionRow({ position: p, selected, saving, saved, onSelect, onChange }: RowProps) {
   return (
     <tr
       style={{
         borderBottom: "1px solid var(--color-line-2)",
-        backgroundColor: saved ? "color-mix(in srgb, var(--color-gain) 6%, transparent)" : "transparent",
+        backgroundColor: selected
+          ? "var(--color-bg-3)"
+          : saved
+            ? "color-mix(in srgb, var(--color-gain) 6%, transparent)"
+            : "transparent",
         transition: "background-color 0.4s",
+        cursor: "pointer",
       }}
+      onClick={() => onSelect(p.id)}
     >
+      <td style={{ padding: "8px 8px 8px 12px" }} onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onSelect(p.id)}
+          style={{ cursor: "pointer", accentColor: "var(--color-text)" }}
+        />
+      </td>
       <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
         <span style={{ fontWeight: 600, fontFamily: "monospace", fontSize: "12px" }}>
           {p.ticker ?? "—"}
@@ -61,7 +78,7 @@ function PositionRow({ position: p, saving, saved, onChange }: RowProps) {
           {fmtBRL(p.market_value_brl)}
         </span>
       </td>
-      <td style={{ padding: "8px 12px" }}>
+      <td style={{ padding: "8px 12px" }} onClick={(e) => e.stopPropagation()}>
         <select
           value={p.asset_class}
           disabled={saving}
@@ -104,6 +121,8 @@ export function PositionsReview({ initialPositions }: Props) {
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
   const [filter, setFilter] = useState("");
   const [classFilter, setClassFilter] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [transferOpen, setTransferOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
@@ -118,6 +137,27 @@ export function PositionsReview({ initialPositions }: Props) {
       return matchesText && matchesClass;
     });
   }, [positions, filter, classFilter]);
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map((p) => p.id)));
+    }
+  }
+
+  const selectedPositions = filtered.filter((p) => selected.has(p.id));
+  const selectedInstitutions = new Set(selectedPositions.map((p) => p.institution));
+  const canTransfer = selected.size > 0 && selectedInstitutions.size === 1;
 
   async function handleChange(id: string, newClass: string) {
     setPositions((prev) =>
@@ -139,12 +179,28 @@ export function PositionsReview({ initialPositions }: Props) {
     });
   }
 
+  function handleTransferSuccess() {
+    setTransferOpen(false);
+    setSelected(new Set());
+  }
+
   const globalError = errors.size > 0 ? `${errors.size} erro(s) ao salvar` : null;
+
+  const transferablePositions: TransferablePosition[] = selectedPositions.map((p) => ({
+    id: p.id,
+    holder_id: p.holder_id,
+    holder_name: p.holder_name,
+    institution: p.institution,
+    asset_name: p.name ?? p.ticker ?? "—",
+    ticker: p.ticker,
+    quantity: p.quantity,
+    market_value_brl: p.market_value_brl,
+  }));
 
   return (
     <div>
-      {/* Filtros */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
+      {/* Barra de ferramentas */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap", alignItems: "center" }}>
         <input
           type="text"
           placeholder="Buscar por ticker, nome ou titular..."
@@ -180,9 +236,53 @@ export function PositionsReview({ initialPositions }: Props) {
             </option>
           ))}
         </select>
-        <span style={{ alignSelf: "center", fontSize: "12px", color: "var(--color-text-3)" }}>
+        <span style={{ fontSize: "12px", color: "var(--color-text-3)" }}>
           {filtered.length} de {positions.length} posições
         </span>
+
+        {selected.size > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "auto" }}>
+            <span style={{ fontSize: "12px", color: "var(--color-text-2)" }}>
+              {selected.size} selecionada{selected.size !== 1 ? "s" : ""}
+            </span>
+            {!canTransfer && (
+              <span style={{ fontSize: "11px", color: "var(--color-warn)" }}>
+                (instituições diferentes)
+              </span>
+            )}
+            {canTransfer && (
+              <button
+                onClick={() => setTransferOpen(true)}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid var(--color-line)",
+                  backgroundColor: "var(--color-bg-2)",
+                  color: "var(--color-text)",
+                  cursor: "pointer",
+                  fontSize: "12.5px",
+                  fontWeight: 500,
+                }}
+              >
+                Transferir custódia
+              </button>
+            )}
+            <button
+              onClick={() => setSelected(new Set())}
+              style={{
+                padding: "4px 10px",
+                borderRadius: "6px",
+                border: "1px solid var(--color-line)",
+                backgroundColor: "transparent",
+                color: "var(--color-text-3)",
+                cursor: "pointer",
+                fontSize: "12px",
+              }}
+            >
+              Limpar
+            </button>
+          </div>
+        )}
       </div>
 
       {globalError && (
@@ -212,6 +312,17 @@ export function PositionsReview({ initialPositions }: Props) {
                 color: "var(--color-text-3)",
               }}
             >
+              <th style={{ padding: "6px 8px 6px 12px", width: "28px" }}>
+                <input
+                  type="checkbox"
+                  checked={filtered.length > 0 && selected.size === filtered.length}
+                  ref={(el) => {
+                    if (el) el.indeterminate = selected.size > 0 && selected.size < filtered.length;
+                  }}
+                  onChange={toggleAll}
+                  style={{ cursor: "pointer", accentColor: "var(--color-text)" }}
+                />
+              </th>
               <th style={{ padding: "6px 12px", textAlign: "left" }}>Ticker</th>
               <th style={{ padding: "6px 12px", textAlign: "left" }}>Nome</th>
               <th style={{ padding: "6px 12px", textAlign: "left" }}>Titular</th>
@@ -223,10 +334,7 @@ export function PositionsReview({ initialPositions }: Props) {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td
-                  colSpan={6}
-                  style={{ padding: "32px", textAlign: "center", color: "var(--color-text-3)" }}
-                >
+                <td colSpan={7} style={{ padding: "32px", textAlign: "center", color: "var(--color-text-3)" }}>
                   Nenhuma posição encontrada.
                 </td>
               </tr>
@@ -235,8 +343,10 @@ export function PositionsReview({ initialPositions }: Props) {
                 <PositionRow
                   key={p.id}
                   position={p}
+                  selected={selected.has(p.id)}
                   saving={saving.has(p.id)}
                   saved={saved.has(p.id)}
+                  onSelect={toggleSelect}
                   onChange={handleChange}
                 />
               ))
@@ -244,6 +354,14 @@ export function PositionsReview({ initialPositions }: Props) {
           </tbody>
         </table>
       </div>
+
+      {transferOpen && (
+        <TransferModal
+          positions={transferablePositions}
+          onClose={() => setTransferOpen(false)}
+          onSuccess={handleTransferSuccess}
+        />
+      )}
     </div>
   );
 }
