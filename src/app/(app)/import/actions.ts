@@ -75,9 +75,10 @@ async function refreshSupplementPrices(
 // Item IDs por instituição — futuramente virão do banco por titular.
 const PLUGGY_ITEM_IDS: Partial<Record<Enums<"institution">, string | undefined>> = {
   btg: process.env.PLUGGY_ITEM_ID_BTG,
+  xp: process.env.PLUGGY_ITEM_ID_XP,
 };
 
-export type PluggyInstitution = "btg";
+export type PluggyInstitution = "btg" | "xp";
 
 export interface PluggySyncResult {
   success: boolean;
