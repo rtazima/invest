@@ -5,8 +5,10 @@ import { getInstitutionSyncStatuses } from "@/lib/data/sync";
 import { getHolders } from "@/lib/data/holders";
 import { getStructuresForAllHolders } from "@/lib/data/structures";
 import { DashboardView } from "@/components/dashboard/DashboardView";
+import { PriceRefresher } from "@/components/dashboard/PriceRefresher";
 import type { ClientPortfolioSummary, ClientPosition } from "@/components/dashboard/types";
 
+export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Dashboard — Invest" };
 
 export default async function DashboardPage() {
@@ -75,10 +77,13 @@ export default async function DashboardPage() {
   });
 
   return (
-    <DashboardView
-      summary={clientSummary}
-      positions={clientPositions}
-      syncStatuses={syncStatuses}
-    />
+    <>
+      <PriceRefresher />
+      <DashboardView
+        summary={clientSummary}
+        positions={clientPositions}
+        syncStatuses={syncStatuses}
+      />
+    </>
   );
 }

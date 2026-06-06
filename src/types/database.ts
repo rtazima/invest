@@ -7,186 +7,46 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
-      position_structures: {
+      alert_mutes: {
         Row: {
-          id: string
-          holder_id: string
-          name: string
-          type: "covered_call" | "synthetic_dividend" | "collar" | "protective_put"
-          status: "active" | "expired" | "closed"
-          notes: string | null
+          alert_type: string | null
           created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          holder_id: string
-          name: string
-          type: "covered_call" | "synthetic_dividend" | "collar" | "protective_put"
-          status?: "active" | "expired" | "closed"
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          holder_id?: string
-          name?: string
-          type?: "covered_call" | "synthetic_dividend" | "collar" | "protective_put"
-          status?: "active" | "expired" | "closed"
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [{ foreignKeyName: "position_structures_holder_id_fkey"; columns: ["holder_id"]; referencedRelation: "holders"; referencedColumns: ["id"] }]
-      }
-      position_structure_legs: {
-        Row: {
+          family_id: string
           id: string
-          structure_id: string
-          role: "underlying" | "short_call" | "long_put" | "short_put" | "long_call"
+          muted_until: string | null
           ticker: string | null
-          asset_class: string | null
-          strike: number | null
-          expiration_date: string | null
-          contracts: number | null
-          premium: number | null
-          sort_order: number
         }
         Insert: {
+          alert_type?: string | null
+          created_at?: string
+          family_id: string
           id?: string
-          structure_id: string
-          role: "underlying" | "short_call" | "long_put" | "short_put" | "long_call"
+          muted_until?: string | null
           ticker?: string | null
-          asset_class?: string | null
-          strike?: number | null
-          expiration_date?: string | null
-          contracts?: number | null
-          premium?: number | null
-          sort_order?: number
         }
         Update: {
+          alert_type?: string | null
+          created_at?: string
+          family_id?: string
           id?: string
-          structure_id?: string
-          role?: "underlying" | "short_call" | "long_put" | "short_put" | "long_call"
+          muted_until?: string | null
           ticker?: string | null
-          asset_class?: string | null
-          strike?: number | null
-          expiration_date?: string | null
-          contracts?: number | null
-          premium?: number | null
-          sort_order?: number
-        }
-        Relationships: [{ foreignKeyName: "position_structure_legs_structure_id_fkey"; columns: ["structure_id"]; referencedRelation: "position_structures"; referencedColumns: ["id"] }]
-      }
-      council_sessions: {
-        Row: {
-          id: string
-          holder_id: string
-          title: string
-          mode: "advisor_first" | "user_first"
-          initial_prompt: string
-          current_round: number
-          max_rounds: number
-          status: "pending" | "running" | "awaiting_human" | "synthesizing" | "completed" | "no_consensus"
-          autonomous: boolean
-          created_at: string
-          completed_at: string | null
-        }
-        Insert: {
-          id?: string
-          holder_id: string
-          title: string
-          mode?: "advisor_first" | "user_first"
-          initial_prompt?: string
-          current_round?: number
-          max_rounds?: number
-          status?: "pending" | "running" | "awaiting_human" | "synthesizing" | "completed" | "no_consensus"
-          autonomous?: boolean
-          created_at?: string
-          completed_at?: string | null
-        }
-        Update: {
-          id?: string
-          holder_id?: string
-          title?: string
-          mode?: "advisor_first" | "user_first"
-          initial_prompt?: string
-          current_round?: number
-          max_rounds?: number
-          status?: "pending" | "running" | "awaiting_human" | "synthesizing" | "completed" | "no_consensus"
-          autonomous?: boolean
-          created_at?: string
-          completed_at?: string | null
-        }
-        Relationships: [{ foreignKeyName: "council_sessions_holder_id_fkey"; columns: ["holder_id"]; referencedRelation: "holders"; referencedColumns: ["id"] }]
-      }
-      council_participants: {
-        Row: {
-          id: string
-          session_id: string
-          name: string
-          type: "llm" | "human"
-          model: string | null
-          role_focus: string | null
-          sort_order: number
-        }
-        Insert: {
-          id?: string
-          session_id: string
-          name: string
-          type: "llm" | "human"
-          model?: string | null
-          role_focus?: string | null
-          sort_order?: number
-        }
-        Update: {
-          id?: string
-          session_id?: string
-          name?: string
-          type?: "llm" | "human"
-          model?: string | null
-          role_focus?: string | null
-          sort_order?: number
-        }
-        Relationships: [{ foreignKeyName: "council_participants_session_id_fkey"; columns: ["session_id"]; referencedRelation: "council_sessions"; referencedColumns: ["id"] }]
-      }
-      council_messages: {
-        Row: {
-          id: string
-          session_id: string
-          participant_id: string | null
-          round: number
-          message_type: "llm" | "human_user" | "human_advisor" | "round_judge" | "synthesis"
-          content: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          session_id: string
-          participant_id?: string | null
-          round: number
-          message_type?: "llm" | "human_user" | "human_advisor" | "round_judge" | "synthesis"
-          content: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          session_id?: string
-          participant_id?: string | null
-          round?: number
-          message_type?: "llm" | "human_user" | "human_advisor" | "round_judge" | "synthesis"
-          content?: string
-          created_at?: string
         }
         Relationships: [
-          { foreignKeyName: "council_messages_session_id_fkey"; columns: ["session_id"]; referencedRelation: "council_sessions"; referencedColumns: ["id"] },
-          { foreignKeyName: "council_messages_participant_id_fkey"; columns: ["participant_id"]; referencedRelation: "council_participants"; referencedColumns: ["id"] }
+          {
+            foreignKeyName: "alert_mutes_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
         ]
       }
       alerts: {
@@ -238,6 +98,248 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "alerts_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "holders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          metadata: Json
+          resource: string | null
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+          user_role: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          resource?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          resource?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          scope_holder_id: string | null
+          scope_type: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          scope_holder_id?: string | null
+          scope_type?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          scope_holder_id?: string | null
+          scope_type?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_sessions_scope_holder_id_fkey"
+            columns: ["scope_holder_id"]
+            isOneToOne: false
+            referencedRelation: "holders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      council_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          message_type: string
+          participant_id: string | null
+          round: number
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          participant_id?: string | null
+          round: number
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          participant_id?: string | null
+          round?: number
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "council_messages_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "council_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "council_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "council_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      council_participants: {
+        Row: {
+          id: string
+          model: string | null
+          name: string
+          role_focus: string | null
+          session_id: string
+          sort_order: number
+          type: string
+        }
+        Insert: {
+          id?: string
+          model?: string | null
+          name: string
+          role_focus?: string | null
+          session_id: string
+          sort_order?: number
+          type: string
+        }
+        Update: {
+          id?: string
+          model?: string | null
+          name?: string
+          role_focus?: string | null
+          session_id?: string
+          sort_order?: number
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "council_participants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "council_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      council_sessions: {
+        Row: {
+          autonomous: boolean
+          completed_at: string | null
+          created_at: string
+          current_round: number
+          holder_id: string
+          id: string
+          initial_prompt: string
+          max_rounds: number
+          mode: string
+          status: string
+          title: string
+        }
+        Insert: {
+          autonomous?: boolean
+          completed_at?: string | null
+          created_at?: string
+          current_round?: number
+          holder_id: string
+          id?: string
+          initial_prompt?: string
+          max_rounds?: number
+          mode?: string
+          status?: string
+          title: string
+        }
+        Update: {
+          autonomous?: boolean
+          completed_at?: string | null
+          created_at?: string
+          current_round?: number
+          holder_id?: string
+          id?: string
+          initial_prompt?: string
+          max_rounds?: number
+          mode?: string
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "council_sessions_holder_id_fkey"
             columns: ["holder_id"]
             isOneToOne: false
             referencedRelation: "holders"
@@ -298,42 +400,50 @@ export type Database = {
       }
       family_advisors: {
         Row: {
-          id: string
-          family_id: string
-          invited_email: string
-          user_id: string | null
-          role: "advisor_read" | "advisor_write"
-          status: "pending" | "active" | "revoked"
-          invite_token: string
-          invited_by: string
-          invited_at: string
           accepted_at: string | null
+          family_id: string
+          id: string
+          invite_token: string
+          invited_at: string
+          invited_by: string
+          invited_email: string
+          role: string
+          status: string
+          user_id: string | null
         }
         Insert: {
-          id?: string
-          family_id: string
-          invited_email: string
-          user_id?: string | null
-          role: "advisor_read" | "advisor_write"
-          status?: "pending" | "active" | "revoked"
-          invite_token?: string
-          invited_by: string
-          invited_at?: string
           accepted_at?: string | null
+          family_id: string
+          id?: string
+          invite_token?: string
+          invited_at?: string
+          invited_by: string
+          invited_email: string
+          role: string
+          status?: string
+          user_id?: string | null
         }
         Update: {
-          id?: string
-          family_id?: string
-          invited_email?: string
-          user_id?: string | null
-          role?: "advisor_read" | "advisor_write"
-          status?: "pending" | "active" | "revoked"
-          invite_token?: string
-          invited_by?: string
-          invited_at?: string
           accepted_at?: string | null
+          family_id?: string
+          id?: string
+          invite_token?: string
+          invited_at?: string
+          invited_by?: string
+          invited_email?: string
+          role?: string
+          status?: string
+          user_id?: string | null
         }
-        Relationships: [{ foreignKeyName: "family_advisors_family_id_fkey"; columns: ["family_id"]; referencedRelation: "families"; referencedColumns: ["id"] }]
+        Relationships: [
+          {
+            foreignKeyName: "family_advisors_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "families"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       family_cpfs: {
         Row: {
@@ -466,6 +576,132 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "import_batches_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "holders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      portfolio_snapshots: {
+        Row: {
+          breakdown: Json
+          created_at: string
+          date: string
+          fx_rate: number | null
+          holder_id: string
+          id: string
+          total_value_brl: number
+        }
+        Insert: {
+          breakdown?: Json
+          created_at?: string
+          date: string
+          fx_rate?: number | null
+          holder_id: string
+          id?: string
+          total_value_brl: number
+        }
+        Update: {
+          breakdown?: Json
+          created_at?: string
+          date?: string
+          fx_rate?: number | null
+          holder_id?: string
+          id?: string
+          total_value_brl?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_snapshots_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "holders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      position_structure_legs: {
+        Row: {
+          asset_class: string | null
+          contracts: number | null
+          expiration_date: string | null
+          id: string
+          premium: number | null
+          role: string
+          sort_order: number
+          strike: number | null
+          structure_id: string
+          ticker: string | null
+        }
+        Insert: {
+          asset_class?: string | null
+          contracts?: number | null
+          expiration_date?: string | null
+          id?: string
+          premium?: number | null
+          role: string
+          sort_order?: number
+          strike?: number | null
+          structure_id: string
+          ticker?: string | null
+        }
+        Update: {
+          asset_class?: string | null
+          contracts?: number | null
+          expiration_date?: string | null
+          id?: string
+          premium?: number | null
+          role?: string
+          sort_order?: number
+          strike?: number | null
+          structure_id?: string
+          ticker?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "position_structure_legs_structure_id_fkey"
+            columns: ["structure_id"]
+            isOneToOne: false
+            referencedRelation: "position_structures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      position_structures: {
+        Row: {
+          created_at: string
+          holder_id: string
+          id: string
+          name: string
+          notes: string | null
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          holder_id: string
+          id?: string
+          name: string
+          notes?: string | null
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          holder_id?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "position_structures_holder_id_fkey"
             columns: ["holder_id"]
             isOneToOne: false
             referencedRelation: "holders"
@@ -663,14 +899,88 @@ export type Database = {
           },
         ]
       }
+      transfer_events: {
+        Row: {
+          asset_name: string
+          created_at: string
+          created_by: string | null
+          from_institution: string
+          holder_id: string
+          id: string
+          notes: string | null
+          quantity: number
+          settled_at: string | null
+          settlement_date: string
+          status: string
+          ticker: string | null
+          to_institution: string
+          transfer_date: string
+        }
+        Insert: {
+          asset_name: string
+          created_at?: string
+          created_by?: string | null
+          from_institution: string
+          holder_id: string
+          id?: string
+          notes?: string | null
+          quantity: number
+          settled_at?: string | null
+          settlement_date: string
+          status?: string
+          ticker?: string | null
+          to_institution: string
+          transfer_date?: string
+        }
+        Update: {
+          asset_name?: string
+          created_at?: string
+          created_by?: string | null
+          from_institution?: string
+          holder_id?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          settled_at?: string | null
+          settlement_date?: string
+          status?: string
+          ticker?: string | null
+          to_institution?: string
+          transfer_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfer_events_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "holders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      claim_holder_by_cpf: { Args: Record<PropertyKey, never>; Returns: string }
+      can_read_family: { Args: { p_family_id: string }; Returns: boolean }
+      can_write_family: { Args: { p_family_id: string }; Returns: boolean }
+      claim_holder_by_cpf: { Args: never; Returns: string }
+      get_invite_by_token: {
+        Args: { p_token: string }
+        Returns: {
+          accepted_at: string
+          family_id: string
+          id: string
+          invite_token: string
+          invited_at: string
+          invited_email: string
+          role: string
+          status: string
+        }[]
+      }
       is_family_owner: { Args: { p_family_id: string }; Returns: boolean }
-      my_family_id: { Args: Record<PropertyKey, never>; Returns: string }
+      my_family_id: { Args: never; Returns: string }
     }
     Enums: {
       alert_severity: "info" | "warning" | "critical"
@@ -718,7 +1028,8 @@ export type Tables<
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
     ? (DefaultSchema["Tables"] &
         DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
@@ -850,3 +1161,4 @@ export type DBPositionStructureLeg = Database["public"]["Tables"]["position_stru
 export type DBCouncilSession = Database["public"]["Tables"]["council_sessions"]["Row"]
 export type DBCouncilParticipant = Database["public"]["Tables"]["council_participants"]["Row"]
 export type DBCouncilMessage = Database["public"]["Tables"]["council_messages"]["Row"]
+export type DBPortfolioSnapshot = Database["public"]["Tables"]["portfolio_snapshots"]["Row"]
