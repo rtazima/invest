@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ClientPortfolioSummary } from "./types";
+import { useFlash } from "@/hooks/useFlash";
 
 const PERIODS = ["1D", "1S", "1M", "6M", "1A", "MAX"] as const;
 type Period = (typeof PERIODS)[number];
@@ -51,12 +52,15 @@ function demoAxisLabels(): string[] {
 
 interface Props {
   summary: ClientPortfolioSummary;
+  liveTotal?: number;
 }
 
-export function PortfolioHeroCard({ summary }: Props) {
+export function PortfolioHeroCard({ summary, liveTotal }: Props) {
   const [period, setPeriod] = useState<Period>("6M");
-  const [int, dec] = fmtBrl(summary.totalBrl);
-  const { main, cdi } = demoPath(summary.totalBrl);
+  const displayTotal = liveTotal ?? summary.totalBrl;
+  const flash = useFlash(displayTotal);
+  const [int, dec] = fmtBrl(displayTotal);
+  const { main, cdi } = demoPath(displayTotal);
   const axisLabels = demoAxisLabels();
 
   const holderCount = summary.byHolder.length;
@@ -118,7 +122,7 @@ export function PortfolioHeroCard({ summary }: Props) {
 
       {/* Valor principal */}
       <div style={{ marginBottom: "8px" }}>
-        <span style={{ display: "flex", alignItems: "baseline", gap: "2px" }}>
+        <span className={flash ? `flash-${flash}` : ""} style={{ display: "flex", alignItems: "baseline", gap: "2px" }}>
           <span className="num pv" style={{ fontSize: "14px", color: "var(--color-text-3)" }}>R$</span>
           <span className="num pv" style={{ fontSize: "44px", fontWeight: 500, lineHeight: 1, letterSpacing: "-0.02em" }}>
             {int}

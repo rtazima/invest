@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PortfolioHeroCard } from "./PortfolioHeroCard";
 import { HolderCard } from "./HolderCard";
+import { useLivePrices } from "@/lib/prices/live-context";
 import { PositionsTable } from "./PositionsTable";
 import { AllocationDonut } from "./AllocationDonut";
 import { TabByHolder } from "./TabByHolder";
@@ -33,6 +34,7 @@ interface Props {
 
 export function DashboardView({ summary, positions, syncStatuses }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("global");
+  const { live } = useLivePrices();
   const hasData = summary.totalBrl > 0;
 
   return (
@@ -51,7 +53,7 @@ export function DashboardView({ summary, positions, syncStatuses }: Props) {
                 marginBottom: "24px",
               }}
             >
-              <PortfolioHeroCard summary={summary} />
+              <PortfolioHeroCard summary={summary} liveTotal={live?.totalBrl} />
 
               {/* Cards de titular */}
               <div
@@ -63,7 +65,11 @@ export function DashboardView({ summary, positions, syncStatuses }: Props) {
                 }}
               >
                 {summary.byHolder.map((h) => (
-                  <HolderCard key={h.id} holder={h} />
+                  <HolderCard
+                    key={h.id}
+                    holder={h}
+                    liveTotal={live?.byHolder.find((lh) => lh.id === h.id)?.totalBrl}
+                  />
                 ))}
               </div>
             </div>

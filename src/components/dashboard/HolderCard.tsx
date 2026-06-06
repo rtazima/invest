@@ -1,4 +1,7 @@
+"use client";
+
 import type { ClientHolderSummary } from "./types";
+import { useFlash } from "@/hooks/useFlash";
 
 const HOLDER_COLORS: Record<string, string> = {
   rodrigo: "oklch(0.65 0.10 240)",
@@ -42,13 +45,16 @@ const RISK_LABELS: Record<string, string> = {
 
 interface Props {
   holder: ClientHolderSummary;
+  liveTotal?: number;
   todayPct?: number;
 }
 
-export function HolderCard({ holder, todayPct = 0 }: Props) {
+export function HolderCard({ holder, liveTotal, todayPct = 0 }: Props) {
   const color = HOLDER_COLORS[holder.slug] ?? "var(--color-brand)";
   const meta = HOLDER_METAS[holder.slug] ?? "";
-  const [int, dec] = fmtBrl(holder.totalBrl);
+  const displayTotal = liveTotal ?? holder.totalBrl;
+  const flash = useFlash(displayTotal);
+  const [int, dec] = fmtBrl(displayTotal);
   const spark = demoSparkPath();
   const positive = todayPct >= 0;
 
@@ -98,7 +104,7 @@ export function HolderCard({ holder, todayPct = 0 }: Props) {
       </div>
 
       {/* Patrimônio */}
-      <div style={{ display: "flex", alignItems: "baseline", gap: "1px" }}>
+      <div className={flash ? `flash-${flash}` : ""} style={{ display: "flex", alignItems: "baseline", gap: "1px" }}>
         <span className="num pv" style={{ fontSize: "20px", letterSpacing: "-0.015em", fontWeight: 500 }}>{int}</span>
         <span className="num pv" style={{ fontSize: "14px", color: "var(--color-text-3)" }}>{dec}</span>
       </div>

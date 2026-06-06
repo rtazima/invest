@@ -196,6 +196,19 @@ body {
   to { transform: rotate(360deg); }
 }
 
+@keyframes flash-up {
+  0%   { color: #4ade80; text-shadow: 0 0 8px rgba(74,222,128,0.6); }
+  100% { color: inherit; text-shadow: none; }
+}
+
+@keyframes flash-down {
+  0%   { color: #f87171; text-shadow: 0 0 8px rgba(248,113,113,0.6); }
+  100% { color: inherit; text-shadow: none; }
+}
+
+.flash-up   { animation: flash-up   0.7s ease-out forwards; }
+.flash-down { animation: flash-down 0.7s ease-out forwards; }
+
 /* dot de alerta crítico não-lido */
 .alert-dot-crit {
   animation: pulse 1.8s ease-in-out infinite;

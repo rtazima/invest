@@ -1,52 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
+import { useLivePrices } from "@/lib/prices/live-context";
 
 export function PriceRefresher() {
-  const router = useRouter();
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const [fxRate, setFxRate] = useState<number | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  async function doRefresh() {
-    if (refreshing) return;
-    setRefreshing(true);
-    try {
-      const res = await fetch("/api/prices/refresh", { method: "POST" });
-      if (res.ok) {
-        const data = (await res.json()) as { fxRate?: number };
-        setLastRefresh(new Date());
-        if (data.fxRate) setFxRate(data.fxRate);
-        router.refresh();
-      }
-    } catch {
-      // falha silenciosa — tentará novamente no próximo ciclo
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
-  useEffect(() => {
-    doRefresh();
-
-    function schedule() {
-      timerRef.current = setTimeout(() => {
-        doRefresh().then(schedule);
-      }, REFRESH_INTERVAL_MS);
-    }
-    schedule();
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (!lastRefresh && !refreshing) return null;
+  const { live, refreshing } = useLivePrices();
 
   return (
     <div
@@ -56,6 +13,7 @@ export function PriceRefresher() {
         gap: "6px",
         fontSize: "11px",
         color: "var(--color-text-3)",
+        marginBottom: "8px",
       }}
     >
       <span
@@ -63,18 +21,27 @@ export function PriceRefresher() {
           width: "6px",
           height: "6px",
           borderRadius: "50%",
-          backgroundColor: refreshing ? "var(--color-warning)" : "var(--color-success)",
+          backgroundColor: refreshing
+            ? "var(--color-warning, #f59e0b)"
+            : live
+              ? "var(--color-success, #22c55e)"
+              : "var(--color-text-3)",
           flexShrink: 0,
+          transition: "background-color 0.3s",
         }}
       />
       {refreshing ? (
-        <span>Atualizando preços...</span>
-      ) : (
+        <span>Atualizando...</span>
+      ) : live ? (
         <span>
-          {fxRate && `USD/BRL ${fxRate.toFixed(2)} · `}
-          {lastRefresh && `${lastRefresh.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}
+          {live.fxRate && `USD/BRL ${live.fxRate.toFixed(2)} · `}
+          {new Date(live.updatedAt ?? "").toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })}
         </span>
-      )}
+      ) : null}
     </div>
   );
 }

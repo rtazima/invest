@@ -6,6 +6,7 @@ import { getHolders } from "@/lib/data/holders";
 import { getStructuresForAllHolders } from "@/lib/data/structures";
 import { DashboardView } from "@/components/dashboard/DashboardView";
 import { PriceRefresher } from "@/components/dashboard/PriceRefresher";
+import { LivePriceProvider } from "@/lib/prices/live-context";
 import type { ClientPortfolioSummary, ClientPosition } from "@/components/dashboard/types";
 
 export const dynamic = "force-dynamic";
@@ -77,13 +78,13 @@ export default async function DashboardPage() {
   });
 
   return (
-    <>
+    <LivePriceProvider>
       <PriceRefresher />
       <DashboardView
         summary={clientSummary}
         positions={clientPositions}
         syncStatuses={syncStatuses}
       />
-    </>
+    </LivePriceProvider>
   );
 }
