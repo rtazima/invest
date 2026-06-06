@@ -1,6 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { TransferEvent } from "@/lib/data/transfers";
 import { settleTransferEvent, cancelTransferEvent } from "@/app/(app)/transfers/actions";
 
@@ -30,14 +31,32 @@ function fmtDate(s: string): string {
 }
 
 function TransferRow({ event }: { event: TransferEvent }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [localError, setLocalError] = useState<string | null>(null);
 
   function settle() {
-    startTransition(async () => { await settleTransferEvent(event.id); });
+    setLocalError(null);
+    startTransition(async () => {
+      const result = await settleTransferEvent(event.id);
+      if (result.error) {
+        setLocalError(result.error);
+      } else {
+        router.refresh();
+      }
+    });
   }
 
   function cancel() {
-    startTransition(async () => { await cancelTransferEvent(event.id); });
+    setLocalError(null);
+    startTransition(async () => {
+      const result = await cancelTransferEvent(event.id);
+      if (result.error) {
+        setLocalError(result.error);
+      } else {
+        router.refresh();
+      }
+    });
   }
 
   const rowStyle: React.CSSProperties = {
@@ -84,37 +103,44 @@ function TransferRow({ event }: { event: TransferEvent }) {
       </td>
       <td style={{ padding: "10px 16px 10px 8px" }}>
         {event.status === "pending" && (
-          <div style={{ display: "flex", gap: "6px" }}>
-            <button
-              onClick={settle}
-              disabled={isPending}
-              style={{
-                padding: "4px 10px",
-                borderRadius: "5px",
-                border: "1px solid var(--color-line)",
-                backgroundColor: "transparent",
-                color: "var(--color-gain)",
-                cursor: isPending ? "not-allowed" : "pointer",
-                fontSize: "12px",
-              }}
-            >
-              Liquidar
-            </button>
-            <button
-              onClick={cancel}
-              disabled={isPending}
-              style={{
-                padding: "4px 10px",
-                borderRadius: "5px",
-                border: "1px solid var(--color-line)",
-                backgroundColor: "transparent",
-                color: "var(--color-text-3)",
-                cursor: isPending ? "not-allowed" : "pointer",
-                fontSize: "12px",
-              }}
-            >
-              Cancelar
-            </button>
+          <div>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button
+                onClick={settle}
+                disabled={isPending}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "5px",
+                  border: "1px solid var(--color-line)",
+                  backgroundColor: "transparent",
+                  color: isPending ? "var(--color-text-3)" : "var(--color-gain)",
+                  cursor: isPending ? "not-allowed" : "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                {isPending ? "Aguarde..." : "Liquidar"}
+              </button>
+              <button
+                onClick={cancel}
+                disabled={isPending}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: "5px",
+                  border: "1px solid var(--color-line)",
+                  backgroundColor: "transparent",
+                  color: "var(--color-text-3)",
+                  cursor: isPending ? "not-allowed" : "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+            {localError && (
+              <div style={{ fontSize: "11px", color: "var(--color-crit)", marginTop: "4px" }}>
+                {localError}
+              </div>
+            )}
           </div>
         )}
       </td>

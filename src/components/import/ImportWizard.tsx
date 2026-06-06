@@ -2,14 +2,16 @@
 
 import { useState, useRef } from "react";
 import type { DBHolder } from "@/types/database";
-import { processCSVImport, type ImportResult } from "@/app/(app)/import/actions";
+import { processCSVImport, processFotoImport, type ImportResult } from "@/app/(app)/import/actions";
 
 const INSTITUTIONS = [
   { value: "xp", label: "XP Investimentos" },
   { value: "btg", label: "BTG Pactual" },
   { value: "nomad", label: "Nomad (USD)" },
+  { value: "foto", label: "Foto — Nomad + XP Global (USD)" },
 ] as const;
 
+type InstitutionOption = "xp" | "btg" | "nomad" | "foto";
 type Step = "titular" | "instituicao" | "arquivo" | "confirmar" | "resultado";
 
 interface Props {
@@ -38,7 +40,7 @@ const labelStyle: React.CSSProperties = {
 export function ImportWizard({ holders }: Props) {
   const [step, setStep] = useState<Step>("titular");
   const [holderId, setHolderId] = useState(holders[0]?.id ?? "");
-  const [institution, setInstitution] = useState<"xp" | "btg" | "nomad">("xp");
+  const [institution, setInstitution] = useState<InstitutionOption>("xp");
   const [file, setFile] = useState<File | null>(null);
   const [exchangeRate, setExchangeRate] = useState("");
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -50,10 +52,12 @@ export function ImportWizard({ holders }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isNomad = institution === "nomad";
+  const isFoto = institution === "foto";
+  const isUsd = isNomad || isFoto;
   const selectedHolder = holders.find((h) => h.id === holderId);
 
   const acceptedExtensions =
-    institution === "nomad" ? [".pdf"] : [".xlsx", ".csv"];
+    isNomad ? [".pdf"] : isFoto ? [".csv"] : [".xlsx", ".csv"];
 
   function isValidFile(f: File): boolean {
     return acceptedExtensions.some((ext) => f.name.toLowerCase().endsWith(ext));
@@ -72,15 +76,17 @@ export function ImportWizard({ holders }: Props) {
 
     const fd = new FormData();
     fd.set("holder_id", holderId);
-    fd.set("institution", institution);
     fd.set("file", file);
-    if (isNomad) {
+    if (isUsd) {
       fd.set("exchange_rate", exchangeRate);
       fd.set("exchange_rate_date", exchangeRateDate);
     }
-    if (tesouoOnly) fd.set("tesouro_only", "true");
+    if (!isFoto) {
+      fd.set("institution", institution);
+      if (tesouoOnly) fd.set("tesouro_only", "true");
+    }
 
-    const res = await processCSVImport(fd);
+    const res = isFoto ? await processFotoImport(fd) : await processCSVImport(fd);
     setResult(res);
     setStep("resultado");
     setLoading(false);
@@ -224,7 +230,7 @@ export function ImportWizard({ holders }: Props) {
                   name="institution"
                   value={inst.value}
                   checked={institution === inst.value}
-                  onChange={() => setInstitution(inst.value as "xp" | "btg" | "nomad")}
+                  onChange={() => setInstitution(inst.value as InstitutionOption)}
                   style={{ display: "none" }}
                 />
                 <div
@@ -317,14 +323,16 @@ export function ImportWizard({ holders }: Props) {
                     ? "XP: arquivo XLSX (Posição Detalhada) ou CSV"
                     : institution === "btg"
                     ? "BTG: arquivo XLSX (Extrato da Conta Investimento) ou CSV"
-                    : "Nomad: arquivo PDF (Account Statement)"}
+                    : institution === "nomad"
+                    ? "Nomad: arquivo PDF (Account Statement)"
+                    : "Foto: CSV com colunas corretora, ticker, nome, classe, valor_posicao_usd"}
                 </p>
               </div>
             )}
           </div>
 
-          {/* Cotação USD/BRL (só Nomad) */}
-          {isNomad && (
+          {/* Cotação USD/BRL (Nomad e Foto) */}
+          {isUsd && (
             <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
               <div style={{ flex: 1 }}>
                 <label style={labelStyle}>Cotação USD/BRL</label>
@@ -376,16 +384,16 @@ export function ImportWizard({ holders }: Props) {
             </button>
             <button
               onClick={() => setStep("confirmar")}
-              disabled={!file || (isNomad && !exchangeRate)}
+              disabled={!file || (isUsd && !exchangeRate)}
               style={{
                 padding: "8px 20px",
                 borderRadius: "6px",
                 backgroundColor: "var(--color-bg-3)",
                 border: "1px solid var(--color-line)",
-                color: !file || (isNomad && !exchangeRate) ? "var(--color-text-3)" : "var(--color-text)",
+                color: !file || (isUsd && !exchangeRate) ? "var(--color-text-3)" : "var(--color-text)",
                 fontSize: "13px",
                 fontWeight: 500,
-                cursor: !file || (isNomad && !exchangeRate) ? "not-allowed" : "pointer",
+                cursor: !file || (isUsd && !exchangeRate) ? "not-allowed" : "pointer",
               }}
             >
               Próximo
@@ -411,7 +419,7 @@ export function ImportWizard({ holders }: Props) {
               ["Titular", selectedHolder?.name ?? "—"],
               ["Instituição", INSTITUTIONS.find((i) => i.value === institution)?.label ?? institution],
               ["Arquivo", file?.name ?? "—"],
-              ...(isNomad ? [["Cotação USD/BRL", `R$ ${exchangeRate}`]] : []),
+              ...(isUsd ? [["Cotação USD/BRL", `R$ ${exchangeRate}`]] : []),
               ...(tesouoOnly ? [["Modo", "Apenas Tesouro Direto"]] : []),
             ].map(([label, value]) => (
               <div

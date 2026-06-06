@@ -205,6 +205,22 @@ export function TransferModal({ positions, onClose, onSuccess }: Props) {
                       fontFamily: "var(--font-mono)",
                     }}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setQuantities((prev) => ({ ...prev, [pos.id]: pos.quantity }))}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: "5px",
+                      border: "1px solid var(--color-line)",
+                      backgroundColor: "transparent",
+                      color: quantities[pos.id] === pos.quantity ? "var(--color-text-3)" : "var(--color-text-2)",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Tudo
+                  </button>
                 </div>
               </div>
             ))}

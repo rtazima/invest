@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { getHolders } from "@/lib/data/holders";
 import { detectFormat, parseCSV, extractCsvOwner } from "@/lib/csv";
+import { parseFoto, detectFoto } from "@/lib/csv/foto-parser";
 import { parseXPXlsx, extractXPXlsxOwner } from "@/lib/xlsx/xp-xlsx-parser";
 import { parseBTGXlsx, extractBTGXlsxOwner } from "@/lib/xlsx/btg-xlsx-parser";
 import { parseNomadPdf, extractNomadPdfOwner } from "@/lib/pdf/nomad-pdf-parser";
@@ -451,4 +452,135 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
       .eq("id", batch.id);
     return { success: false, batchId: batch.id, errorMessage: msg };
   }
+}
+
+// ── Foto (Nomad + XP Global em um CSV só) ──────────────────────────────────
+
+export async function processFotoImport(formData: FormData): Promise<ImportResult> {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const holderId = formData.get("holder_id") as string;
+  const exchangeRateStr = formData.get("exchange_rate") as string | null;
+  const exchangeRateDateStr = formData.get("exchange_rate_date") as string | null;
+  const file = formData.get("file") as File | null;
+
+  if (!holderId || !file || !exchangeRateStr) {
+    return { success: false, errorMessage: "Titular, arquivo e cotação USD/BRL são obrigatórios." };
+  }
+
+  const exchangeRate = toDecimal(exchangeRateStr.replace(",", "."));
+  const csvText = await file.text();
+
+  if (!detectFoto(csvText)) {
+    return { success: false, errorMessage: "Formato não reconhecido. O arquivo deve ter as colunas: corretora, ticker, nome, classe, valor_posicao_usd." };
+  }
+
+  const allRows = parseFoto(csvText);
+  if (allRows.length === 0) {
+    return { success: false, errorMessage: "Nenhuma posição válida encontrada no arquivo." };
+  }
+
+  const byInstitution = {
+    nomad: allRows.filter((r) => r.corretora === "nomad"),
+    xp: allRows.filter((r) => r.corretora === "xp"),
+  };
+
+  let totalInserted = 0;
+
+  for (const [inst, rows] of Object.entries(byInstitution) as ["nomad" | "xp", typeof allRows][]) {
+    if (rows.length === 0) continue;
+
+    // Remove batches CSV anteriores dessa instituição para esse titular
+    const { data: oldBatches } = await supabase
+      .from("import_batches")
+      .select("id")
+      .eq("holder_id", holderId)
+      .eq("institution", inst)
+      .eq("source", "csv");
+
+    if (oldBatches && oldBatches.length > 0) {
+      const ids = oldBatches.map((b: { id: string }) => b.id);
+      await supabase.from("positions").delete().in("batch_id", ids);
+      await supabase.from("import_batches").delete().in("id", ids);
+    }
+
+    const { data: batch, error: batchErr } = await supabase
+      .from("import_batches")
+      .insert({
+        holder_id: holderId,
+        institution: inst,
+        status: "processing",
+        source: "csv",
+        filename: file.name,
+        imported_by: user.id,
+        exchange_rate: exchangeRate.toNumber(),
+        exchange_rate_date: exchangeRateDateStr ?? new Date().toISOString().split("T")[0],
+      })
+      .select()
+      .single();
+
+    if (batchErr || !batch) {
+      return { success: false, errorMessage: `Erro ao criar batch ${inst}: ${batchErr?.message}` };
+    }
+
+    try {
+      const posRows = rows.map((p) => {
+        const marketValueBrl = p.marketValue.times(exchangeRate);
+        const costBasis = p.avgPrice && p.quantity ? p.avgPrice.times(p.quantity) : null;
+        const pnl = p.pnlPrecomputed ?? (costBasis ? p.marketValue.minus(costBasis) : null);
+        const pnlPct = p.pnlPctPrecomputed ?? (costBasis && costBasis.gt(0) && pnl ? pnl.div(costBasis) : null);
+
+        return {
+          batch_id: batch.id,
+          holder_id: holderId,
+          institution: inst,
+          ticker: p.ticker,
+          name: p.name,
+          asset_class: p.assetClass,
+          currency: "USD" as const,
+          quantity: p.quantity.toNumber(),
+          avg_price: p.avgPrice?.toNumber() ?? null,
+          current_price: p.currentPrice?.toNumber() ?? null,
+          market_value: p.marketValue.toNumber(),
+          cost_basis: costBasis?.toNumber() ?? null,
+          pnl: pnl?.toNumber() ?? null,
+          pnl_pct: pnlPct?.toNumber() ?? null,
+          exchange_rate: exchangeRate.toNumber(),
+          market_value_brl: marketValueBrl.toNumber(),
+          maturity_date: null,
+          indexer: null,
+          indexer_rate: null,
+          liquidity_days: null,
+          quota_value: null,
+          quota_date: null,
+          raw_data: p.rawData,
+        };
+      });
+
+      const { error: insertErr } = await supabase.from("positions").insert(posRows);
+      if (insertErr) {
+        await supabase.from("import_batches").update({ status: "failed", error_message: insertErr.message }).eq("id", batch.id);
+        return { success: false, errorMessage: `Erro ao salvar posições ${inst}: ${insertErr.message}` };
+      }
+
+      await supabase
+        .from("import_batches")
+        .update({ status: "completed", row_count: rows.length, completed_at: new Date().toISOString() })
+        .eq("id", batch.id);
+
+      totalInserted += rows.length;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro inesperado";
+      await supabase.from("import_batches").update({ status: "failed", error_message: msg }).eq("id", batch.id);
+      return { success: false, errorMessage: msg };
+    }
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/holders");
+  revalidatePath("/import");
+
+  return { success: true, rowCount: totalInserted };
 }

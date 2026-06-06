@@ -70,13 +70,14 @@ export interface ActiveTransfer {
 
 export async function getActiveTransfers(): Promise<ActiveTransfer[]> {
   const supabase = await createServerClient();
-  const today = new Date().toISOString().slice(0, 10);
 
+  // Suprimir posição na origem para pending E settled.
+  // Cancelled não suprime. Settled para quando o novo CSV da origem
+  // não trouxer mais o ativo.
   const { data, error } = await supabase
     .from("transfer_events")
     .select("holder_id, from_institution, ticker, asset_name, quantity")
-    .eq("status", "pending")
-    .gte("settlement_date", today);
+    .in("status", ["pending", "settled"]);
 
   if (error) return [];
 
