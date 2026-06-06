@@ -454,6 +454,111 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
   }
 }
 
+// ── Mercado Pago (entrada manual de cofrinhos BRL) ─────────────────────────
+
+export interface MercadoPagoEntry {
+  name: string;
+  valueBrl: number;
+}
+
+export interface MercadoPagoResult {
+  success: boolean;
+  rowCount?: number;
+  errorMessage?: string;
+}
+
+export async function saveMercadoPagoPositions(
+  holderId: string,
+  entries: MercadoPagoEntry[],
+): Promise<MercadoPagoResult> {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  if (!holderId || entries.length === 0) {
+    return { success: false, errorMessage: "Titular e cofrinhos são obrigatórios." };
+  }
+
+  const holders = await getHolders();
+  const holder = holders.find((h) => h.id === holderId);
+  if (!holder) return { success: false, errorMessage: "Titular não encontrado." };
+
+  // Remove batches anteriores de mercadopago para esse titular
+  const { data: oldBatches } = await supabase
+    .from("import_batches")
+    .select("id")
+    .eq("holder_id", holderId)
+    .eq("institution", "mercadopago");
+
+  if (oldBatches && oldBatches.length > 0) {
+    const ids = oldBatches.map((b: { id: string }) => b.id);
+    await supabase.from("positions").delete().in("batch_id", ids);
+    await supabase.from("import_batches").delete().in("id", ids);
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+
+  const { data: batch, error: batchErr } = await supabase
+    .from("import_batches")
+    .insert({
+      holder_id: holderId,
+      institution: "mercadopago",
+      status: "processing",
+      source: "csv",
+      filename: `mercadopago-manual-${today}`,
+      imported_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (batchErr || !batch) {
+    return { success: false, errorMessage: `Erro ao criar batch: ${batchErr?.message}` };
+  }
+
+  const rows = entries.map((e) => ({
+    batch_id: batch.id,
+    holder_id: holderId,
+    institution: "mercadopago" as const,
+    ticker: null,
+    name: e.name,
+    asset_class: "liquidity" as const,
+    currency: "BRL" as const,
+    quantity: 1,
+    avg_price: null,
+    current_price: null,
+    market_value: e.valueBrl,
+    cost_basis: null,
+    pnl: null,
+    pnl_pct: null,
+    exchange_rate: null,
+    market_value_brl: e.valueBrl,
+    maturity_date: null,
+    indexer: null,
+    indexer_rate: null,
+    liquidity_days: null,
+    quota_value: null,
+    quota_date: null,
+    raw_data: { source: "manual" },
+  }));
+
+  const { error: insertErr } = await supabase.from("positions").insert(rows);
+  if (insertErr) {
+    await supabase.from("import_batches").update({ status: "failed", error_message: insertErr.message }).eq("id", batch.id);
+    return { success: false, errorMessage: `Erro ao salvar: ${insertErr.message}` };
+  }
+
+  await supabase
+    .from("import_batches")
+    .update({ status: "completed", row_count: entries.length, completed_at: new Date().toISOString() })
+    .eq("id", batch.id);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/holders");
+  revalidatePath("/import");
+
+  return { success: true, rowCount: entries.length };
+}
+
 // ── Foto (Nomad + XP Global em um CSV só) ──────────────────────────────────
 
 export async function processFotoImport(formData: FormData): Promise<ImportResult> {

@@ -11,6 +11,7 @@ const INST_LABELS: Record<string, string> = {
   xp: "XP",
   btg: "BTG",
   nomad: "Nomad",
+  mercadopago: "Mercado Pago",
 };
 
 function fmt(n: number): string {
