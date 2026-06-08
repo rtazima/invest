@@ -4,13 +4,15 @@ import type { AnalysisRule } from '@/lib/analysis/types';
 
 export default async function ParametrosPage() {
   const db = await createUntypedServerClient();
-  const { data } = await db
-    .from('asset_analysis_rules')
-    .select('*')
-    .order('archetype')
-    .order('metric_id');
+  const [stocksData, fiisData] = await Promise.all([
+    db.from('asset_analysis_rules').select('*').eq('asset_class', 'stocks_br').order('archetype').order('metric_id'),
+    db.from('asset_analysis_rules').select('*').eq('asset_class', 'fiis').order('archetype').order('metric_id'),
+  ]);
 
-  const rules = (data ?? []) as AnalysisRule[];
-
-  return <ParametrosView rules={rules} />;
+  return (
+    <ParametrosView
+      rules={(stocksData.data ?? []) as AnalysisRule[]}
+      fiiRules={(fiisData.data ?? []) as AnalysisRule[]}
+    />
+  );
 }

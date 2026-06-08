@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import type { AnalysisRule, Archetype } from '@/lib/analysis/types';
 import { ARCHETYPE_LABELS } from '@/lib/analysis/types';
+import type { FiiType } from '@/lib/analysis/fii-types';
+import { FII_TYPE_LABELS } from '@/lib/analysis/fii-types';
 
-// ─── teses por arquétipo ────────────────────────────────────────────────────
+// ─── teses por arquétipo (ações) ─────────────────────────────────────────────
 
 const ARCHETYPE_THESIS: Record<Archetype, string> = {
   asset_light:
@@ -19,34 +21,54 @@ const ARCHETYPE_THESIS: Record<Archetype, string> = {
     'Concessões e distribuidoras com receita previsível via contratos de longo prazo. Fluxo de caixa estável e regulado justifica alavancagem mais alta que outros setores. O risco central é renovação de concessões e sensibilidade ao custo da dívida em ciclos de juros altos. Dividend yield deve ser coberto por FCF real — não por endividamento incremental.',
 };
 
-// ─── parâmetros do motor (hardcoded em engine.ts) ───────────────────────────
+// ─── teses por tipo de FII ───────────────────────────────────────────────────
 
-const ENGINE_PARAMS = {
-  quality: [
-    { label: 'Score alto', rule: '≥ 70% das métricas verdes', color: 'oklch(0.72 0.18 145)' },
-    { label: 'Score médio', rule: 'Entre 40% críticas e 70% verdes', color: 'oklch(0.75 0.16 80)' },
-    { label: 'Score baixo', rule: '≥ 40% das métricas críticas', color: 'oklch(0.65 0.22 25)' },
-  ],
+const FII_TYPE_THESIS: Record<FiiType, string> = {
+  tijolo:
+    'Fundos com imóveis físicos — logística, lajes corporativas, shoppings, hospitais. Receita via aluguel; os riscos principais são vacância e concentração de inquilinos ou imóveis. Vacância física abaixo de 10% e contratos atípicos acima de 50% reduzem o risco de renovação. Distribuição sustentável (≤ 100% do resultado recorrente) e spread positivo sobre NTN-B confirmam a tese.',
+  papel:
+    'Portfólio de CRIs e outros instrumentos de crédito imobiliário. O risco é crédito, não vacância. LTV médio abaixo de 70% indica lastro sólido; inadimplência próxima de zero é pré-requisito. Alta concentração em high grade reduz volatilidade mas comprime o spread. Concentração em único devedor representa risco binário e deve ser evitada.',
+  fof:
+    'Fundo de fundos — rentabilidade depende da seleção e do custo total. A taxa do FOF sobreposta às taxas dos fundos investidos corrói o DY final. Avaliar sempre o DY líquido já deduzido da taxa total de gestão. A agregação de FIIs distintos pode reduzir risco idiossincrático, mas exige disciplina de alocação e diversificação real.',
+  hibrido:
+    'Mistura de tijolo e papel no mesmo veículo. Analisar cada vertente separadamente: para a parte tijolo aplicam-se vacância e qualidade dos contratos; para a parte papel, LTV e inadimplência. O DY spread consolida ambas as fontes mas pode mascarar desequilíbrio entre as partes.',
+  desenvolvimento:
+    'Alto risco — resultado depende de conclusão e venda de empreendimentos. Distribuição não é recorrente; não se aplicam os critérios de sustentabilidade das demais categorias. Avaliação baseada em track record do gestor, cronograma do projeto e percentual de vendas realizadas. Adequado apenas para portfólios com horizonte de longo prazo.',
+};
+
+// ─── parâmetros do motor ─────────────────────────────────────────────────────
+
+const QUALITY_PARAMS = [
+  { label: 'Score alto', rule: '≥ 70% das métricas verdes', color: 'oklch(0.72 0.18 145)' },
+  { label: 'Score médio', rule: 'Entre 40% críticas e 70% verdes', color: 'oklch(0.75 0.16 80)' },
+  { label: 'Score baixo', rule: '≥ 40% das métricas críticas', color: 'oklch(0.65 0.22 25)' },
+];
+
+const REC_MATRIX = [
+  ['', 'Atrativo', 'Justo', 'Esticado'],
+  ['Score alto', 'Comprar', 'Manter', 'Manter'],
+  ['Score médio', 'Comprar', 'Manter', 'Vender'],
+  ['Score baixo', 'Evitar', 'Vender', 'Vender'],
+];
+
+const STOCKS_ENGINE = {
   valuation: [
     { label: 'Atrativo', rule: 'P/L < 12 ou EV/EBITDA < 7', color: 'oklch(0.72 0.18 145)' },
     { label: 'Justo', rule: 'P/L entre 12-22 e EV/EBITDA entre 7-14', color: 'var(--color-text-3)' },
     { label: 'Esticado', rule: 'P/L > 22 ou EV/EBITDA > 14', color: 'oklch(0.65 0.22 25)' },
   ],
-  matrix: [
-    ['', 'Atrativo', 'Justo', 'Esticado'],
-    ['Score alto', 'Comprar', 'Manter', 'Manter'],
-    ['Score médio', 'Comprar', 'Manter', 'Vender'],
-    ['Score baixo', 'Evitar', 'Vender', 'Vender'],
+};
+
+const FII_ENGINE = {
+  valuation: [
+    { label: 'Atrativo', rule: 'DY spread ≥ 3,0 p.p. acima da NTN-B', color: 'oklch(0.72 0.18 145)' },
+    { label: 'Justo', rule: 'DY spread entre 1,5 e 3,0 p.p.', color: 'var(--color-text-3)' },
+    { label: 'Esticado', rule: 'DY spread < 1,5 p.p.', color: 'oklch(0.65 0.22 25)' },
   ],
+  override: 'Qualquer regra estrutural crítica → Evitar (ignora score e valuation)',
 };
 
 // ─── helpers ────────────────────────────────────────────────────────────────
-
-type Tab = Archetype | 'motor';
-const TABS: Array<{ id: Tab; label: string }> = [
-  ...Object.entries(ARCHETYPE_LABELS).map(([id, label]) => ({ id: id as Archetype, label })),
-  { id: 'motor', label: 'Motor' },
-];
 
 const STATE_DOT: Record<string, string> = {
   ok: 'oklch(0.72 0.18 145)',
@@ -240,9 +262,9 @@ function RuleRow({ rule, onSaved }: RuleRowProps) {
   );
 }
 
-// ─── archetype tab ───────────────────────────────────────────────────────────
+// ─── rules table ─────────────────────────────────────────────────────────────
 
-function ArchetypeTab({ archetype, rules: initialRules }: { archetype: Archetype; rules: AnalysisRule[] }) {
+function RulesTable({ initialRules }: { initialRules: AnalysisRule[] }) {
   const [rules, setRules] = useState(initialRules);
 
   function handleSaved(updated: AnalysisRule) {
@@ -256,9 +278,44 @@ function ArchetypeTab({ archetype, rules: initialRules }: { archetype: Archetype
     backgroundColor: 'var(--color-bg)',
   };
 
+  if (!rules.length) {
+    return (
+      <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-3)' }}>
+        Nenhuma regra cadastrada para este tipo.
+      </p>
+    );
+  }
+
+  return (
+    <div style={{ borderRadius: '8px', border: '1px solid var(--color-line-2)', overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={th}>Métrica</th>
+            <th style={{ ...th, color: STATE_DOT.ok }}>● OK</th>
+            <th style={{ ...th, color: STATE_DOT.warning }}>● Atenção</th>
+            <th style={{ ...th, color: STATE_DOT.critical }}>● Crítico</th>
+            <th style={{ ...th, textAlign: 'center' }}>Estrutural</th>
+            <th style={{ ...th, textAlign: 'center' }}>Auto-fetch</th>
+            <th style={th}>Nota</th>
+            <th style={th}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rules.map(rule => (
+            <RuleRow key={rule.id} rule={rule} onSaved={handleSaved} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─── archetype tab (ações) ───────────────────────────────────────────────────
+
+function ArchetypeTab({ archetype, rules }: { archetype: Archetype; rules: AnalysisRule[] }) {
   return (
     <div>
-      {/* Tese */}
       <div style={{
         padding: '16px 20px', marginBottom: '24px',
         backgroundColor: 'var(--color-bg-2)', borderRadius: '8px',
@@ -271,37 +328,55 @@ function ArchetypeTab({ archetype, rules: initialRules }: { archetype: Archetype
           {ARCHETYPE_THESIS[archetype]}
         </p>
       </div>
-
-      {/* Regras */}
       <div style={{ fontSize: '10.5px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', marginBottom: '10px' }}>
         Métricas avaliadas
       </div>
-      <div style={{ borderRadius: '8px', border: '1px solid var(--color-line-2)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={th}>Métrica</th>
-              <th style={{ ...th, color: STATE_DOT.ok }}>● OK</th>
-              <th style={{ ...th, color: STATE_DOT.warning }}>● Atenção</th>
-              <th style={{ ...th, color: STATE_DOT.critical }}>● Crítico</th>
-              <th style={{ ...th, textAlign: 'center' }}>Estrutural</th>
-              <th style={{ ...th, textAlign: 'center' }}>Auto-fetch</th>
-              <th style={th}>Nota</th>
-              <th style={th}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rules.map(rule => (
-              <RuleRow key={rule.id} rule={rule} onSaved={handleSaved} />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <RulesTable initialRules={rules} />
     </div>
   );
 }
 
-// ─── motor tab ───────────────────────────────────────────────────────────────
+// ─── fii type tab ────────────────────────────────────────────────────────────
+
+function FiiTypeTab({ fiiType, rules }: { fiiType: FiiType; rules: AnalysisRule[] }) {
+  const transversal = rules.filter(r => r.archetype === null);
+  const specific = rules.filter(r => r.archetype === fiiType);
+
+  return (
+    <div>
+      <div style={{
+        padding: '16px 20px', marginBottom: '24px',
+        backgroundColor: 'var(--color-bg-2)', borderRadius: '8px',
+        border: '1px solid var(--color-line-2)',
+      }}>
+        <div style={{ fontSize: '10.5px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', marginBottom: '8px' }}>
+          Tese de investimento
+        </div>
+        <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.7, color: 'var(--color-text-2)' }}>
+          {FII_TYPE_THESIS[fiiType]}
+        </p>
+      </div>
+
+      {transversal.length > 0 && (
+        <>
+          <div style={{ fontSize: '10.5px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', marginBottom: '10px' }}>
+            Regras transversais (todos os FIIs)
+          </div>
+          <div style={{ marginBottom: '24px' }}>
+            <RulesTable initialRules={transversal} />
+          </div>
+        </>
+      )}
+
+      <div style={{ fontSize: '10.5px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', marginBottom: '10px' }}>
+        Regras específicas — {FII_TYPE_LABELS[fiiType]}
+      </div>
+      <RulesTable initialRules={specific} />
+    </div>
+  );
+}
+
+// ─── motor tab (ações) ───────────────────────────────────────────────────────
 
 function MotorTab() {
   const block: React.CSSProperties = {
@@ -318,12 +393,10 @@ function MotorTab() {
       <div style={{ padding: '12px 16px', backgroundColor: 'color-mix(in srgb, var(--color-warn) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-warn) 25%, transparent)', borderRadius: '7px', fontSize: '12px', color: 'var(--color-warn)' }}>
         Estes parâmetros estão em <code style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>src/lib/analysis/engine.ts</code> e precisam de deploy para mudar.
       </div>
-
-      {/* Score de qualidade */}
       <div style={block}>
         <div style={label}>Score de qualidade</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {ENGINE_PARAMS.quality.map(p => (
+          {QUALITY_PARAMS.map(p => (
             <div key={p.label} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ width: '90px', fontSize: '12px', fontWeight: 600, color: p.color }}>{p.label}</span>
               <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-2)' }}>{p.rule}</span>
@@ -331,12 +404,10 @@ function MotorTab() {
           ))}
         </div>
       </div>
-
-      {/* Valuation */}
       <div style={block}>
         <div style={label}>Leitura de valuation</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {ENGINE_PARAMS.valuation.map(p => (
+          {STOCKS_ENGINE.valuation.map(p => (
             <div key={p.label} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ width: '90px', fontSize: '12px', fontWeight: 600, color: p.color }}>{p.label}</span>
               <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-2)' }}>{p.rule}</span>
@@ -344,13 +415,11 @@ function MotorTab() {
           ))}
         </div>
       </div>
-
-      {/* Matriz */}
       <div style={block}>
         <div style={label}>Matriz de recomendação</div>
         <table style={{ borderCollapse: 'collapse' }}>
           <tbody>
-            {ENGINE_PARAMS.matrix.map((row, i) => (
+            {REC_MATRIX.map((row, i) => (
               <tr key={i}>
                 {row.map((cell, j) => {
                   const isHeader = i === 0 || j === 0;
@@ -358,12 +427,88 @@ function MotorTab() {
                     <td
                       key={j}
                       style={{
-                        padding: '7px 16px',
-                        fontSize: isHeader ? '11px' : '12px',
+                        padding: '7px 16px', fontSize: isHeader ? '11px' : '12px',
                         fontWeight: isHeader ? 600 : 400,
                         color: isHeader ? 'var(--color-text-3)' : 'var(--color-text)',
-                        border: '1px solid var(--color-line-2)',
-                        textAlign: 'center',
+                        border: '1px solid var(--color-line-2)', textAlign: 'center',
+                        backgroundColor: isHeader ? 'var(--color-bg)' : 'transparent',
+                        fontFamily: isHeader ? 'inherit' : 'var(--font-mono)',
+                      }}
+                    >
+                      {cell}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── motor tab (fiis) ────────────────────────────────────────────────────────
+
+function FiiMotorTab() {
+  const block: React.CSSProperties = {
+    padding: '16px 20px', backgroundColor: 'var(--color-bg-2)',
+    borderRadius: '8px', border: '1px solid var(--color-line-2)',
+  };
+  const label: React.CSSProperties = {
+    fontSize: '10.5px', fontWeight: 600, textTransform: 'uppercase',
+    letterSpacing: '0.06em', color: 'var(--color-text-3)', marginBottom: '12px',
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ padding: '12px 16px', backgroundColor: 'color-mix(in srgb, var(--color-warn) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-warn) 25%, transparent)', borderRadius: '7px', fontSize: '12px', color: 'var(--color-warn)' }}>
+        Estes parâmetros estão em <code style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>src/lib/analysis/fii-engine.ts</code> e precisam de deploy para mudar.
+      </div>
+      <div style={block}>
+        <div style={label}>Override de sustentabilidade</div>
+        <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-2)', lineHeight: 1.6 }}>
+          {FII_ENGINE.override}
+        </p>
+      </div>
+      <div style={block}>
+        <div style={label}>Score de qualidade</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {QUALITY_PARAMS.map(p => (
+            <div key={p.label} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ width: '90px', fontSize: '12px', fontWeight: 600, color: p.color }}>{p.label}</span>
+              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-2)' }}>{p.rule}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={block}>
+        <div style={label}>Leitura de valuation (DY spread)</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {FII_ENGINE.valuation.map(p => (
+            <div key={p.label} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ width: '90px', fontSize: '12px', fontWeight: 600, color: p.color }}>{p.label}</span>
+              <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--color-text-2)' }}>{p.rule}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={block}>
+        <div style={label}>Matriz de recomendação</div>
+        <table style={{ borderCollapse: 'collapse' }}>
+          <tbody>
+            {REC_MATRIX.map((row, i) => (
+              <tr key={i}>
+                {row.map((cell, j) => {
+                  const isHeader = i === 0 || j === 0;
+                  return (
+                    <td
+                      key={j}
+                      style={{
+                        padding: '7px 16px', fontSize: isHeader ? '11px' : '12px',
+                        fontWeight: isHeader ? 600 : 400,
+                        color: isHeader ? 'var(--color-text-3)' : 'var(--color-text)',
+                        border: '1px solid var(--color-line-2)', textAlign: 'center',
                         backgroundColor: isHeader ? 'var(--color-bg)' : 'transparent',
                         fontFamily: isHeader ? 'inherit' : 'var(--font-mono)',
                       }}
@@ -383,17 +528,32 @@ function MotorTab() {
 
 // ─── main ────────────────────────────────────────────────────────────────────
 
+type AcoesTab = Archetype | 'motor';
+type FiisTab = FiiType | 'motor_fii';
+
+const ACOES_TABS: Array<{ id: AcoesTab; label: string }> = [
+  ...Object.entries(ARCHETYPE_LABELS).map(([id, label]) => ({ id: id as Archetype, label })),
+  { id: 'motor', label: 'Motor' },
+];
+
+const FIIS_TABS: Array<{ id: FiisTab; label: string }> = [
+  ...Object.entries(FII_TYPE_LABELS).map(([id, label]) => ({ id: id as FiiType, label })),
+  { id: 'motor_fii', label: 'Motor' },
+];
+
 interface Props {
   rules: AnalysisRule[];
+  fiiRules: AnalysisRule[];
 }
 
-export function ParametrosView({ rules }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('financeiras');
+export function ParametrosView({ rules, fiiRules }: Props) {
+  const [section, setSection] = useState<'acoes' | 'fiis'>('acoes');
+  const [acoesTab, setAcoesTab] = useState<AcoesTab>('financeiras');
+  const [fiisTab, setFiisTab] = useState<FiisTab>('tijolo');
 
   const byArchetype = Object.fromEntries(
     (Object.keys(ARCHETYPE_LABELS) as Archetype[]).map(a => [
-      a,
-      rules.filter(r => r.archetype === a),
+      a, rules.filter(r => r.archetype === a),
     ]),
   ) as Record<Archetype, AnalysisRule[]>;
 
@@ -405,6 +565,15 @@ export function ParametrosView({ rules }: Props) {
     cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: active ? 500 : 400,
   });
 
+  const sectionBtn = (active: boolean): React.CSSProperties => ({
+    padding: '6px 16px', fontSize: '13px', fontWeight: active ? 600 : 400,
+    borderRadius: '6px',
+    backgroundColor: active ? 'var(--color-text)' : 'transparent',
+    color: active ? 'var(--color-bg)' : 'var(--color-text-3)',
+    border: `1px solid ${active ? 'var(--color-text)' : 'var(--color-line)'}`,
+    cursor: 'pointer',
+  });
+
   return (
     <div style={{ maxWidth: '1000px' }}>
       <div style={{ marginBottom: '24px' }}>
@@ -414,20 +583,41 @@ export function ParametrosView({ rules }: Props) {
         </p>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '24px' }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setActiveTab(t.id)} style={chip(activeTab === t.id)}>
-            {t.label}
-          </button>
-        ))}
+      {/* Section toggle */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '20px' }}>
+        <button onClick={() => setSection('acoes')} style={sectionBtn(section === 'acoes')}>Ações</button>
+        <button onClick={() => setSection('fiis')} style={sectionBtn(section === 'fiis')}>FIIs</button>
       </div>
 
-      {/* Content */}
-      {activeTab === 'motor'
-        ? <MotorTab />
-        : <ArchetypeTab archetype={activeTab} rules={byArchetype[activeTab] ?? []} />
-      }
+      {section === 'acoes' ? (
+        <>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '24px' }}>
+            {ACOES_TABS.map(t => (
+              <button key={t.id} onClick={() => setAcoesTab(t.id)} style={chip(acoesTab === t.id)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {acoesTab === 'motor'
+            ? <MotorTab />
+            : <ArchetypeTab archetype={acoesTab} rules={byArchetype[acoesTab] ?? []} />
+          }
+        </>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '24px' }}>
+            {FIIS_TABS.map(t => (
+              <button key={t.id} onClick={() => setFiisTab(t.id)} style={chip(fiisTab === t.id)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {fiisTab === 'motor_fii'
+            ? <FiiMotorTab />
+            : <FiiTypeTab fiiType={fiisTab} rules={fiiRules} />
+          }
+        </>
+      )}
     </div>
   );
 }

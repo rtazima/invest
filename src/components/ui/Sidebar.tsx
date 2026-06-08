@@ -49,7 +49,7 @@ const NAV_ITEMS = [
     ),
     children: [
       { href: "/analise/acoes", label: "Ações" },
-      { href: "/analise/fiis", label: "FIIs (em breve)", muted: true },
+      { href: "/analise/fiis", label: "FIIs" },
       { href: "/analise/parametros", label: "Parâmetros" },
     ],
   },

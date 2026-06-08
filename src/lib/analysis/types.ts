@@ -8,7 +8,8 @@ export type AnalysisStatus = 'ok' | 'blocked' | 'no_data';
 export interface AnalysisRule {
   id: string;
   metric_id: string;
-  archetype: Archetype | null;
+  archetype: string | null;
+  asset_class: string;
   label: string;
   field_name: string;
   direction: 'lower_is_better' | 'higher_is_better';
