@@ -101,22 +101,30 @@ export async function runStructuredAnalysis(
 
       const manualOverrides = ((existingFund as { manual_overrides: Record<string, number | null> } | null)?.manual_overrides ?? {});
 
-      // Build snapshot
+      // Derived metrics from BRAPI when Fundamentus is unavailable
+      const brapiDivLiqEbitda = brapi?.ebitda && brapi.ebitda !== 0 && brapi.divLiq != null
+        ? brapi.divLiq / brapi.ebitda
+        : null;
+      const brapiEvEbitda = brapi?.ebitda && brapi.ebitda !== 0 && brapi.enterpriseValue != null
+        ? brapi.enterpriseValue / brapi.ebitda
+        : null;
+
+      // Build snapshot — Fundamentus is primary source, BRAPI fills the gaps
       const snapshot: FundamentalsSnapshot = {
         ticker,
         fetched_at: new Date().toISOString(),
         pl: fundamentus?.pl ?? brapi?.pe ?? null,
         pvp: fundamentus?.pvp ?? brapi?.pb ?? null,
         dy: fundamentus?.dy ?? brapi?.dy ?? null,
-        ev_ebitda: fundamentus?.evEbitda ?? null,
-        marg_bruta: fundamentus?.margBruta ?? null,
-        marg_ebit: fundamentus?.margEbit ?? null,
-        marg_liquida: fundamentus?.margLiquida ?? null,
-        roe: fundamentus?.roe ?? null,
-        roa: fundamentus?.roa ?? null,
+        ev_ebitda: fundamentus?.evEbitda ?? brapiEvEbitda,
+        marg_bruta: fundamentus?.margBruta ?? brapi?.margBruta ?? null,
+        marg_ebit: fundamentus?.margEbit ?? brapi?.margEbit ?? null,
+        marg_liquida: fundamentus?.margLiquida ?? brapi?.margLiquida ?? null,
+        roe: fundamentus?.roe ?? brapi?.roe ?? null,
+        roa: fundamentus?.roa ?? brapi?.roa ?? null,
         roic: fundamentus?.roic ?? null,
-        div_liq_ebitda: fundamentus?.divLiqEbitda ?? null,
-        cresc_rec_5a: fundamentus?.crescRec5a ?? null,
+        div_liq_ebitda: fundamentus?.divLiqEbitda ?? brapiDivLiqEbitda,
+        cresc_rec_5a: fundamentus?.crescRec5a ?? brapi?.crescRec ?? null,
         preco_atual: brapi?.price ?? null,
         volume_medio: brapi?.avgVolume ?? null,
         manual_overrides: manualOverrides,

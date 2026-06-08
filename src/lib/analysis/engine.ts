@@ -53,8 +53,14 @@ export function computeAnalysis(
   for (const rule of applicableRules) {
     const value = getFieldValue(snap, rule.field_name);
     if (value === null) {
-      semaphores[rule.metric_id] = 'missing';
-      missingMetrics.push(rule.metric_id);
+      if (rule.auto_fetch) {
+        // Dado externo ausente — bloqueia a análise
+        semaphores[rule.metric_id] = 'missing';
+        missingMetrics.push(rule.metric_id);
+      } else {
+        // Dado manual não preenchido — exibe como informacional, não bloqueia
+        semaphores[rule.metric_id] = 'informational';
+      }
     } else {
       const state = evalSemaphore(rule, value);
       semaphores[rule.metric_id] = state;
