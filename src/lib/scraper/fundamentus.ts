@@ -18,6 +18,12 @@ export interface FundamentusData {
   divLiqPatrim: number | null;
   receitaLiquida: number | null;
   lucroLiquido: number | null;
+  roic: number | null;
+  divLiqEbitda: number | null;
+  crescRec5a: number | null;
+  roa: number | null;
+  liquidezCorr: number | null;
+  ebitda: number | null;
 }
 
 // Converte número no formato BR ("1.234,56" ou "15,2%") para float
@@ -64,6 +70,12 @@ export async function fetchFundamentus(ticker: string): Promise<FundamentusData 
       divLiqPatrim: extract(html, "Dív Líq/Patrim"),
       receitaLiquida: extract(html, "Receita Líquida"),
       lucroLiquido: extract(html, "Lucro Líquido"),
+      roic: extract(html, "ROIC"),
+      divLiqEbitda: extract(html, "Dív Líq/EBITDA"),
+      crescRec5a: extract(html, "Cresc. Rec 5a"),
+      roa: extract(html, "ROA"),
+      liquidezCorr: extract(html, "Liquidez Corr"),
+      ebitda: extract(html, "EBITDA"),
     };
   } catch {
     return null;

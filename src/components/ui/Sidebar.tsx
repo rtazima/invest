@@ -40,6 +40,19 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/analise",
+    label: "Análise",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M2 12V8M6 12V5M10 12V7M14 12V3" />
+      </svg>
+    ),
+    children: [
+      { href: "/analise/acoes", label: "Ações" },
+      { href: "/analise/fiis", label: "FIIs (em breve)", muted: true },
+    ],
+  },
+  {
     href: "/positions",
     label: "Ativos",
     icon: (
@@ -227,6 +240,7 @@ export function Sidebar({ unreadCount, pendingTransfers, isOwner, userInitials, 
                           fontSize: "12.5px",
                           fontWeight: childActive ? 500 : 400,
                           transition: "background-color 0.1s, color 0.1s",
+                          opacity: "muted" in child && child.muted ? 0.6 : 1,
                         }}
                       >
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.5 }}>
