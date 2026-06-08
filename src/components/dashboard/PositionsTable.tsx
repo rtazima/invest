@@ -15,6 +15,26 @@ const ASSET_CLASS_LABELS: Record<string, string> = {
   liquidity: "Liq",
 };
 
+const ASSET_CLASS_FULL: Record<string, string> = {
+  fixed_income: "Renda Fixa",
+  stocks_br: "Ações BR",
+  stocks_intl: "Ações Intl.",
+  fiis: "FIIs",
+  etf_br: "ETF BR",
+  etf_intl: "ETF Intl.",
+  funds: "Fundos",
+  liquidity: "Liquidez",
+};
+
+const CLASS_ORDER = ["fixed_income", "stocks_br", "fiis", "etf_br", "funds", "liquidity", "stocks_intl", "etf_intl"];
+
+const PRESET_NACIONAL = new Set(["fixed_income", "stocks_br", "fiis", "etf_br", "funds", "liquidity"]);
+const PRESET_INTL = new Set(["stocks_intl", "etf_intl"]);
+
+function setsEqual(a: Set<string>, b: Set<string>) {
+  return a.size === b.size && [...a].every((x) => b.has(x));
+}
+
 const STRUCTURE_TYPE_LABELS: Record<string, string> = {
   covered_call: "CC",
   synthetic_dividend: "SD",
@@ -57,21 +77,45 @@ interface Props {
 export function PositionsTable({ positions, totalBrl }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("market_value_brl");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [filterClass, setFilterClass] = useState<string>("");
+  const [filterClasses, setFilterClasses] = useState<Set<string>>(new Set());
+  const [filterHolder, setFilterHolder] = useState<string>("");
   const [filterInst, setFilterInst] = useState<string>("");
 
-  const classes = useMemo(
-    () => [...new Set(positions.map((p) => p.asset_class))].sort(),
+  const holders = useMemo(() => {
+    const seen = new Map<string, { slug: string; name: string }>();
+    for (const p of positions) {
+      if (!seen.has(p.holder_slug)) seen.set(p.holder_slug, { slug: p.holder_slug, name: p.holder_name });
+    }
+    return [...seen.values()];
+  }, [positions]);
+
+  const availableClasses = useMemo(
+    () => CLASS_ORDER.filter((c) => positions.some((p) => p.asset_class === c)),
     [positions],
   );
+
   const institutions = useMemo(
     () => [...new Set(positions.map((p) => p.institution))].sort(),
     [positions],
   );
 
+  function toggleClass(cls: string) {
+    setFilterClasses((prev) => {
+      const next = new Set(prev);
+      if (next.has(cls)) next.delete(cls);
+      else next.add(cls);
+      return next;
+    });
+  }
+
+  function applyPreset(preset: Set<string>) {
+    setFilterClasses((prev) => (setsEqual(prev, preset) ? new Set() : new Set(preset)));
+  }
+
   const sorted = useMemo(() => {
     const rows = positions.filter((p) => {
-      if (filterClass && p.asset_class !== filterClass) return false;
+      if (filterHolder && p.holder_slug !== filterHolder) return false;
+      if (filterClasses.size > 0 && !filterClasses.has(p.asset_class)) return false;
       if (filterInst && p.institution !== filterInst) return false;
       return true;
     });
@@ -86,7 +130,7 @@ export function PositionsTable({ positions, totalBrl }: Props) {
     });
 
     return rows;
-  }, [positions, sortKey, sortDir, filterClass, filterInst]);
+  }, [positions, sortKey, sortDir, filterClasses, filterHolder, filterInst]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -109,62 +153,149 @@ export function PositionsTable({ positions, totalBrl }: Props) {
     whiteSpace: "nowrap" as const,
   });
 
+  const isNacional = setsEqual(filterClasses, PRESET_NACIONAL);
+  const isIntl = setsEqual(filterClasses, PRESET_INTL);
+  const hasFilter = filterHolder || filterClasses.size > 0 || filterInst;
+
   return (
     <div>
-      {/* Sub-header + filtros */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "8px 0",
-          marginBottom: "4px",
-        }}
-      >
-        <span className="num" style={{ fontSize: "11.5px", color: "var(--color-text-3)" }}>
-          {sorted.length} ativo{sorted.length !== 1 ? "s" : ""} · ordenado por valor
-        </span>
-        <div style={{ display: "flex", gap: "6px" }}>
-          <select
-            value={filterClass}
-            onChange={(e) => setFilterClass(e.target.value)}
+      {/* Filtros */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "8px 0", marginBottom: "4px" }}>
+
+        {/* Linha 1: titular + inst + contador */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "11px", color: "var(--color-text-3)", marginRight: "2px" }}>Titular</span>
+          {[{ slug: "", name: "Todos" }, ...holders].map(({ slug, name }) => {
+            const active = filterHolder === slug;
+            const color = slug ? (HOLDER_COLORS[slug] ?? "var(--color-brand)") : null;
+            return (
+              <button
+                key={slug || "__all__"}
+                onClick={() => setFilterHolder(slug)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "4px",
+                  padding: "2px 8px", borderRadius: "6px", fontSize: "11.5px",
+                  border: `1px solid ${active ? "var(--color-text-3)" : "var(--color-line)"}`,
+                  backgroundColor: active ? "var(--color-bg-3)" : "transparent",
+                  color: active ? "var(--color-text)" : "var(--color-text-3)",
+                  cursor: "pointer",
+                }}
+              >
+                {color && (
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: color, flexShrink: 0 }} />
+                )}
+                {name}
+              </button>
+            );
+          })}
+
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}>
+            <span className="num" style={{ fontSize: "11.5px", color: "var(--color-text-3)" }}>
+              {sorted.length} ativo{sorted.length !== 1 ? "s" : ""}
+            </span>
+            <select
+              value={filterInst}
+              onChange={(e) => setFilterInst(e.target.value)}
+              style={{
+                fontSize: "11.5px", padding: "3px 8px", borderRadius: "6px",
+                border: "1px solid var(--color-line)", backgroundColor: "var(--color-bg-2)",
+                color: "var(--color-text-2)", cursor: "pointer",
+              }}
+            >
+              <option value="">Todas as inst.</option>
+              {institutions.map((i) => (
+                <option key={i} value={i}>{i.toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Linha 2: presets macro + classes individuais */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+          <span style={{ fontSize: "11px", color: "var(--color-text-3)", marginRight: "2px" }}>Classe</span>
+
+          {/* Todos */}
+          <button
+            onClick={() => setFilterClasses(new Set())}
             style={{
-              fontSize: "11.5px",
-              padding: "3px 8px",
-              borderRadius: "6px",
-              border: "1px solid var(--color-line)",
-              backgroundColor: "var(--color-bg-2)",
-              color: "var(--color-text-2)",
+              padding: "2px 8px", borderRadius: "6px", fontSize: "11.5px",
+              border: `1px solid ${filterClasses.size === 0 ? "var(--color-text-3)" : "var(--color-line)"}`,
+              backgroundColor: filterClasses.size === 0 ? "var(--color-bg-3)" : "transparent",
+              color: filterClasses.size === 0 ? "var(--color-text)" : "var(--color-text-3)",
               cursor: "pointer",
             }}
           >
-            <option value="">Todas as classes</option>
-            {classes.map((c) => (
-              <option key={c} value={c}>
-                {ASSET_CLASS_LABELS[c] ?? c}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterInst}
-            onChange={(e) => setFilterInst(e.target.value)}
+            Todas
+          </button>
+
+          {/* Preset Nacional */}
+          <button
+            onClick={() => applyPreset(PRESET_NACIONAL)}
             style={{
-              fontSize: "11.5px",
-              padding: "3px 8px",
-              borderRadius: "6px",
-              border: "1px solid var(--color-line)",
-              backgroundColor: "var(--color-bg-2)",
-              color: "var(--color-text-2)",
+              padding: "2px 8px", borderRadius: "6px", fontSize: "11.5px",
+              border: `1px solid ${isNacional ? "var(--color-cons)" : "var(--color-line)"}`,
+              backgroundColor: isNacional ? "color-mix(in oklch, var(--color-cons) 15%, transparent)" : "transparent",
+              color: isNacional ? "var(--color-cons)" : "var(--color-text-3)",
               cursor: "pointer",
             }}
           >
-            <option value="">Todas as inst.</option>
-            {institutions.map((i) => (
-              <option key={i} value={i}>
-                {i.toUpperCase()}
-              </option>
-            ))}
-          </select>
+            Nacional
+          </button>
+
+          {/* Preset Internacional */}
+          <button
+            onClick={() => applyPreset(PRESET_INTL)}
+            style={{
+              padding: "2px 8px", borderRadius: "6px", fontSize: "11.5px",
+              border: `1px solid ${isIntl ? "var(--color-brand)" : "var(--color-line)"}`,
+              backgroundColor: isIntl ? "var(--color-brand-subtle)" : "transparent",
+              color: isIntl ? "var(--color-brand-hi)" : "var(--color-text-3)",
+              cursor: "pointer",
+            }}
+          >
+            Internacional
+          </button>
+
+          {/* Separador */}
+          <span style={{ width: "1px", height: "14px", backgroundColor: "var(--color-line-2)", margin: "0 2px" }} />
+
+          {/* Classes individuais */}
+          {availableClasses.map((cls) => {
+            const active = filterClasses.has(cls);
+            const isIntlClass = cls === "stocks_intl" || cls === "etf_intl";
+            return (
+              <button
+                key={cls}
+                onClick={() => toggleClass(cls)}
+                style={{
+                  padding: "2px 8px", borderRadius: "6px", fontSize: "11.5px",
+                  border: `1px solid ${active ? (isIntlClass ? "var(--color-brand)" : "var(--color-text-3)") : "var(--color-line)"}`,
+                  backgroundColor: active
+                    ? isIntlClass ? "var(--color-brand-subtle)" : "var(--color-bg-3)"
+                    : "transparent",
+                  color: active
+                    ? isIntlClass ? "var(--color-brand-hi)" : "var(--color-text)"
+                    : "var(--color-text-3)",
+                  cursor: "pointer",
+                }}
+              >
+                {ASSET_CLASS_FULL[cls] ?? cls}
+              </button>
+            );
+          })}
+
+          {hasFilter && (
+            <button
+              onClick={() => { setFilterClasses(new Set()); setFilterHolder(""); setFilterInst(""); }}
+              style={{
+                marginLeft: "auto", padding: "2px 8px", borderRadius: "6px", fontSize: "11px",
+                border: "1px solid var(--color-line)", backgroundColor: "transparent",
+                color: "var(--color-text-3)", cursor: "pointer",
+              }}
+            >
+              Limpar
+            </button>
+          )}
         </div>
       </div>
 
@@ -347,7 +478,7 @@ export function PositionsTable({ positions, totalBrl }: Props) {
                 <td colSpan={2} />
                 <td style={{ padding: "8px", paddingRight: "16px", textAlign: "right" }}>
                   <span className="num" style={{ fontWeight: 600, fontSize: "13px", color: "var(--color-text-2)" }}>
-                    {filterClass || filterInst
+                    {hasFilter
                       ? `${((sorted.reduce((s, p) => s + p.market_value_brl, 0) / totalBrl) * 100).toFixed(2)}%`
                       : "100,00%"}
                   </span>
