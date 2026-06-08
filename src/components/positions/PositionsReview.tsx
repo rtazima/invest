@@ -4,6 +4,8 @@ import { useState, useTransition, useMemo } from "react";
 import type { PositionForReview } from "@/lib/data/positions";
 import { updatePositionAssetClassAction } from "@/app/(app)/positions/actions";
 import { TransferModal, type TransferablePosition } from "@/components/transfers/TransferModal";
+import { ArchetypeChip } from "@/components/analysis/ArchetypeChip";
+import type { Archetype } from "@/lib/analysis/types";
 
 const ASSET_CLASS_LABELS: Record<string, string> = {
   fixed_income: "Renda Fixa",
@@ -126,6 +128,11 @@ function PositionRow({ position: p, selected, saving, saved, onSelect, onChange 
             salvo
           </span>
         )}
+      </td>
+      <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
+        {p.archetype
+          ? <ArchetypeChip archetype={p.archetype as Archetype} />
+          : <span style={{ color: "var(--color-text-3)", fontSize: "11px" }}>—</span>}
       </td>
     </tr>
   );
@@ -460,12 +467,13 @@ export function PositionsReview({ initialPositions }: Props) {
               <th style={{ padding: "6px 12px", textAlign: "left" }}>Corretora</th>
               <th style={{ padding: "6px 12px", textAlign: "right" }}>Valor</th>
               <th style={{ padding: "6px 12px", textAlign: "left" }}>Classe</th>
+              <th style={{ padding: "6px 12px", textAlign: "left" }}>Arquétipo</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: "32px", textAlign: "center", color: "var(--color-text-3)" }}>
+                <td colSpan={8} style={{ padding: "32px", textAlign: "center", color: "var(--color-text-3)" }}>
                   Nenhuma posição encontrada.
                 </td>
               </tr>

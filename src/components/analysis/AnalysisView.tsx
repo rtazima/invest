@@ -143,6 +143,7 @@ export function AnalysisView({ items, holders }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [runResult, setRunResult] = useState<{ analyzed?: number; blocked?: number; error?: string } | null>(null);
 
   const filtered = useMemo(() => items.filter(item => {
     if (filterHolder !== 'all' && !item.positions.some(p => p.holder_id === filterHolder)) return false;
@@ -174,14 +175,24 @@ export function AnalysisView({ items, holders }: Props) {
 
   async function handleRunAnalysis() {
     setRunning(true);
+    setRunResult(null);
     const tickersToRun = someSelected ? allFilteredTickers.filter(t => selected.has(t)) : undefined;
     try {
-      await fetch('/api/analysis/run', {
+      const res = await fetch('/api/analysis/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: tickersToRun ? JSON.stringify({ tickers: tickersToRun }) : undefined,
       });
-      router.refresh();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        setRunResult({ error: data.error ?? `Erro ${res.status}` });
+      } else {
+        const data = await res.json() as { analyzed: number; blocked: number };
+        setRunResult({ analyzed: data.analyzed, blocked: data.blocked });
+        router.refresh();
+      }
+    } catch (e) {
+      setRunResult({ error: e instanceof Error ? e.message : 'Erro desconhecido' });
     } finally {
       setRunning(false);
       setSelected(new Set());
@@ -235,6 +246,26 @@ export function AnalysisView({ items, holders }: Props) {
           {runLabel}
         </button>
       </div>
+
+      {/* Run result feedback */}
+      {runResult && (
+        <div style={{
+          marginBottom: '12px', padding: '8px 12px', borderRadius: '6px', fontSize: '12.5px',
+          backgroundColor: runResult.error
+            ? 'color-mix(in srgb, var(--color-crit) 10%, transparent)'
+            : 'color-mix(in srgb, var(--color-gain) 10%, transparent)',
+          color: runResult.error ? 'var(--color-crit)' : 'var(--color-gain)',
+          border: `1px solid ${runResult.error ? 'color-mix(in srgb, var(--color-crit) 30%, transparent)' : 'color-mix(in srgb, var(--color-gain) 30%, transparent)'}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span>
+            {runResult.error
+              ? `Erro: ${runResult.error}`
+              : `Análise concluída — ${runResult.analyzed} analisadas, ${runResult.blocked} bloqueadas por dados faltantes.`}
+          </span>
+          <button onClick={() => setRunResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: '14px', lineHeight: 1, padding: '0 4px' }}>×</button>
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>

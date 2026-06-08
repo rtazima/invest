@@ -4,6 +4,8 @@ import { fetchFundamentus } from '@/lib/scraper/fundamentus';
 import { fetchBrapi } from './brapi';
 import { computeAnalysis } from './engine';
 import type { Archetype, FundamentalsSnapshot, AnalysisRule } from './types';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 
 export interface RunResult {
   analyzed: number;
@@ -11,35 +13,48 @@ export interface RunResult {
   errors: string[];
 }
 
-export async function runStructuredAnalysis(tickerFilter?: string[]): Promise<RunResult> {
-  const supabase = createServiceClient();
-  const db = createUntypedServiceClient();
+export async function runStructuredAnalysis(
+  tickerFilter?: string[],
+  clients?: { supabase: SupabaseClient<Database>; db: SupabaseClient },
+): Promise<RunResult> {
+  const supabase = clients?.supabase ?? createServiceClient();
+  const db = clients?.db ?? createUntypedServiceClient();
   const errors: string[] = [];
 
-  // Get completed import batches (typed table)
+  // Fetch all completed batches to build a date map
   const { data: batches } = await supabase
     .from('import_batches')
-    .select('id, holder_id, institution, completed_at')
-    .eq('status', 'completed')
-    .order('completed_at', { ascending: false });
+    .select('id, completed_at')
+    .eq('status', 'completed');
 
-  const latestBatchKey = new Map<string, string>();
-  for (const b of batches ?? []) {
-    const hk = `${b.holder_id}:${b.institution}`;
-    if (!latestBatchKey.has(hk)) latestBatchKey.set(hk, b.id);
-  }
-  const batchIds = [...latestBatchKey.values()];
-  if (batchIds.length === 0) return { analyzed: 0, blocked: 0, errors: [] };
+  if (!batches?.length) return { analyzed: 0, blocked: 0, errors: [] };
 
-  // Get B3 equity positions (typed table)
-  const { data: positions } = await supabase
+  const batchDateMap = new Map(batches.map(b => [b.id, b.completed_at as string]));
+  const allBatchIds = batches.map(b => b.id);
+
+  // Fetch ALL stocks_br positions across every completed batch,
+  // then deduplicate by most-recent per (ticker, holder_id) in JS.
+  // This mirrors the logic in getEquityAnalyses() and handles the case where
+  // a newer non-stock import shadows an older batch that contained stock positions.
+  const { data: allPositions } = await supabase
     .from('positions')
-    .select('ticker, asset_class')
-    .in('batch_id', batchIds)
+    .select('ticker, holder_id, batch_id')
+    .in('batch_id', allBatchIds)
     .eq('asset_class', 'stocks_br')
     .not('ticker', 'is', null);
 
-  let tickers = [...new Set((positions ?? []).map(p => p.ticker as string))];
+  type RawPos = { ticker: string | null; holder_id: string; batch_id: string };
+  const bestPos = new Map<string, RawPos & { completed_at: string }>();
+  for (const p of (allPositions ?? []) as RawPos[]) {
+    const key = `${p.ticker}:${p.holder_id}`;
+    const date = batchDateMap.get(p.batch_id) ?? '';
+    const existing = bestPos.get(key);
+    if (!existing || date > existing.completed_at) {
+      bestPos.set(key, { ...p, completed_at: date });
+    }
+  }
+
+  let tickers = [...new Set([...bestPos.values()].map(p => p.ticker as string))];
   if (tickerFilter && tickerFilter.length > 0) {
     tickers = tickers.filter(t => tickerFilter.includes(t));
   }
