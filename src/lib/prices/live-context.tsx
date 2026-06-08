@@ -12,9 +12,10 @@ export interface LivePrices {
 interface LivePriceCtx {
   live: LivePrices | null;
   refreshing: boolean;
+  liveFxRate: number | null;
 }
 
-const Ctx = createContext<LivePriceCtx>({ live: null, refreshing: false });
+const Ctx = createContext<LivePriceCtx>({ live: null, refreshing: false, liveFxRate: null });
 
 export function useLivePrices() {
   return useContext(Ctx);
@@ -26,6 +27,7 @@ const YAHOO_INTERVAL   = 30_000; // busca Yahoo a cada 30s
 export function LivePriceProvider({ children }: { children: React.ReactNode }) {
   const [live, setLive] = useState<LivePrices | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [liveFxRate, setLiveFxRate] = useState<number | null>(null);
   const yahooTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const displayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -43,7 +45,13 @@ export function LivePriceProvider({ children }: { children: React.ReactNode }) {
   const refreshYahoo = useCallback(async () => {
     setRefreshing(true);
     try {
-      await fetch("/api/prices/refresh", { method: "POST", cache: "no-store" });
+      const refreshRes = await fetch("/api/prices/refresh", { method: "POST", cache: "no-store" });
+      if (refreshRes.ok) {
+        const refreshData = (await refreshRes.json()) as { fxRate?: number };
+        if (refreshData.fxRate && refreshData.fxRate > 0) {
+          setLiveFxRate(refreshData.fxRate);
+        }
+      }
       await fetchCurrent();
     } catch {
       // falha silenciosa
@@ -81,5 +89,5 @@ export function LivePriceProvider({ children }: { children: React.ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <Ctx.Provider value={{ live, refreshing }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ live, refreshing, liveFxRate }}>{children}</Ctx.Provider>;
 }

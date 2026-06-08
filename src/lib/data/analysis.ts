@@ -1,6 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
-import { createServiceClient } from '@/lib/supabase/service';
-import { createUntypedServiceClient } from '@/lib/supabase/untyped';
+import { createUntypedServerClient } from '@/lib/supabase/untyped';
 import type { AnalysisResult, FundamentalsSnapshot, AnalysisRule, Archetype } from '@/lib/analysis/types';
 
 export interface AnalysisPageData {
@@ -16,8 +15,8 @@ export async function getEquityAnalyses(): Promise<AnalysisPageData[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const svc = createServiceClient();
-  const db = createUntypedServiceClient();
+  const svc = supabase; // use server client (user auth) for typed tables
+  const db = await createUntypedServerClient();
 
   // Get latest completed batches per holder+institution
   const { data: batches } = await svc
@@ -82,7 +81,7 @@ export async function getEquityAnalyses(): Promise<AnalysisPageData[]> {
 }
 
 export async function saveManualData(ticker: string, overrides: Record<string, number | null>): Promise<void> {
-  const db = createUntypedServiceClient();
+  const db = await createUntypedServerClient();
 
   type FundRow = { id: string; manual_overrides: Record<string, number | null> };
   const { data: existing } = await db

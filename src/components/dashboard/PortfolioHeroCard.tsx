@@ -54,9 +54,10 @@ interface Props {
   summary: ClientPortfolioSummary;
   liveTotal?: number;
   totalUsd?: number;
+  liveFxRate?: number | null;
 }
 
-export function PortfolioHeroCard({ summary, liveTotal, totalUsd }: Props) {
+export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: Props) {
   const [period, setPeriod] = useState<Period>("6M");
   const displayTotal = liveTotal ?? summary.totalBrl;
   const flash = useFlash(displayTotal);
@@ -131,8 +132,13 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd }: Props) {
           <span className="num pv" style={{ fontSize: "28px", color: "var(--color-text-3)" }}>{dec}</span>
         </span>
         {totalUsd != null && totalUsd > 0 && (
-          <div className="num pv" style={{ fontSize: "14px", color: "var(--color-text-3)", marginTop: "2px" }}>
-            USD {totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <div className="num pv" style={{ fontSize: "14px", color: "var(--color-text-3)", marginTop: "2px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>USD {totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            {liveFxRate != null && (
+              <span style={{ fontSize: "11px" }}>
+                @ {liveFxRate.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+              </span>
+            )}
           </div>
         )}
       </div>

@@ -31,12 +31,19 @@ interface Props {
   positions: ClientPosition[];
   syncStatuses: InstitutionSyncStatus[];
   totalUsd?: number;
+  totalBrlUsd?: number;
 }
 
-export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Props) {
+export function DashboardView({ summary, positions, syncStatuses, totalUsd, totalBrlUsd }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("global");
-  const { live } = useLivePrices();
+  const { live, liveFxRate } = useLivePrices();
   const hasData = summary.totalBrl > 0;
+
+  // Ajuste FX em tempo real: (totalBRL sem USD) + (USD bruto × cotação ao vivo)
+  const liveAdjustedTotal =
+    live != null && liveFxRate != null && totalBrlUsd != null && totalUsd != null && totalUsd > 0
+      ? live.totalBrl - totalBrlUsd + totalUsd * liveFxRate
+      : live?.totalBrl;
 
   return (
     <div style={{ display: "flex", gap: "0", position: "relative" }}>
@@ -54,7 +61,12 @@ export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Pr
                 marginBottom: "24px",
               }}
             >
-              <PortfolioHeroCard summary={summary} liveTotal={live?.totalBrl} totalUsd={totalUsd} />
+              <PortfolioHeroCard
+                summary={summary}
+                liveTotal={liveAdjustedTotal}
+                totalUsd={totalUsd}
+                liveFxRate={liveFxRate}
+              />
 
               {/* Cards de titular */}
               <div
