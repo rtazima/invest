@@ -25,10 +25,23 @@ export default function AuthCallbackPage() {
       }
     };
 
-    const finishAuth = (ok: boolean, reason?: string) => {
+    const finishAuth = async (ok: boolean, reason?: string) => {
       if (!ok) { fail(reason ?? "Falha na autenticação."); return; }
-      const next = getCookieValue("auth_redirect") ?? "/dashboard";
+      let next = getCookieValue("auth_redirect") ?? "/dashboard";
       document.cookie = "auth_redirect=; path=/; max-age=0; samesite=lax";
+
+      // Se não há redirect explícito, verifica convites pendentes.
+      // Resolve o caso em que o magic link abre num browser/aba sem o cookie auth_redirect.
+      if (next === "/dashboard") {
+        try {
+          const res = await fetch("/api/invite/pending");
+          if (res.ok) {
+            const { token } = (await res.json()) as { token: string | null };
+            if (token) next = `/invite/accept?token=${token}`;
+          }
+        } catch { /* silencioso */ }
+      }
+
       fetch("/api/audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
