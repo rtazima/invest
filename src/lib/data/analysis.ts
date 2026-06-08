@@ -10,6 +10,7 @@ export interface PositionSummary {
   avg_price: number | null;
   current_price: number | null;
   market_value: number;
+  cost_basis: number | null;
   pnl: number | null;
   pnl_pct: number | null;
 }
@@ -55,7 +56,7 @@ export async function getEquityAnalyses(): Promise<{ items: AnalysisPageData[]; 
   // same holder+institution, which would otherwise shadow the stock positions.
   const { data: allPositions } = await svc
     .from('positions')
-    .select('ticker, holder_id, institution, quantity, avg_price, current_price, market_value, pnl, pnl_pct, batch_id')
+    .select('ticker, holder_id, institution, quantity, avg_price, current_price, market_value, cost_basis, pnl, pnl_pct, batch_id')
     .in('batch_id', allBatchIds)
     .eq('asset_class', 'stocks_br')
     .not('ticker', 'is', null);
@@ -68,6 +69,7 @@ export async function getEquityAnalyses(): Promise<{ items: AnalysisPageData[]; 
     avg_price: number | null;
     current_price: number | null;
     market_value: number;
+    cost_basis: number | null;
     pnl: number | null;
     pnl_pct: number | null;
     batch_id: string;
@@ -131,6 +133,7 @@ export async function getEquityAnalyses(): Promise<{ items: AnalysisPageData[]; 
       avg_price: p.avg_price,
       current_price: p.current_price,
       market_value: p.market_value,
+      cost_basis: p.cost_basis,
       pnl: p.pnl,
       pnl_pct: p.pnl_pct,
     });
