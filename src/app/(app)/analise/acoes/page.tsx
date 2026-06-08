@@ -7,6 +7,6 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Análise — Ações · Invest' };
 
 export default async function AcoesPage() {
-  const data = await getEquityAnalyses();
-  return <AnalysisView items={data} />;
+  const { items, holders } = await getEquityAnalyses();
+  return <AnalysisView items={items} holders={holders} />;
 }

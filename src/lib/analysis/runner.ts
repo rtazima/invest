@@ -11,7 +11,7 @@ export interface RunResult {
   errors: string[];
 }
 
-export async function runStructuredAnalysis(): Promise<RunResult> {
+export async function runStructuredAnalysis(tickerFilter?: string[]): Promise<RunResult> {
   const supabase = createServiceClient();
   const db = createUntypedServiceClient();
   const errors: string[] = [];
@@ -39,7 +39,10 @@ export async function runStructuredAnalysis(): Promise<RunResult> {
     .eq('asset_class', 'stocks_br')
     .not('ticker', 'is', null);
 
-  const tickers = [...new Set((positions ?? []).map(p => p.ticker as string))];
+  let tickers = [...new Set((positions ?? []).map(p => p.ticker as string))];
+  if (tickerFilter && tickerFilter.length > 0) {
+    tickers = tickers.filter(t => tickerFilter.includes(t));
+  }
   if (tickers.length === 0) return { analyzed: 0, blocked: 0, errors: [] };
 
   // Load rules from untyped tables

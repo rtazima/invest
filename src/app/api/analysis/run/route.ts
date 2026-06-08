@@ -12,7 +12,12 @@ export async function POST(req: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try {
-    const result = await runStructuredAnalysis();
+    let tickers: string[] | undefined;
+    try {
+      const body = await req.json() as { tickers?: string[] };
+      if (Array.isArray(body.tickers) && body.tickers.length > 0) tickers = body.tickers;
+    } catch { /* no body */ }
+    const result = await runStructuredAnalysis(tickers);
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Erro' }, { status: 500 });
