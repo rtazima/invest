@@ -438,7 +438,7 @@ export function AnalysisView({ items, holders }: Props) {
                   {/* Semáforos */}
                   <div style={{ flex: '1 1 auto', padding: '0 8px' }}>
                     {item.result && item.applicableRules.length > 0
-                      ? <SemaphoreRow semaphores={item.result.semaphores} rules={item.applicableRules} />
+                      ? <SemaphoreRow semaphores={item.result.semaphores} rules={item.applicableRules} snapshot={item.fundamentals ?? undefined} />
                       : <span style={{ fontSize: '11px', color: 'var(--color-text-3)' }}>—</span>}
                   </div>
 
