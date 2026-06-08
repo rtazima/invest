@@ -77,6 +77,10 @@ export default async function DashboardPage() {
     };
   });
 
+  const totalUsd = clientPositions
+    .filter((p) => p.currency === "USD")
+    .reduce((sum, p) => sum + p.market_value, 0);
+
   return (
     <LivePriceProvider>
       <PriceRefresher />
@@ -84,6 +88,7 @@ export default async function DashboardPage() {
         summary={clientSummary}
         positions={clientPositions}
         syncStatuses={syncStatuses}
+        totalUsd={totalUsd}
       />
     </LivePriceProvider>
   );

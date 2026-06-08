@@ -53,9 +53,10 @@ function demoAxisLabels(): string[] {
 interface Props {
   summary: ClientPortfolioSummary;
   liveTotal?: number;
+  totalUsd?: number;
 }
 
-export function PortfolioHeroCard({ summary, liveTotal }: Props) {
+export function PortfolioHeroCard({ summary, liveTotal, totalUsd }: Props) {
   const [period, setPeriod] = useState<Period>("6M");
   const displayTotal = liveTotal ?? summary.totalBrl;
   const flash = useFlash(displayTotal);
@@ -129,6 +130,11 @@ export function PortfolioHeroCard({ summary, liveTotal }: Props) {
           </span>
           <span className="num pv" style={{ fontSize: "28px", color: "var(--color-text-3)" }}>{dec}</span>
         </span>
+        {totalUsd != null && totalUsd > 0 && (
+          <div className="num pv" style={{ fontSize: "14px", color: "var(--color-text-3)", marginTop: "2px" }}>
+            USD {totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        )}
       </div>
 
       {/* Sub-linha de performance */}

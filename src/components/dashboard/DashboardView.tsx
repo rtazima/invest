@@ -30,9 +30,10 @@ interface Props {
   summary: ClientPortfolioSummary;
   positions: ClientPosition[];
   syncStatuses: InstitutionSyncStatus[];
+  totalUsd?: number;
 }
 
-export function DashboardView({ summary, positions, syncStatuses }: Props) {
+export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("global");
   const { live } = useLivePrices();
   const hasData = summary.totalBrl > 0;
@@ -53,7 +54,7 @@ export function DashboardView({ summary, positions, syncStatuses }: Props) {
                 marginBottom: "24px",
               }}
             >
-              <PortfolioHeroCard summary={summary} liveTotal={live?.totalBrl} />
+              <PortfolioHeroCard summary={summary} liveTotal={live?.totalBrl} totalUsd={totalUsd} />
 
               {/* Cards de titular */}
               <div
