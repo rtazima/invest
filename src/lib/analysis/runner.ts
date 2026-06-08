@@ -101,6 +101,17 @@ export async function runStructuredAnalysis(
 
       const manualOverrides = ((existingFund as { manual_overrides: Record<string, number | null> } | null)?.manual_overrides ?? {});
 
+      // Derived metrics from Fundamentus raw values
+      const fundEbitda = fundamentus?.valorFirma && fundamentus.evEbitda && fundamentus.evEbitda !== 0
+        ? fundamentus.valorFirma / fundamentus.evEbitda
+        : null;
+      const fundDivLiqEbitda = fundEbitda && fundEbitda !== 0 && fundamentus?.divLiquida != null
+        ? fundamentus.divLiquida / fundEbitda
+        : null;
+      const fundRoa = fundamentus?.lucroLiquido != null && fundamentus.ativo && fundamentus.ativo !== 0
+        ? (fundamentus.lucroLiquido / fundamentus.ativo) * 100
+        : null;
+
       // Derived metrics from BRAPI when Fundamentus is unavailable
       const brapiDivLiqEbitda = brapi?.ebitda && brapi.ebitda !== 0 && brapi.divLiq != null
         ? brapi.divLiq / brapi.ebitda
@@ -121,9 +132,9 @@ export async function runStructuredAnalysis(
         marg_ebit: fundamentus?.margEbit ?? brapi?.margEbit ?? null,
         marg_liquida: fundamentus?.margLiquida ?? brapi?.margLiquida ?? null,
         roe: fundamentus?.roe ?? brapi?.roe ?? null,
-        roa: fundamentus?.roa ?? brapi?.roa ?? null,
+        roa: fundRoa ?? brapi?.roa ?? null,
         roic: fundamentus?.roic ?? null,
-        div_liq_ebitda: fundamentus?.divLiqEbitda ?? brapiDivLiqEbitda,
+        div_liq_ebitda: fundDivLiqEbitda ?? brapiDivLiqEbitda,
         cresc_rec_5a: fundamentus?.crescRec5a ?? brapi?.crescRec ?? null,
         preco_atual: brapi?.price ?? null,
         volume_medio: brapi?.avgVolume ?? null,
