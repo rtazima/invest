@@ -14,7 +14,9 @@ export interface PositionForReview {
   ticker: string | null;
   name: string | null;
   asset_class: Enums<"asset_class">;
+  currency: string;
   quantity: number;
+  market_value: number;
   market_value_brl: number;
 }
 
@@ -57,7 +59,7 @@ export async function getPositionsForReview(): Promise<PositionForReview[]> {
 
   const { data: positions, error: posErr } = await supabase
     .from("positions")
-    .select("id, holder_id, institution, ticker, name, asset_class, quantity, market_value_brl")
+    .select("id, holder_id, institution, ticker, name, asset_class, currency, quantity, market_value, market_value_brl")
     .in("batch_id", batchIds)
     .order("market_value_brl", { ascending: false });
 
@@ -80,7 +82,9 @@ export async function getPositionsForReview(): Promise<PositionForReview[]> {
     ticker: p.ticker,
     name: p.name,
     asset_class: p.asset_class as Enums<"asset_class">,
+    currency: p.currency ?? "BRL",
     quantity: Number(p.quantity ?? 0),
+    market_value: Number(p.market_value ?? p.market_value_brl ?? 0),
     market_value_brl: p.market_value_brl ?? 0,
   }));
 }

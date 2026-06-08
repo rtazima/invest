@@ -112,10 +112,13 @@ export function PositionsTable({ positions, totalBrl }: Props) {
     setFilterClasses((prev) => (setsEqual(prev, preset) ? new Set() : new Set(preset)));
   }
 
+  const isNacional = setsEqual(filterClasses, PRESET_NACIONAL);
+  const isIntl = setsEqual(filterClasses, PRESET_INTL);
+
   const sorted = useMemo(() => {
     const rows = positions.filter((p) => {
       if (filterHolder && p.holder_slug !== filterHolder) return false;
-      if (filterClasses.size > 0 && !filterClasses.has(p.asset_class)) return false;
+      if (filterClasses.size > 0 && !filterClasses.has(p.asset_class) && !(isIntl && p.currency === "USD")) return false;
       if (filterInst && p.institution !== filterInst) return false;
       return true;
     });
@@ -153,8 +156,6 @@ export function PositionsTable({ positions, totalBrl }: Props) {
     whiteSpace: "nowrap" as const,
   });
 
-  const isNacional = setsEqual(filterClasses, PRESET_NACIONAL);
-  const isIntl = setsEqual(filterClasses, PRESET_INTL);
   const hasFilter = filterHolder || filterClasses.size > 0 || filterInst;
 
   return (
@@ -423,9 +424,9 @@ export function PositionsTable({ positions, totalBrl }: Props) {
                       {fmt(pos.market_value_brl)}
                     </span>
                     {pos.currency === "USD" && (
-                      <span style={{ fontSize: "10.5px", color: "var(--color-text-3)", marginLeft: "4px" }}>
-                        USD
-                      </span>
+                      <div className="num" style={{ fontSize: "10.5px", color: "var(--color-text-3)", marginTop: "1px" }}>
+                        USD {pos.market_value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
                     )}
                   </td>
 

@@ -93,6 +93,11 @@ function PositionRow({ position: p, selected, saving, saved, onSelect, onChange 
         <span className="num" style={{ fontSize: "12.5px" }}>
           {fmtBRL(p.market_value_brl)}
         </span>
+        {p.currency === "USD" && (
+          <div className="num" style={{ fontSize: "11px", color: "var(--color-text-3)", marginTop: "1px" }}>
+            USD {p.market_value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        )}
       </td>
       <td style={{ padding: "8px 12px" }} onClick={(e) => e.stopPropagation()}>
         <select
@@ -168,6 +173,10 @@ export function PositionsReview({ initialPositions }: Props) {
     setFilterClasses((prev) => (setsEqual(prev, preset) ? new Set() : new Set(preset)));
   }
 
+  const isNacional = setsEqual(filterClasses, PRESET_NACIONAL);
+  const isIntl = setsEqual(filterClasses, PRESET_INTL);
+  const hasFilter = filterHolder || filterClasses.size > 0 || filter.trim();
+
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
     return positions.filter((p) => {
@@ -177,10 +186,13 @@ export function PositionsReview({ initialPositions }: Props) {
         (p.name ?? "").toLowerCase().includes(q) ||
         p.holder_name.toLowerCase().includes(q);
       const matchesHolder = !filterHolder || p.holder_slug === filterHolder;
-      const matchesClass = filterClasses.size === 0 || filterClasses.has(p.asset_class);
+      const matchesClass =
+        filterClasses.size === 0 ||
+        filterClasses.has(p.asset_class) ||
+        (isIntl && p.currency === "USD");
       return matchesText && matchesHolder && matchesClass;
     });
-  }, [positions, filter, filterHolder, filterClasses]);
+  }, [positions, filter, filterHolder, filterClasses, isIntl]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -240,10 +252,6 @@ export function PositionsReview({ initialPositions }: Props) {
     quantity: p.quantity,
     market_value_brl: p.market_value_brl,
   }));
-
-  const isNacional = setsEqual(filterClasses, PRESET_NACIONAL);
-  const isIntl = setsEqual(filterClasses, PRESET_INTL);
-  const hasFilter = filterHolder || filterClasses.size > 0 || filter.trim();
 
   return (
     <div>
