@@ -6,6 +6,7 @@ export type ValuationRead = 'attractive' | 'fair' | 'stretched' | 'informational
 export type AnalysisStatus = 'ok' | 'blocked' | 'no_data';
 
 export interface AnalysisRule {
+  id: string;
   metric_id: string;
   archetype: Archetype | null;
   label: string;
