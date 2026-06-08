@@ -38,26 +38,53 @@ export async function getEquityAnalyses(): Promise<{ items: AnalysisPageData[]; 
   const svc = supabase;
   const db = await createUntypedServerClient();
 
+  // Fetch all completed batches (to know each batch's date)
   const { data: batches } = await svc
     .from('import_batches')
-    .select('id, holder_id, institution, completed_at')
-    .eq('status', 'completed')
-    .order('completed_at', { ascending: false });
+    .select('id, completed_at')
+    .eq('status', 'completed');
 
-  const latestBatch = new Map<string, string>();
-  for (const b of batches ?? []) {
-    const hk = `${b.holder_id}:${b.institution}`;
-    if (!latestBatch.has(hk)) latestBatch.set(hk, b.id);
-  }
-  const batchIds = [...latestBatch.values()];
-  if (!batchIds.length) return { items: [], holders: [] };
+  if (!batches?.length) return { items: [], holders: [] };
 
-  const { data: rawPositions } = await svc
+  const batchDateMap = new Map((batches).map(b => [b.id, b.completed_at as string]));
+  const allBatchIds = batches.map(b => b.id);
+
+  // Fetch ALL stocks_br positions from every completed batch, then keep
+  // the most recent position per (ticker, holder_id) in JS.
+  // This handles the case where a newer non-stock import exists for the
+  // same holder+institution, which would otherwise shadow the stock positions.
+  const { data: allPositions } = await svc
     .from('positions')
-    .select('ticker, holder_id, institution, quantity, avg_price, current_price, market_value, pnl, pnl_pct')
-    .in('batch_id', batchIds)
+    .select('ticker, holder_id, institution, quantity, avg_price, current_price, market_value, pnl, pnl_pct, batch_id')
+    .in('batch_id', allBatchIds)
     .eq('asset_class', 'stocks_br')
     .not('ticker', 'is', null);
+
+  type RawPosWithBatch = {
+    ticker: string | null;
+    holder_id: string;
+    institution: string;
+    quantity: number;
+    avg_price: number | null;
+    current_price: number | null;
+    market_value: number;
+    pnl: number | null;
+    pnl_pct: number | null;
+    batch_id: string;
+  };
+
+  // Keep only the most recent position per (ticker, holder_id)
+  const bestPos = new Map<string, RawPosWithBatch & { completed_at: string }>();
+  for (const p of (allPositions ?? []) as RawPosWithBatch[]) {
+    const key = `${p.ticker}:${p.holder_id}`;
+    const date = batchDateMap.get(p.batch_id) ?? '';
+    const existing = bestPos.get(key);
+    if (!existing || date > existing.completed_at) {
+      bestPos.set(key, { ...p, completed_at: date });
+    }
+  }
+
+  const rawPositions = [...bestPos.values()];
 
   const tickers = [...new Set((rawPositions ?? []).map(p => p.ticker as string))];
   if (!tickers.length) return { items: [], holders: [] };
@@ -92,20 +119,8 @@ export async function getEquityAnalyses(): Promise<{ items: AnalysisPageData[]; 
 
   const allRules = (rules.data ?? []) as AnalysisRule[];
 
-  type RawPos = {
-    ticker: string | null;
-    holder_id: string;
-    institution: string;
-    quantity: number;
-    avg_price: number | null;
-    current_price: number | null;
-    market_value: number;
-    pnl: number | null;
-    pnl_pct: number | null;
-  };
-
   const positionsByTicker = new Map<string, PositionSummary[]>();
-  for (const p of (rawPositions ?? []) as RawPos[]) {
+  for (const p of rawPositions) {
     const t = p.ticker as string;
     if (!positionsByTicker.has(t)) positionsByTicker.set(t, []);
     positionsByTicker.get(t)!.push({
