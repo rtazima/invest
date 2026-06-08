@@ -9,6 +9,7 @@ export interface PositionForReview {
   id: string;
   holder_id: string;
   holder_name: string;
+  holder_slug: string;
   institution: Enums<"institution">;
   ticker: string | null;
   name: string | null;
@@ -64,16 +65,17 @@ export async function getPositionsForReview(): Promise<PositionForReview[]> {
 
   const { data: holders, error: holderErr } = await supabase
     .from("holders")
-    .select("id, name");
+    .select("id, name, slug");
 
   if (holderErr) throw new Error(`getPositionsForReview/holders: ${holderErr.message}`);
 
-  const holderMap = new Map((holders ?? []).map((h) => [h.id, h.name]));
+  const holderMap = new Map((holders ?? []).map((h) => [h.id, { name: h.name, slug: h.slug ?? "" }]));
 
   return (positions ?? []).map((p) => ({
     id: p.id,
     holder_id: p.holder_id,
-    holder_name: holderMap.get(p.holder_id) ?? "—",
+    holder_name: holderMap.get(p.holder_id)?.name ?? "—",
+    holder_slug: holderMap.get(p.holder_id)?.slug ?? "",
     institution: p.institution as Enums<"institution">,
     ticker: p.ticker,
     name: p.name,
