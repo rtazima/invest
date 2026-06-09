@@ -23,6 +23,7 @@ export function useLivePrices() {
 
 const DISPLAY_INTERVAL = 3_000;  // lê do DB a cada 3s
 const YAHOO_INTERVAL   = 30_000; // busca Yahoo a cada 30s
+const FX_INTERVAL      = 30_000; // busca câmbio a cada 30s (independente do Yahoo)
 
 export function LivePriceProvider({ children }: { children: React.ReactNode }) {
   const [live, setLive] = useState<LivePrices | null>(null);
@@ -30,6 +31,7 @@ export function LivePriceProvider({ children }: { children: React.ReactNode }) {
   const [liveFxRate, setLiveFxRate] = useState<number | null>(null);
   const yahooTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const displayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchCurrent = useCallback(async () => {
     try {
@@ -42,16 +44,22 @@ export function LivePriceProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // FX independente do Yahoo — nunca trava por falha do Yahoo Finance
+  const fetchFx = useCallback(async () => {
+    try {
+      const res = await fetch("/api/prices/fx", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { rate?: number };
+      if (data.rate && data.rate > 0) setLiveFxRate(data.rate);
+    } catch {
+      // falha silenciosa
+    }
+  }, []);
+
   const refreshYahoo = useCallback(async () => {
     setRefreshing(true);
     try {
-      const refreshRes = await fetch("/api/prices/refresh", { method: "POST", cache: "no-store" });
-      if (refreshRes.ok) {
-        const refreshData = (await refreshRes.json()) as { fxRate?: number };
-        if (refreshData.fxRate && refreshData.fxRate > 0) {
-          setLiveFxRate(refreshData.fxRate);
-        }
-      }
+      await fetch("/api/prices/refresh", { method: "POST", cache: "no-store" });
       await fetchCurrent();
     } catch {
       // falha silenciosa
@@ -61,8 +69,19 @@ export function LivePriceProvider({ children }: { children: React.ReactNode }) {
   }, [fetchCurrent]);
 
   useEffect(() => {
-    // Primeira carga: busca Yahoo imediatamente
+    // Busca câmbio e preços imediatamente no mount
+    fetchFx();
+    fetchCurrent();
     refreshYahoo();
+
+    // Loop FX: a cada 30s, independente do Yahoo
+    function scheduleFx() {
+      fxTimer.current = setTimeout(async () => {
+        await fetchFx();
+        scheduleFx();
+      }, FX_INTERVAL);
+    }
+    scheduleFx();
 
     // Loop de display: a cada 3s, só lê do DB
     function scheduleDisplay() {
@@ -83,6 +102,7 @@ export function LivePriceProvider({ children }: { children: React.ReactNode }) {
     scheduleYahoo();
 
     return () => {
+      if (fxTimer.current) clearTimeout(fxTimer.current);
       if (displayTimer.current) clearTimeout(displayTimer.current);
       if (yahooTimer.current) clearTimeout(yahooTimer.current);
     };

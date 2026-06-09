@@ -11,6 +11,30 @@ export const TECH_SUBSEGMENT_LABELS: Record<TechSubsegment, string> = {
   saas:                'SaaS / Software',
   outros_tech:         'Outros Tech',
 };
+
+export type EtfTema = 'mercado_amplo' | 'dividendos' | 'renda_fixa' | 'ouro' | 'bitcoin' | 'cobre' | 'uranio' | 'nasdaq';
+
+export const ETF_TEMA_LABELS: Record<EtfTema, string> = {
+  mercado_amplo: 'Mercado Amplo',
+  dividendos:    'Dividendos / Income',
+  renda_fixa:    'Renda Fixa',
+  ouro:          'Ouro',
+  bitcoin:       'Bitcoin',
+  cobre:         'Cobre',
+  uranio:        'Urânio',
+  nasdaq:        'Nasdaq / Tech',
+};
+
+export const ETF_TEMA_COLORS: Record<EtfTema, string> = {
+  mercado_amplo: 'oklch(0.65 0.13 230)',
+  dividendos:    'oklch(0.65 0.13 160)',
+  renda_fixa:    'oklch(0.60 0.10 290)',
+  ouro:          'oklch(0.72 0.14 80)',
+  bitcoin:       'oklch(0.68 0.14 45)',
+  cobre:         'oklch(0.62 0.12 40)',
+  uranio:        'oklch(0.68 0.13 120)',
+  nasdaq:        'oklch(0.65 0.15 195)',
+};
 export type SemaphoreState = 'ok' | 'warning' | 'critical' | 'informational' | 'missing';
 export type Recommendation = 'buy' | 'hold' | 'sell' | 'avoid' | 'reduce';
 export type QualityScore = 'high' | 'medium' | 'low';

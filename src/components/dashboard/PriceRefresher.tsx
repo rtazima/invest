@@ -3,7 +3,7 @@
 import { useLivePrices } from "@/lib/prices/live-context";
 
 export function PriceRefresher() {
-  const { live, refreshing } = useLivePrices();
+  const { live, refreshing, liveFxRate } = useLivePrices();
 
   return (
     <div
@@ -34,7 +34,7 @@ export function PriceRefresher() {
         <span>Atualizando...</span>
       ) : live ? (
         <span>
-          {live.fxRate && `USD/BRL ${live.fxRate.toFixed(2)} · `}
+          {liveFxRate != null && `USD/BRL ${liveFxRate.toFixed(2)} · `}
           {new Date(live.updatedAt ?? "").toLocaleTimeString("pt-BR", {
             hour: "2-digit",
             minute: "2-digit",

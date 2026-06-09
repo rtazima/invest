@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PortfolioHeroCard } from "./PortfolioHeroCard";
 import { HolderCard } from "./HolderCard";
 import { useLivePrices } from "@/lib/prices/live-context";
@@ -46,6 +46,16 @@ export function DashboardView({ summary, positions, syncStatuses, totalUsd, tota
     live != null && liveFxRate != null && totalBrlUsd != null && totalUsd != null && totalUsd > 0
       ? live.totalBrl - totalBrlUsd + totalUsd * liveFxRate
       : live?.totalBrl;
+
+  // Posições com market_value_brl recalculado pelo câmbio ao vivo para posições USD
+  const livePositions = useMemo(() => {
+    if (!liveFxRate) return positions;
+    return positions.map((p) =>
+      p.currency === "USD"
+        ? { ...p, market_value_brl: p.market_value * liveFxRate }
+        : p,
+    );
+  }, [positions, liveFxRate]);
 
   return (
     <div style={{ display: "flex", gap: "0", position: "relative" }}>
@@ -146,7 +156,7 @@ export function DashboardView({ summary, positions, syncStatuses, totalUsd, tota
                   <div style={{ padding: "20px" }}>
                     <AllocationDonut byAssetClass={summary.byAssetClass} totalBrl={summary.totalBrl} />
                     <div style={{ marginTop: "24px" }}>
-                      <PositionsTable positions={positions} totalBrl={summary.totalBrl} />
+                      <PositionsTable positions={livePositions} totalBrl={summary.totalBrl} />
                     </div>
                   </div>
                 )}
@@ -155,13 +165,13 @@ export function DashboardView({ summary, positions, syncStatuses, totalUsd, tota
                 {activeTab === "instituicao" && (
                   <TabByInstitution summary={summary} syncStatuses={syncStatuses} />
                 )}
-                {activeTab === "indexador" && <TabByIndexer positions={positions} summary={summary} />}
+                {activeTab === "indexador" && <TabByIndexer positions={livePositions} summary={summary} />}
                 {activeTab === "classe" && <TabByClass summary={summary} />}
                 {activeTab === "arquetipo" && (
                   <ArchetypeBreakdown
-                    positions={positions}
+                    positions={livePositions}
                     holders={summary.byHolder}
-                    totalBrl={summary.totalBrl}
+                    totalBrl={liveAdjustedTotal ?? summary.totalBrl}
                   />
                 )}
               </div>

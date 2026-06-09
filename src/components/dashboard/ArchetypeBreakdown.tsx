@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { ARCHETYPE_LABELS, ARCHETYPE_COLORS, TECH_SUBSEGMENT_LABELS } from "@/lib/analysis/types";
+import { ARCHETYPE_LABELS, ARCHETYPE_COLORS, TECH_SUBSEGMENT_LABELS, ETF_TEMA_LABELS, ETF_TEMA_COLORS } from "@/lib/analysis/types";
 import { FII_TYPE_LABELS, FII_TYPE_COLORS } from "@/lib/analysis/fii-types";
 import type { ClientPosition, ClientHolderSummary } from "./types";
 
-const ALL_LABELS: Record<string, string> = { ...ARCHETYPE_LABELS, ...FII_TYPE_LABELS };
-const ALL_COLORS: Record<string, string> = { ...ARCHETYPE_COLORS, ...FII_TYPE_COLORS };
+const ALL_LABELS: Record<string, string> = { ...ARCHETYPE_LABELS, ...FII_TYPE_LABELS, ...TECH_SUBSEGMENT_LABELS, ...ETF_TEMA_LABELS };
+const ALL_COLORS: Record<string, string> = { ...ARCHETYPE_COLORS, ...FII_TYPE_COLORS, ...ETF_TEMA_COLORS };
 
 const CIRCUMFERENCE = 2 * Math.PI * 54;
 const PANEL_W = 360;
@@ -51,6 +51,7 @@ function buildSegments(
     });
 }
 
+// Fallback palette para subsegmentos sem cor definida (ex: tech subsegments)
 const SUBSEG_COLORS = [
   "oklch(0.65 0.15 195)", "oklch(0.68 0.14 210)", "oklch(0.62 0.16 180)",
   "oklch(0.70 0.13 220)", "oklch(0.60 0.17 170)", "oklch(0.72 0.12 230)",
@@ -277,9 +278,10 @@ interface SectionProps {
   title: string;
   positions: ClientPosition[];
   portfolioTotal: number;
+  subDonutTitle?: string;
 }
 
-function Section({ title, positions, portfolioTotal }: SectionProps) {
+function Section({ title, positions, portfolioTotal, subDonutTitle }: SectionProps) {
   if (positions.length === 0) return null;
 
   const byArchetype = new Map<string, number>();
@@ -287,6 +289,7 @@ function Section({ title, positions, portfolioTotal }: SectionProps) {
   const bySubsegment = new Map<string, number>();
   const positionsBySubsegment = new Map<string, ClientPosition[]>();
   let total = 0;
+  let subsegTotal = 0;
 
   for (const p of positions) {
     const key = p.archetype ?? "sem_tipo";
@@ -295,17 +298,17 @@ function Section({ title, positions, portfolioTotal }: SectionProps) {
     positionsByArchetype.get(key)!.push(p);
     total += p.market_value_brl;
 
-    if (key === "tech" && p.subsegment) {
+    if (p.subsegment) {
       bySubsegment.set(p.subsegment, (bySubsegment.get(p.subsegment) ?? 0) + p.market_value_brl);
       if (!positionsBySubsegment.has(p.subsegment)) positionsBySubsegment.set(p.subsegment, []);
       positionsBySubsegment.get(p.subsegment)!.push(p);
+      subsegTotal += p.market_value_brl;
     }
   }
 
-  const techTotal = byArchetype.get("tech") ?? 0;
   const archetypeSegments = buildSegments(byArchetype, total, (key) => ALL_COLORS[key] ?? "oklch(0.55 0.04 240)");
   const subSegments = bySubsegment.size > 0
-    ? buildSegments(bySubsegment, techTotal, (_key, i) => SUBSEG_COLORS[i % SUBSEG_COLORS.length] ?? "oklch(0.55 0.04 240)")
+    ? buildSegments(bySubsegment, subsegTotal, (key, i) => ALL_COLORS[key] ?? SUBSEG_COLORS[i % SUBSEG_COLORS.length] ?? "oklch(0.55 0.04 240)")
     : [];
 
   return (
@@ -320,12 +323,11 @@ function Section({ title, positions, portfolioTotal }: SectionProps) {
         />
         {subSegments.length > 0 && (
           <DonutChart
-            title="Tech — subsegmentos"
+            title={subDonutTitle ?? "Subsegmentos"}
             segments={subSegments}
             positionsByKey={positionsBySubsegment}
-            sectionTotal={techTotal}
+            sectionTotal={subsegTotal}
             portfolioTotal={portfolioTotal}
-            centerLabel="tech"
           />
         )}
       </div>
@@ -357,11 +359,12 @@ export function ArchetypeBreakdown({ positions, holders, totalBrl }: Props) {
     return filtered.filter((p) => set.has(p.asset_class));
   };
 
-  const sections: Array<{ title: string; positions: ClientPosition[] }> = [
-    { title: "Ações BR",      positions: byClass("stocks_br") },
+  const sections: Array<{ title: string; positions: ClientPosition[]; subDonutTitle?: string }> = [
+    { title: "Ações BR",      positions: byClass("stocks_br"),   subDonutTitle: "Tech — subsegmentos" },
     { title: "FIIs",          positions: byClass("fiis") },
-    { title: "Internacional", positions: byClass("stocks_intl") },
-    { title: "ETFs",          positions: byClass(["etf_br", "etf_intl"]) },
+    { title: "Internacional", positions: byClass("stocks_intl"), subDonutTitle: "Tech — subsegmentos" },
+    { title: "ETFs BR",       positions: byClass("etf_br") },
+    { title: "ETFs Intl",     positions: byClass("etf_intl"),    subDonutTitle: "Temas" },
   ].filter((s) => s.positions.length > 0);
 
   return (
@@ -383,7 +386,7 @@ export function ArchetypeBreakdown({ positions, holders, totalBrl }: Props) {
         </div>
       ) : (
         sections.map((s) => (
-          <Section key={s.title} title={s.title} positions={s.positions} portfolioTotal={filteredTotal} />
+          <Section key={s.title} title={s.title} positions={s.positions} portfolioTotal={filteredTotal} subDonutTitle={s.subDonutTitle} />
         ))
       )}
     </div>

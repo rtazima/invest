@@ -198,13 +198,16 @@ function parseFundsRow(
 
   const costBasis = parseBRL(row[5]);
   const liquidityDays = inferFundLiquidityDays(name);
+  // col 7 = "Quantidade de Cotas" na seção Fundos Imobiliários (FIIs negociados em bolsa).
+  // Para fundos regulares (renda fixa/multimercado), col 7 fica vazio → fallback 1.
+  const quantity = parseBRL(row[7]) ?? new Decimal(1);
 
   return {
     ticker,
     name,
     assetClass,
     currency: "BRL",
-    quantity: new Decimal(1),
+    quantity,
     avgPrice: costBasis,
     currentPrice: null,
     marketValue,
