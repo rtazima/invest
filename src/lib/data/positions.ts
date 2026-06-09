@@ -75,14 +75,16 @@ export async function getPositionsForReview(): Promise<PositionForReview[]> {
 
   const holderMap = new Map((holders ?? []).map((h) => [h.id, { name: h.name, slug: h.slug ?? "" }]));
 
-  const stockTickers = [...new Set(
-    (positions ?? []).filter(p => p.asset_class === "stocks_br" && p.ticker).map(p => p.ticker as string)
+  const classifiedTickers = [...new Set(
+    (positions ?? [])
+      .filter(p => (p.asset_class === "stocks_br" || p.asset_class === "fiis") && p.ticker)
+      .map(p => p.ticker as string)
   )];
 
   let archetypeMap = new Map<string, string>();
-  if (stockTickers.length > 0) {
+  if (classifiedTickers.length > 0) {
     const db = await createUntypedServerClient();
-    const { data: archetypes } = await db.from("asset_archetypes").select("ticker, archetype").in("ticker", stockTickers);
+    const { data: archetypes } = await db.from("asset_archetypes").select("ticker, archetype").in("ticker", classifiedTickers);
     archetypeMap = new Map(
       ((archetypes ?? []) as { ticker: string; archetype: string }[]).map(a => [a.ticker, a.archetype])
     );
@@ -101,7 +103,7 @@ export async function getPositionsForReview(): Promise<PositionForReview[]> {
     quantity: Number(p.quantity ?? 0),
     market_value: Number(p.market_value ?? p.market_value_brl ?? 0),
     market_value_brl: p.market_value_brl ?? 0,
-    archetype: p.asset_class === "stocks_br" && p.ticker ? (archetypeMap.get(p.ticker) ?? null) : null,
+    archetype: p.ticker ? (archetypeMap.get(p.ticker) ?? null) : null,
   }));
 }
 
