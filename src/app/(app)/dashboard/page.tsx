@@ -4,6 +4,7 @@ import { getLatestPositions } from "@/lib/data/positions";
 import { getInstitutionSyncStatuses } from "@/lib/data/sync";
 import { getHolders } from "@/lib/data/holders";
 import { getStructuresForAllHolders } from "@/lib/data/structures";
+import { createUntypedServerClient } from "@/lib/supabase/untyped";
 import { DashboardView } from "@/components/dashboard/DashboardView";
 import { PriceRefresher } from "@/components/dashboard/PriceRefresher";
 import { LivePriceProvider } from "@/lib/prices/live-context";
@@ -22,6 +23,24 @@ export default async function DashboardPage() {
   ]);
 
   const holderMap = new Map(holders.map((h) => [h.id, h]));
+
+  // Fetch archetypes for stocks and FIIs to enrich positions
+  const classifiedTickers = [...new Set(
+    positions
+      .filter((p) => (p.asset_class === "stocks_br" || p.asset_class === "fiis") && p.ticker)
+      .map((p) => p.ticker as string),
+  )];
+  let archetypeMap = new Map<string, string>();
+  if (classifiedTickers.length > 0) {
+    const db = await createUntypedServerClient();
+    const { data: archetypes } = await db
+      .from("asset_archetypes")
+      .select("ticker, archetype")
+      .in("ticker", classifiedTickers);
+    archetypeMap = new Map(
+      ((archetypes ?? []) as { ticker: string; archetype: string }[]).map((a) => [a.ticker, a.archetype]),
+    );
+  }
 
   const clientSummary: ClientPortfolioSummary = {
     totalBrl: summary.totalBrl.toNumber(),
@@ -74,6 +93,7 @@ export default async function DashboardPage() {
       quota_date: p.quota_date,
       is_stale_quota: p.isStaleQuota,
       structures: structures && structures.length > 0 ? structures : null,
+      archetype: p.ticker ? (archetypeMap.get(p.ticker) ?? null) : null,
     };
   });
 

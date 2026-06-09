@@ -11,6 +11,7 @@ import { TabByHolderInstitution } from "./TabByHolderInstitution";
 import { TabByInstitution } from "./TabByInstitution";
 import { TabByClass } from "./TabByClass";
 import { TabByIndexer } from "./TabByIndexer";
+import { ArchetypeBreakdown } from "./ArchetypeBreakdown";
 import type { ClientPortfolioSummary, ClientPosition } from "./types";
 import type { InstitutionSyncStatus } from "@/lib/data/sync";
 import Link from "next/link";
@@ -22,6 +23,7 @@ const TABS = [
   { id: "instituicao", label: "Por Instituição", shortcut: "I" },
   { id: "indexador", label: "Por Indexador", shortcut: "N" },
   { id: "classe", label: "Por Classe", shortcut: "C" },
+  { id: "arquetipo", label: "Arquétipos", shortcut: "A" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -155,6 +157,13 @@ export function DashboardView({ summary, positions, syncStatuses, totalUsd, tota
                 )}
                 {activeTab === "indexador" && <TabByIndexer positions={positions} summary={summary} />}
                 {activeTab === "classe" && <TabByClass summary={summary} />}
+                {activeTab === "arquetipo" && (
+                  <ArchetypeBreakdown
+                    positions={positions}
+                    holders={summary.byHolder}
+                    totalBrl={summary.totalBrl}
+                  />
+                )}
               </div>
             </div>
           </>

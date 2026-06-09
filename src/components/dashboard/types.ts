@@ -39,6 +39,7 @@ export interface ClientPosition {
   quota_date: string | null;
   is_stale_quota: boolean;
   structures: Array<{ id: string; name: string; type: string; role: string }> | null;
+  archetype: string | null;
 }
 
 export interface ClientAlert {
