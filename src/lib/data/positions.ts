@@ -20,6 +20,7 @@ export interface PositionForReview {
   market_value: number;
   market_value_brl: number;
   archetype: string | null;
+  subsegment: string | null;
 }
 
 export async function getPositionsForReview(): Promise<PositionForReview[]> {
@@ -82,12 +83,12 @@ export async function getPositionsForReview(): Promise<PositionForReview[]> {
       .map(p => p.ticker as string)
   )];
 
-  let archetypeMap = new Map<string, string>();
+  let archetypeMap = new Map<string, { archetype: string; subsegment: string | null }>();
   if (classifiedTickers.length > 0) {
     const db = await createUntypedServerClient();
-    const { data: archetypes } = await db.from("asset_archetypes").select("ticker, archetype").in("ticker", classifiedTickers);
+    const { data: archetypes } = await db.from("asset_archetypes").select("ticker, archetype, subsegment").in("ticker", classifiedTickers);
     archetypeMap = new Map(
-      ((archetypes ?? []) as { ticker: string; archetype: string }[]).map(a => [a.ticker, a.archetype])
+      ((archetypes ?? []) as { ticker: string; archetype: string; subsegment: string | null }[]).map(a => [a.ticker, { archetype: a.archetype, subsegment: a.subsegment ?? null }])
     );
   }
 
@@ -104,8 +105,22 @@ export async function getPositionsForReview(): Promise<PositionForReview[]> {
     quantity: Number(p.quantity ?? 0),
     market_value: Number(p.market_value ?? p.market_value_brl ?? 0),
     market_value_brl: p.market_value_brl ?? 0,
-    archetype: p.ticker ? (archetypeMap.get(p.ticker) ?? null) : null,
+    archetype: p.ticker ? (archetypeMap.get(p.ticker)?.archetype ?? null) : null,
+    subsegment: p.ticker ? (archetypeMap.get(p.ticker)?.subsegment ?? null) : null,
   }));
+}
+
+export async function saveArchetypeForTicker(
+  ticker: string,
+  archetype: string,
+  subsegment: string | null,
+  assetClass: string,
+): Promise<void> {
+  const db = await createUntypedServerClient();
+  await db.from("asset_archetypes").upsert(
+    { ticker, archetype, subsegment: subsegment ?? null, asset_class: assetClass, classified_by: 'manual' },
+    { onConflict: "ticker" },
+  );
 }
 
 export async function updatePositionAssetClass(

@@ -2,10 +2,12 @@
 
 import { useState, useTransition, useMemo } from "react";
 import type { PositionForReview } from "@/lib/data/positions";
-import { updatePositionAssetClassAction } from "@/app/(app)/positions/actions";
+import { updatePositionAssetClassAction, updateArchetypeAction } from "@/app/(app)/positions/actions";
 import { TransferModal, type TransferablePosition } from "@/components/transfers/TransferModal";
 import { ArchetypeChip } from "@/components/analysis/ArchetypeChip";
 import type { Archetype } from "@/lib/analysis/types";
+import { ARCHETYPE_LABELS, TECH_SUBSEGMENT_LABELS } from "@/lib/analysis/types";
+import { FII_TYPE_LABELS } from "@/lib/analysis/fii-types";
 
 const ASSET_CLASS_LABELS: Record<string, string> = {
   fixed_income: "Renda Fixa",
@@ -32,6 +34,12 @@ const HOLDER_COLORS: Record<string, string> = {
   benicio: "oklch(0.70 0.13 160)",
 };
 
+const CLASSIFIABLE_CLASSES = new Set(["stocks_br", "stocks_intl", "fiis", "etf_br", "etf_intl"]);
+
+const STOCK_ARCHETYPE_OPTIONS = Object.entries(ARCHETYPE_LABELS).map(([value, label]) => ({ value, label }));
+const FII_ARCHETYPE_OPTIONS = Object.entries(FII_TYPE_LABELS).map(([value, label]) => ({ value, label }));
+const SUBSEGMENT_OPTIONS = Object.entries(TECH_SUBSEGMENT_LABELS).map(([value, label]) => ({ value, label }));
+
 function setsEqual(a: Set<string>, b: Set<string>) {
   return a.size === b.size && [...a].every((x) => b.has(x));
 }
@@ -45,6 +53,65 @@ function fmtBRL(v: number): string {
   }).format(v);
 }
 
+interface EditorProps {
+  position: PositionForReview;
+  onSave: (archetype: string, subsegment: string | null) => void;
+  onCancel: () => void;
+  saving: boolean;
+}
+
+function ArchetypeEditor({ position, onSave, onCancel, saving }: EditorProps) {
+  const [archetype, setArchetype] = useState(position.archetype ?? "");
+  const [subsegment, setSubsegment] = useState(position.subsegment ?? "");
+  const options = position.asset_class === "fiis" ? FII_ARCHETYPE_OPTIONS : STOCK_ARCHETYPE_OPTIONS;
+
+  const selectStyle = {
+    fontSize: "11px", padding: "2px 4px", borderRadius: "4px",
+    border: "1px solid var(--color-line)", backgroundColor: "var(--color-bg-2)",
+    color: "var(--color-text)", cursor: saving ? "not-allowed" : "pointer",
+    opacity: saving ? 0.6 : 1,
+  };
+
+  return (
+    <div style={{ display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
+      <select
+        value={archetype}
+        disabled={saving}
+        onChange={(e) => { setArchetype(e.target.value); if (e.target.value !== "tech") setSubsegment(""); }}
+        style={{ ...selectStyle, maxWidth: "120px" }}
+      >
+        <option value="">— tipo —</option>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      {archetype === "tech" && (
+        <select
+          value={subsegment}
+          disabled={saving}
+          onChange={(e) => setSubsegment(e.target.value)}
+          style={{ ...selectStyle, maxWidth: "130px" }}
+        >
+          <option value="">— subtema —</option>
+          {SUBSEGMENT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      )}
+      <button
+        disabled={!archetype || saving}
+        onClick={() => onSave(archetype, archetype === "tech" && subsegment ? subsegment : null)}
+        style={{ padding: "2px 8px", borderRadius: "4px", fontSize: "11px", border: "1px solid var(--color-line)", backgroundColor: "var(--color-bg-3)", color: "var(--color-text)", cursor: archetype && !saving ? "pointer" : "not-allowed", opacity: archetype && !saving ? 1 : 0.5 }}
+      >
+        ✓
+      </button>
+      <button
+        disabled={saving}
+        onClick={onCancel}
+        style={{ padding: "2px 8px", borderRadius: "4px", fontSize: "11px", border: "1px solid var(--color-line)", backgroundColor: "transparent", color: "var(--color-text-3)", cursor: "pointer" }}
+      >
+        ✗
+      </button>
+    </div>
+  );
+}
+
 interface RowProps {
   position: PositionForReview;
   selected: boolean;
@@ -52,9 +119,14 @@ interface RowProps {
   saved: boolean;
   onSelect: (id: string) => void;
   onChange: (id: string, newClass: string) => void;
+  editingPositionId: string | null;
+  onStartEdit: (id: string) => void;
+  onCancelEdit: () => void;
+  onSaveArchetype: (ticker: string, archetype: string, subsegment: string | null, assetClass: string) => Promise<void>;
+  savingArchetype: boolean;
 }
 
-function PositionRow({ position: p, selected, saving, saved, onSelect, onChange }: RowProps) {
+function PositionRow({ position: p, selected, saving, saved, onSelect, onChange, editingPositionId, onStartEdit, onCancelEdit, onSaveArchetype, savingArchetype }: RowProps) {
   return (
     <tr
       style={{
@@ -130,9 +202,32 @@ function PositionRow({ position: p, selected, saving, saved, onSelect, onChange 
         )}
       </td>
       <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>
-        {p.archetype
-          ? <ArchetypeChip archetype={p.archetype as Archetype} />
-          : <span style={{ color: "var(--color-text-3)", fontSize: "11px" }}>—</span>}
+        {!CLASSIFIABLE_CLASSES.has(p.asset_class) || !p.ticker ? (
+          <span style={{ color: "var(--color-text-3)", fontSize: "11px" }}>—</span>
+        ) : editingPositionId === p.id ? (
+          <ArchetypeEditor
+            position={p}
+            onSave={(a, s) => onSaveArchetype(p.ticker!, a, s, p.asset_class)}
+            onCancel={onCancelEdit}
+            saving={savingArchetype}
+          />
+        ) : p.archetype ? (
+          <div style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onStartEdit(p.id); }}>
+            <ArchetypeChip archetype={p.archetype as Archetype} />
+            {p.subsegment && (
+              <span style={{ marginLeft: "4px", fontSize: "10px", color: "var(--color-text-3)" }}>
+                {(TECH_SUBSEGMENT_LABELS as Record<string, string>)[p.subsegment] ?? p.subsegment}
+              </span>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={(e) => { e.stopPropagation(); onStartEdit(p.id); }}
+            style={{ fontSize: "11px", padding: "2px 7px", borderRadius: "4px", border: "1px dashed var(--color-line)", backgroundColor: "transparent", color: "var(--color-text-3)", cursor: "pointer" }}
+          >
+            Classificar
+          </button>
+        )}
       </td>
     </tr>
   );
@@ -153,6 +248,8 @@ export function PositionsReview({ initialPositions }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [transferOpen, setTransferOpen] = useState(false);
   const [, startTransition] = useTransition();
+  const [editingPositionId, setEditingPositionId] = useState<string | null>(null);
+  const [savingArchetype, setSavingArchetype] = useState(false);
 
   const holders = useMemo(() => {
     const seen = new Map<string, { slug: string; name: string }>();
@@ -245,6 +342,20 @@ export function PositionsReview({ initialPositions }: Props) {
   function handleTransferSuccess() {
     setTransferOpen(false);
     setSelected(new Set());
+  }
+
+  async function handleSaveArchetype(ticker: string, archetype: string, subsegment: string | null, assetClass: string) {
+    setSavingArchetype(true);
+    const err = await updateArchetypeAction(ticker, archetype, subsegment, assetClass);
+    setSavingArchetype(false);
+    if (err) {
+      setErrors((prev) => new Map(prev).set(ticker, err));
+    } else {
+      setPositions((prev) =>
+        prev.map((p) => p.ticker === ticker ? { ...p, archetype, subsegment } : p)
+      );
+      setEditingPositionId(null);
+    }
   }
 
   const globalError = errors.size > 0 ? `${errors.size} erro(s) ao salvar` : null;
@@ -487,6 +598,11 @@ export function PositionsReview({ initialPositions }: Props) {
                   saved={saved.has(p.id)}
                   onSelect={toggleSelect}
                   onChange={handleChange}
+                  editingPositionId={editingPositionId}
+                  onStartEdit={setEditingPositionId}
+                  onCancelEdit={() => setEditingPositionId(null)}
+                  onSaveArchetype={handleSaveArchetype}
+                  savingArchetype={savingArchetype}
                 />
               ))
             )}
