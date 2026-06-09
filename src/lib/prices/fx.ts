@@ -25,26 +25,28 @@ export async function fetchUsdBrl(): Promise<number> {
   return rate;
 }
 
-// Usado pelo /api/prices/fx (display ao vivo) — Yahoo Finance USDBRL=X, intraday
-// Fallback para Open Exchange Rates se Yahoo falhar
+// Usado pelo /api/prices/fx (display ao vivo)
+// Primário: BCB PTAX (oficial, grátis, sem bloqueio de IP, atualiza 5-6x/dia no pregão)
+// Fallback: Open Exchange Rates
 export async function fetchUsdBrlLive(): Promise<number> {
   try {
-    const res = await fetch(
-      "https://query1.finance.yahoo.com/v7/finance/quote?symbols=USDBRL%3DX&fields=regularMarketPrice",
-      {
-        cache: "no-store",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-          "Accept": "application/json",
-        },
-      },
-    );
+    const today = new Date().toLocaleDateString("en-US", {
+      timeZone: "America/Sao_Paulo",
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+    }); // formato MM/DD/YYYY → MM-DD-YYYY
+    const dateParam = today.replace(/\//g, "-");
+    const url = `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@d)?$format=json&$select=cotacaoVenda,dataHoraCotacao&@d='${dateParam}'`;
+    const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "invest-app/1.0" } });
     if (res.ok) {
-      const data = (await res.json()) as {
-        quoteResponse?: { result?: Array<{ regularMarketPrice: number }> };
-      };
-      const price = data.quoteResponse?.result?.[0]?.regularMarketPrice;
-      if (price && price > 0) return price;
+      const text = await res.text();
+      // BCB envolve a resposta em /*...*/ às vezes — remove comentário se existir
+      const clean = text.replace(/^\/\*/, "").replace(/\*\/$/, "").trim();
+      const data = JSON.parse(clean) as { value?: Array<{ cotacaoVenda: number }> };
+      const values = data.value ?? [];
+      const last = values[values.length - 1];
+      if (last && last.cotacaoVenda > 0) return last.cotacaoVenda;
     }
   } catch {
     // tenta fallback
