@@ -19,6 +19,8 @@ const ARCHETYPE_THESIS: Record<Archetype, string> = {
     'Bancos e seguradoras usam alavancagem como modelo de negócio — P/L e EV/EBITDA não se aplicam. A análise foca em qualidade da carteira (NPL, cobertura de provisões), solidez regulatória (Basileia, CET1) e eficiência operacional. ROE sustentado acima do custo de capital com provisões conservadoras é a combinação vencedora.',
   utility:
     'Concessões e distribuidoras com receita previsível via contratos de longo prazo. Fluxo de caixa estável e regulado justifica alavancagem mais alta que outros setores. O risco central é renovação de concessões e sensibilidade ao custo da dívida em ciclos de juros altos. Dividend yield deve ser coberto por FCF real — não por endividamento incremental.',
+  tech:
+    'Empresas de tecnologia com receita recorrente, crescimento acelerado e efeito de rede. A tese se divide em sub-temas: semicondutores (ciclos de capex pesado), cloud (SaaS recorrente de alta margem), IA (fase de investimento intenso) e cibersegurança (adoção mandatória). A avaliação por múltiplos de receita requer crescimento sustentável — desaceleração destrói múltiplo rapidamente.',
 };
 
 // ─── teses por tipo de FII ───────────────────────────────────────────────────

@@ -24,21 +24,24 @@ export default async function DashboardPage() {
 
   const holderMap = new Map(holders.map((h) => [h.id, h]));
 
-  // Fetch archetypes for stocks and FIIs to enrich positions
+  // Fetch archetypes + subsegments for all classifiable asset classes
+  const CLASSIFIABLE = new Set(["stocks_br", "stocks_intl", "fiis", "etf_br", "etf_intl"]);
   const classifiedTickers = [...new Set(
     positions
-      .filter((p) => (p.asset_class === "stocks_br" || p.asset_class === "fiis") && p.ticker)
+      .filter((p) => CLASSIFIABLE.has(p.asset_class) && p.ticker)
       .map((p) => p.ticker as string),
   )];
-  let archetypeMap = new Map<string, string>();
+  let archetypeMap = new Map<string, { archetype: string; subsegment: string | null }>();
   if (classifiedTickers.length > 0) {
     const db = await createUntypedServerClient();
     const { data: archetypes } = await db
       .from("asset_archetypes")
-      .select("ticker, archetype")
+      .select("ticker, archetype, subsegment")
       .in("ticker", classifiedTickers);
     archetypeMap = new Map(
-      ((archetypes ?? []) as { ticker: string; archetype: string }[]).map((a) => [a.ticker, a.archetype]),
+      ((archetypes ?? []) as { ticker: string; archetype: string; subsegment: string | null }[]).map(
+        (a) => [a.ticker, { archetype: a.archetype, subsegment: a.subsegment ?? null }],
+      ),
     );
   }
 
@@ -93,7 +96,8 @@ export default async function DashboardPage() {
       quota_date: p.quota_date,
       is_stale_quota: p.isStaleQuota,
       structures: structures && structures.length > 0 ? structures : null,
-      archetype: p.ticker ? (archetypeMap.get(p.ticker) ?? null) : null,
+      archetype: p.ticker ? (archetypeMap.get(p.ticker)?.archetype ?? null) : null,
+      subsegment: p.ticker ? (archetypeMap.get(p.ticker)?.subsegment ?? null) : null,
     };
   });
 

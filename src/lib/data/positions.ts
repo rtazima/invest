@@ -75,9 +75,10 @@ export async function getPositionsForReview(): Promise<PositionForReview[]> {
 
   const holderMap = new Map((holders ?? []).map((h) => [h.id, { name: h.name, slug: h.slug ?? "" }]));
 
+  const CLASSIFIABLE = new Set(["stocks_br", "stocks_intl", "fiis", "etf_br", "etf_intl"]);
   const classifiedTickers = [...new Set(
     (positions ?? [])
-      .filter(p => (p.asset_class === "stocks_br" || p.asset_class === "fiis") && p.ticker)
+      .filter(p => CLASSIFIABLE.has(p.asset_class) && p.ticker)
       .map(p => p.ticker as string)
   )];
 

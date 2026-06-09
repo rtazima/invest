@@ -40,6 +40,7 @@ export interface ClientPosition {
   is_stale_quota: boolean;
   structures: Array<{ id: string; name: string; type: string; role: string }> | null;
   archetype: string | null;
+  subsegment: string | null;
 }
 
 export interface ClientAlert {

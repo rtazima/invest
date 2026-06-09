@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ARCHETYPE_LABELS, ARCHETYPE_COLORS } from "@/lib/analysis/types";
+import { ARCHETYPE_LABELS, ARCHETYPE_COLORS, TECH_SUBSEGMENT_LABELS } from "@/lib/analysis/types";
 import { FII_TYPE_LABELS, FII_TYPE_COLORS } from "@/lib/analysis/fii-types";
 import type { ClientPosition, ClientHolderSummary } from "./types";
 
@@ -17,7 +17,7 @@ function fmtBrl(v: number) {
 }
 
 interface Segment {
-  archetype: string;
+  key: string;
   total: number;
   pct: number;
   label: string;
@@ -26,51 +26,77 @@ interface Segment {
   dashOffset: number;
 }
 
-function buildSegments(positions: ClientPosition[]): { segments: Segment[]; total: number } {
-  const map = new Map<string, number>();
-  for (const p of positions) {
-    const key = p.archetype ?? "sem_tipo";
-    map.set(key, (map.get(key) ?? 0) + p.market_value_brl);
-  }
-  const total = [...map.values()].reduce((s, v) => s + v, 0);
-  const entries = [...map.entries()]
-    .filter(([, v]) => v > 0)
-    .sort(([, a], [, b]) => b - a);
-
+function buildSegments(map: Map<string, number>, sectionTotal: number): Segment[] {
   let offset = 0;
-  const segments: Segment[] = entries.map(([archetype, t]) => {
-    const pct = total > 0 ? t / total : 0;
-    const arc = pct * CIRCUMFERENCE;
-    const dashOffset = CIRCUMFERENCE - offset;
-    offset += arc;
-    return {
-      archetype,
-      total: t,
-      pct,
-      label: ALL_LABELS[archetype] ?? archetype,
-      color: ALL_COLORS[archetype] ?? "oklch(0.55 0.04 240)",
-      arc,
-      dashOffset,
-    };
-  });
-
-  return { segments, total };
+  return [...map.entries()]
+    .filter(([, v]) => v > 0)
+    .sort(([, a], [, b]) => b - a)
+    .map(([key, total]) => {
+      const pct = sectionTotal > 0 ? total / sectionTotal : 0;
+      const arc = pct * CIRCUMFERENCE;
+      const dashOffset = CIRCUMFERENCE - offset;
+      offset += arc;
+      return {
+        key,
+        total,
+        pct,
+        label: ALL_LABELS[key] ?? key,
+        color: ALL_COLORS[key] ?? "oklch(0.55 0.04 240)",
+        arc,
+        dashOffset,
+      };
+    });
 }
 
-interface DonutChartProps {
+function buildSubsegmentSegments(map: Map<string, number>, total: number): Segment[] {
+  let offset = 0;
+  const colors = [
+    "oklch(0.65 0.15 195)",
+    "oklch(0.68 0.14 210)",
+    "oklch(0.62 0.16 180)",
+    "oklch(0.70 0.13 220)",
+    "oklch(0.60 0.17 170)",
+    "oklch(0.72 0.12 230)",
+    "oklch(0.58 0.14 200)",
+  ];
+  let ci = 0;
+  return [...map.entries()]
+    .filter(([, v]) => v > 0)
+    .sort(([, a], [, b]) => b - a)
+    .map(([key, t]) => {
+      const pct = total > 0 ? t / total : 0;
+      const arc = pct * CIRCUMFERENCE;
+      const dashOffset = CIRCUMFERENCE - offset;
+      offset += arc;
+      const color = colors[ci++ % colors.length] ?? "oklch(0.55 0.04 240)";
+      return {
+        key,
+        total: t,
+        pct,
+        label: (TECH_SUBSEGMENT_LABELS as Record<string, string>)[key] ?? key,
+        color,
+        arc,
+        dashOffset,
+      };
+    });
+}
+
+interface DonutProps {
   title: string;
-  positions: ClientPosition[];
+  segments: Segment[];
+  sectionTotal: number;
   portfolioTotal: number;
+  centerLabel?: string;
 }
 
-function DonutChart({ title, positions, portfolioTotal }: DonutChartProps) {
+function DonutChart({ title, segments, sectionTotal, portfolioTotal, centerLabel }: DonutProps) {
   const [hovered, setHovered] = useState<string | null>(null);
-  const { segments, total } = buildSegments(positions);
 
   if (segments.length === 0) return null;
 
-  const sectionPct = portfolioTotal > 0 ? (total / portfolioTotal) * 100 : 0;
-  const hoveredSeg = segments.find((s) => s.archetype === hovered);
+  const sectionPct = portfolioTotal > 0 ? (sectionTotal / portfolioTotal) * 100 : 0;
+  const hoveredSeg = segments.find((s) => s.key === hovered);
+  const center = centerLabel ?? `${segments.length} tipo${segments.length !== 1 ? "s" : ""}`;
 
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
@@ -85,32 +111,30 @@ function DonutChart({ title, positions, portfolioTotal }: DonutChartProps) {
           {title}
         </span>
         <span style={{ fontSize: "11px", color: "var(--color-text-3)", marginLeft: "8px" }} className="num">
-          {fmtBrl(total)} · {sectionPct.toFixed(1)}% do portfólio
+          {fmtBrl(sectionTotal)} · {sectionPct.toFixed(1)}% do portfólio
         </span>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-        {/* Donut */}
         <div style={{ position: "relative", flexShrink: 0 }}>
           <svg viewBox="-80 -80 160 160" width="130" height="130">
             <circle r="54" fill="none" stroke="var(--color-line)" strokeWidth="18" />
             {segments.map((seg) => (
               <circle
-                key={seg.archetype}
+                key={seg.key}
                 r="54"
                 fill="none"
                 stroke={seg.color}
-                strokeWidth={hovered === seg.archetype ? 26 : 18}
+                strokeWidth={hovered === seg.key ? 26 : 18}
                 strokeDasharray={`${seg.arc.toFixed(2)} ${(CIRCUMFERENCE - seg.arc).toFixed(2)}`}
                 strokeDashoffset={seg.dashOffset.toFixed(2)}
                 transform="rotate(-90)"
                 style={{ transition: "stroke-width 0.15s ease", cursor: "pointer" }}
-                onMouseEnter={() => setHovered(seg.archetype)}
+                onMouseEnter={() => setHovered(seg.key)}
                 onMouseLeave={() => setHovered(null)}
               />
             ))}
           </svg>
-          {/* Centro */}
           <div style={{
             position: "absolute",
             inset: 0,
@@ -131,29 +155,25 @@ function DonutChart({ title, positions, portfolioTotal }: DonutChartProps) {
               </>
             ) : (
               <span style={{ fontSize: "11px", color: "var(--color-text-3)" }} className="num">
-                {segments.length} tipos
+                {center}
               </span>
             )}
           </div>
         </div>
 
-        {/* Legenda */}
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "6px", flex: 1, minWidth: 0 }}>
           {segments.map((seg) => (
             <li
-              key={seg.archetype}
+              key={seg.key}
               style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "11.5px", cursor: "default" }}
-              onMouseEnter={() => setHovered(seg.archetype)}
+              onMouseEnter={() => setHovered(seg.key)}
               onMouseLeave={() => setHovered(null)}
             >
+              <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: seg.color, flexShrink: 0 }} />
               <span style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "2px",
-                backgroundColor: seg.color,
-                flexShrink: 0,
-              }} />
-              <span style={{ color: hovered === seg.archetype ? "var(--color-text)" : "var(--color-text-2)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                color: hovered === seg.key ? "var(--color-text)" : "var(--color-text-2)",
+                flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
                 {seg.label}
               </span>
               <span className="num" style={{ color: "var(--color-text-3)", flexShrink: 0 }}>
@@ -165,6 +185,62 @@ function DonutChart({ title, positions, portfolioTotal }: DonutChartProps) {
             </li>
           ))}
         </ul>
+      </div>
+    </div>
+  );
+}
+
+function buildArchetypeMap(positions: ClientPosition[]) {
+  const byArchetype = new Map<string, number>();
+  const bySubsegment = new Map<string, number>();
+  let total = 0;
+
+  for (const p of positions) {
+    const key = p.archetype ?? "sem_tipo";
+    byArchetype.set(key, (byArchetype.get(key) ?? 0) + p.market_value_brl);
+    total += p.market_value_brl;
+
+    if (key === "tech" && p.subsegment) {
+      bySubsegment.set(p.subsegment, (bySubsegment.get(p.subsegment) ?? 0) + p.market_value_brl);
+    }
+  }
+
+  return { byArchetype, bySubsegment, total };
+}
+
+interface SectionProps {
+  title: string;
+  positions: ClientPosition[];
+  portfolioTotal: number;
+}
+
+function Section({ title, positions, portfolioTotal }: SectionProps) {
+  if (positions.length === 0) return null;
+  const { byArchetype, bySubsegment, total } = buildArchetypeMap(positions);
+  const segments = buildSegments(byArchetype, total);
+  const techTotal = byArchetype.get("tech") ?? 0;
+  const subSegments = bySubsegment.size > 0
+    ? buildSubsegmentSegments(bySubsegment, techTotal)
+    : [];
+
+  return (
+    <div style={{ marginBottom: "32px" }}>
+      <div style={{ display: "flex", gap: "40px", flexWrap: "wrap" }}>
+        <DonutChart
+          title={title}
+          segments={segments}
+          sectionTotal={total}
+          portfolioTotal={portfolioTotal}
+        />
+        {subSegments.length > 0 && (
+          <DonutChart
+            title="Tech — subsegmentos"
+            segments={subSegments}
+            sectionTotal={techTotal}
+            portfolioTotal={portfolioTotal}
+            centerLabel="tech"
+          />
+        )}
       </div>
     </div>
   );
@@ -187,9 +263,19 @@ export function ArchetypeBreakdown({ positions, holders, totalBrl }: Props) {
     ? (holders.find((h) => h.id === selectedHolder)?.totalBrl ?? filtered.reduce((s, p) => s + p.market_value_brl, 0))
     : totalBrl;
 
-  const stockPositions = filtered.filter((p) => p.asset_class === "stocks_br");
-  const fiiPositions = filtered.filter((p) => p.asset_class === "fiis");
-  const isEmpty = stockPositions.length === 0 && fiiPositions.length === 0;
+  const byClass = (cls: string | string[]) => {
+    const set = new Set(Array.isArray(cls) ? cls : [cls]);
+    return filtered.filter((p) => set.has(p.asset_class));
+  };
+
+  const sections: Array<{ title: string; positions: ClientPosition[] }> = [
+    { title: "Ações BR",        positions: byClass("stocks_br") },
+    { title: "FIIs",            positions: byClass("fiis") },
+    { title: "Internacional",   positions: byClass("stocks_intl") },
+    { title: "ETFs",            positions: byClass(["etf_br", "etf_intl"]) },
+  ].filter((s) => s.positions.length > 0);
+
+  const isEmpty = sections.length === 0;
 
   return (
     <div style={{ padding: "20px" }}>
@@ -210,10 +296,9 @@ export function ArchetypeBreakdown({ positions, holders, totalBrl }: Props) {
           Nenhum ativo com arquétipo classificado.
         </div>
       ) : (
-        <div style={{ display: "flex", gap: "40px", flexWrap: "wrap" }}>
-          <DonutChart title="Ações" positions={stockPositions} portfolioTotal={filteredTotal} />
-          <DonutChart title="FIIs" positions={fiiPositions} portfolioTotal={filteredTotal} />
-        </div>
+        sections.map((s) => (
+          <Section key={s.title} title={s.title} positions={s.positions} portfolioTotal={filteredTotal} />
+        ))
       )}
     </div>
   );

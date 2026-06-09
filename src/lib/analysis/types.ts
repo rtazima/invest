@@ -1,4 +1,16 @@
-export type Archetype = 'financeiras' | 'asset_light' | 'capital_intensivo' | 'commodity' | 'utility';
+export type Archetype = 'financeiras' | 'asset_light' | 'capital_intensivo' | 'commodity' | 'utility' | 'tech';
+
+export type TechSubsegment = 'ia' | 'cloud' | 'semicondutores' | 'ciberseguranca' | 'computacao_quantica' | 'saas' | 'outros_tech';
+
+export const TECH_SUBSEGMENT_LABELS: Record<TechSubsegment, string> = {
+  ia:                  'Inteligência Artificial',
+  cloud:               'Cloud',
+  semicondutores:      'Semicondutores',
+  ciberseguranca:      'Cibersegurança',
+  computacao_quantica: 'Computação Quântica',
+  saas:                'SaaS / Software',
+  outros_tech:         'Outros Tech',
+};
 export type SemaphoreState = 'ok' | 'warning' | 'critical' | 'informational' | 'missing';
 export type Recommendation = 'buy' | 'hold' | 'sell' | 'avoid' | 'reduce';
 export type QualityScore = 'high' | 'medium' | 'low';
@@ -58,17 +70,19 @@ export interface AnalysisResult {
 }
 
 export const ARCHETYPE_LABELS: Record<Archetype, string> = {
-  financeiras: 'Financeiras',
-  asset_light: 'Asset-Light',
-  capital_intensivo: 'Capital-Intensivo',
-  commodity: 'Commodity',
-  utility: 'Utility',
+  financeiras:      'Financeiras',
+  asset_light:      'Asset-Light',
+  capital_intensivo:'Capital-Intensivo',
+  commodity:        'Commodity',
+  utility:          'Utility',
+  tech:             'Tech',
 };
 
 export const ARCHETYPE_COLORS: Record<Archetype, string> = {
-  financeiras: 'oklch(0.65 0.12 250)',
-  asset_light: 'oklch(0.65 0.13 160)',
-  capital_intensivo: 'oklch(0.65 0.12 30)',
-  commodity: 'oklch(0.65 0.12 55)',
-  utility: 'oklch(0.65 0.10 290)',
+  financeiras:      'oklch(0.65 0.12 250)',
+  asset_light:      'oklch(0.65 0.13 160)',
+  capital_intensivo:'oklch(0.65 0.12 30)',
+  commodity:        'oklch(0.65 0.12 55)',
+  utility:          'oklch(0.65 0.10 290)',
+  tech:             'oklch(0.65 0.15 195)',
 };
