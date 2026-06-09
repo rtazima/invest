@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { ARCHETYPE_LABELS, ARCHETYPE_COLORS, TECH_SUBSEGMENT_LABELS } from "@/lib/analysis/types";
 import { FII_TYPE_LABELS, FII_TYPE_COLORS } from "@/lib/analysis/fii-types";
 import type { ClientPosition, ClientHolderSummary } from "./types";
@@ -9,6 +9,8 @@ const ALL_LABELS: Record<string, string> = { ...ARCHETYPE_LABELS, ...FII_TYPE_LA
 const ALL_COLORS: Record<string, string> = { ...ARCHETYPE_COLORS, ...FII_TYPE_COLORS };
 
 const CIRCUMFERENCE = 2 * Math.PI * 54;
+const PANEL_W = 360;
+const PANEL_H = 280;
 
 function fmtBrl(v: number) {
   if (v >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`;
@@ -41,70 +43,79 @@ function buildSegments(
       const dashOffset = CIRCUMFERENCE - offset;
       offset += arc;
       return {
-        key,
-        total,
-        pct,
+        key, total, pct,
         label: ALL_LABELS[key] ?? (TECH_SUBSEGMENT_LABELS as Record<string, string>)[key] ?? key,
         color: colorFn(key, i),
-        arc,
-        dashOffset,
+        arc, dashOffset,
       };
     });
 }
 
 const SUBSEG_COLORS = [
-  "oklch(0.65 0.15 195)",
-  "oklch(0.68 0.14 210)",
-  "oklch(0.62 0.16 180)",
-  "oklch(0.70 0.13 220)",
-  "oklch(0.60 0.17 170)",
-  "oklch(0.72 0.12 230)",
+  "oklch(0.65 0.15 195)", "oklch(0.68 0.14 210)", "oklch(0.62 0.16 180)",
+  "oklch(0.70 0.13 220)", "oklch(0.60 0.17 170)", "oklch(0.72 0.12 230)",
   "oklch(0.58 0.14 200)",
 ];
 
-// ─── Painel de detalhe ───────────────────────────────────────────────────────
+// ─── Painel flutuante (position: fixed, não afeta layout) ────────────────────
 
-interface DetailPanelProps {
-  label: string;
-  color: string;
+interface FloatingPanelProps {
+  seg: Segment;
   positions: ClientPosition[];
-  total: number;
+  x: number;
+  y: number;
+  onEnter: () => void;
+  onLeave: () => void;
 }
 
-function DetailPanel({ label, color, positions, total }: DetailPanelProps) {
+function FloatingPanel({ seg, positions, x, y, onEnter, onLeave }: FloatingPanelProps) {
+  const left = Math.min(x + 16, window.innerWidth  - PANEL_W - 16);
+  const top  = Math.min(y + 16, window.innerHeight - PANEL_H - 16);
   const sorted = [...positions].sort((a, b) => b.market_value_brl - a.market_value_brl);
+
   return (
-    <div style={{
-      marginTop: "12px",
-      borderRadius: "6px",
-      border: `1px solid color-mix(in oklch, ${color} 30%, transparent)`,
-      backgroundColor: `color-mix(in oklch, ${color} 6%, var(--color-bg-2))`,
-      overflow: "hidden",
-    }}>
+    <div
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      style={{
+        position: "fixed",
+        left,
+        top,
+        width: PANEL_W,
+        zIndex: 50,
+        borderRadius: "8px",
+        border: `1px solid color-mix(in oklch, ${seg.color} 35%, var(--color-line))`,
+        backgroundColor: "var(--color-bg-2)",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+        overflow: "hidden",
+        pointerEvents: "auto",
+      }}
+    >
       {/* Header */}
       <div style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         padding: "8px 12px",
-        borderBottom: `1px solid color-mix(in oklch, ${color} 20%, transparent)`,
+        borderBottom: `1px solid color-mix(in oklch, ${seg.color} 20%, var(--color-line))`,
+        backgroundColor: `color-mix(in oklch, ${seg.color} 8%, var(--color-bg-2))`,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: color, display: "inline-block" }} />
-          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)" }}>{label}</span>
+          <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: seg.color, display: "inline-block", flexShrink: 0 }} />
+          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)" }}>{seg.label}</span>
         </div>
         <span className="num" style={{ fontSize: "11px", color: "var(--color-text-3)" }}>
-          {fmtBrl(total)} · {sorted.length} ativo{sorted.length !== 1 ? "s" : ""}
+          {fmtBrl(seg.total)} · {(seg.pct * 100).toFixed(1)}%
         </span>
       </div>
       {/* Rows */}
-      <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+      <div style={{ maxHeight: `${PANEL_H - 40}px`, overflowY: "auto" }}>
         {sorted.map((p) => (
           <div
             key={p.id}
             style={{
               display: "grid",
-              gridTemplateColumns: "64px 1fr 1fr auto",
+              gridTemplateColumns: "60px 1fr 1fr auto",
               alignItems: "center",
               gap: "8px",
               padding: "6px 12px",
@@ -144,6 +155,22 @@ interface DonutProps {
 
 function DonutChart({ title, segments, positionsByKey, sectionTotal, portfolioTotal, centerLabel }: DonutProps) {
   const [hovered, setHovered] = useState<string | null>(null);
+  const [anchorPos, setAnchorPos] = useState<{ x: number; y: number } | null>(null);
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleClose = useCallback(() => {
+    clearTimer.current = setTimeout(() => setHovered(null), 150);
+  }, []);
+
+  const cancelClose = useCallback(() => {
+    if (clearTimer.current) clearTimeout(clearTimer.current);
+  }, []);
+
+  const handleEnter = useCallback((key: string, e: React.MouseEvent) => {
+    cancelClose();
+    setHovered(key);
+    setAnchorPos({ x: e.clientX, y: e.clientY });
+  }, [cancelClose]);
 
   if (segments.length === 0) return null;
 
@@ -152,7 +179,7 @@ function DonutChart({ title, segments, positionsByKey, sectionTotal, portfolioTo
   const center = centerLabel ?? `${segments.length} tipo${segments.length !== 1 ? "s" : ""}`;
 
   return (
-    <div style={{ flex: 1, minWidth: 0 }} onMouseLeave={() => setHovered(null)}>
+    <div style={{ flex: 1, minWidth: 0 }}>
       {/* Título */}
       <div style={{ marginBottom: "12px" }}>
         <span style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-text-3)" }}>
@@ -165,9 +192,14 @@ function DonutChart({ title, segments, positionsByKey, sectionTotal, portfolioTo
 
       {/* Donut + Legenda */}
       <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-        {/* Donut */}
+        {/* Donut SVG */}
         <div style={{ position: "relative", flexShrink: 0 }}>
-          <svg viewBox="-80 -80 160 160" width="130" height="130">
+          <svg
+            viewBox="-80 -80 160 160"
+            width="130"
+            height="130"
+            onMouseLeave={scheduleClose}
+          >
             <circle r="54" fill="none" stroke="var(--color-line)" strokeWidth="18" />
             {segments.map((seg) => (
               <circle
@@ -180,7 +212,7 @@ function DonutChart({ title, segments, positionsByKey, sectionTotal, portfolioTo
                 strokeDashoffset={seg.dashOffset.toFixed(2)}
                 transform="rotate(-90)"
                 style={{ transition: "stroke-width 0.15s ease", cursor: "pointer" }}
-                onMouseEnter={() => setHovered(seg.key)}
+                onMouseEnter={(e) => handleEnter(seg.key, e)}
               />
             ))}
           </svg>
@@ -206,7 +238,8 @@ function DonutChart({ title, segments, positionsByKey, sectionTotal, portfolioTo
             <li
               key={seg.key}
               style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "11.5px", cursor: "default" }}
-              onMouseEnter={() => setHovered(seg.key)}
+              onMouseEnter={(e) => handleEnter(seg.key, e)}
+              onMouseLeave={scheduleClose}
             >
               <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: seg.color, flexShrink: 0 }} />
               <span style={{ color: hovered === seg.key ? "var(--color-text)" : "var(--color-text-2)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -223,13 +256,15 @@ function DonutChart({ title, segments, positionsByKey, sectionTotal, portfolioTo
         </ul>
       </div>
 
-      {/* Painel de detalhe ao hover */}
-      {hoveredSeg && positionsByKey.has(hoveredSeg.key) && (
-        <DetailPanel
-          label={hoveredSeg.label}
-          color={hoveredSeg.color}
+      {/* Painel flutuante — position: fixed, não afeta layout da página */}
+      {hoveredSeg && anchorPos && positionsByKey.has(hoveredSeg.key) && (
+        <FloatingPanel
+          seg={hoveredSeg}
           positions={positionsByKey.get(hoveredSeg.key)!}
-          total={hoveredSeg.total}
+          x={anchorPos.x}
+          y={anchorPos.y}
+          onEnter={cancelClose}
+          onLeave={scheduleClose}
         />
       )}
     </div>
@@ -331,7 +366,6 @@ export function ArchetypeBreakdown({ positions, holders, totalBrl }: Props) {
 
   return (
     <div style={{ padding: "20px" }}>
-      {/* Filtro por titular */}
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "24px" }}>
         <FilterPill active={selectedHolder === null} onClick={() => setSelectedHolder(null)}>
           Todos
