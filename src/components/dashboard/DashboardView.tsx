@@ -33,18 +33,20 @@ interface Props {
   positions: ClientPosition[];
   syncStatuses: InstitutionSyncStatus[];
   totalUsd?: number;
-  totalBrlUsd?: number;
 }
 
-export function DashboardView({ summary, positions, syncStatuses, totalUsd, totalBrlUsd }: Props) {
+export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("global");
   const { live, liveFxRate } = useLivePrices();
   const hasData = summary.totalBrl > 0;
 
-  // Ajuste FX em tempo real: (totalBRL sem USD) + (USD bruto × cotação ao vivo)
+  // Ajuste intraday: parte BRL do DB + parte USD × cotação ao vivo (Yahoo Finance)
+  // live.fxRate = taxa gravada no DB (Open Exchange Rates, ~1x/h)
+  // liveFxRate  = cotação Yahoo Finance (intraday, oscila durante o pregão)
+  // Diferença entre os dois gera o ajuste em tempo real
   const liveAdjustedTotal =
-    live != null && liveFxRate != null && totalBrlUsd != null && totalUsd != null && totalUsd > 0
-      ? live.totalBrl - totalBrlUsd + totalUsd * liveFxRate
+    live != null && liveFxRate != null && live.fxRate != null && totalUsd != null && totalUsd > 0
+      ? live.totalBrl + totalUsd * (liveFxRate - live.fxRate)
       : live?.totalBrl;
 
   // Posições com market_value_brl recalculado pelo câmbio ao vivo para posições USD

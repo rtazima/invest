@@ -103,7 +103,6 @@ export default async function DashboardPage() {
 
   const usdPositions = clientPositions.filter((p) => p.currency === "USD");
   const totalUsd = usdPositions.reduce((sum, p) => sum + p.market_value, 0);
-  const totalBrlUsd = usdPositions.reduce((sum, p) => sum + p.market_value_brl, 0);
 
   return (
     <LivePriceProvider>
@@ -113,7 +112,6 @@ export default async function DashboardPage() {
         positions={clientPositions}
         syncStatuses={syncStatuses}
         totalUsd={totalUsd}
-        totalBrlUsd={totalBrlUsd}
       />
     </LivePriceProvider>
   );
