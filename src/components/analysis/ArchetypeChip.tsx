@@ -1,12 +1,16 @@
-import type { Archetype } from '@/lib/analysis/types';
 import { ARCHETYPE_LABELS, ARCHETYPE_COLORS } from '@/lib/analysis/types';
+import { FII_TYPE_LABELS, FII_TYPE_COLORS } from '@/lib/analysis/fii-types';
+
+const ALL_LABELS: Record<string, string> = { ...ARCHETYPE_LABELS, ...FII_TYPE_LABELS };
+const ALL_COLORS: Record<string, string> = { ...ARCHETYPE_COLORS, ...FII_TYPE_COLORS };
 
 interface Props {
-  archetype: Archetype;
+  archetype: string;
 }
 
 export function ArchetypeChip({ archetype }: Props) {
-  const color = ARCHETYPE_COLORS[archetype];
+  const label = ALL_LABELS[archetype] ?? archetype;
+  const color = ALL_COLORS[archetype] ?? 'var(--color-text-3)';
   return (
     <span
       style={{
@@ -21,7 +25,7 @@ export function ArchetypeChip({ archetype }: Props) {
         lineHeight: '1.4',
       }}
     >
-      {ARCHETYPE_LABELS[archetype]}
+      {label}
     </span>
   );
 }
