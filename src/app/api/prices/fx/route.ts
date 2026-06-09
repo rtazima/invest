@@ -8,6 +8,7 @@ export async function GET() {
     const rate = await fetchUsdBrl();
     return NextResponse.json({ rate, updatedAt: new Date().toISOString() });
   } catch (err) {
+    console.error("[prices/fx]", err instanceof Error ? err.message : err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Erro ao buscar câmbio" },
       { status: 502 },
