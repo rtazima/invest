@@ -152,7 +152,7 @@ function DonutChart({ title, segments, positionsByKey, sectionTotal, portfolioTo
   const center = centerLabel ?? `${segments.length} tipo${segments.length !== 1 ? "s" : ""}`;
 
   return (
-    <div style={{ flex: 1, minWidth: 0 }}>
+    <div style={{ flex: 1, minWidth: 0 }} onMouseLeave={() => setHovered(null)}>
       {/* Título */}
       <div style={{ marginBottom: "12px" }}>
         <span style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-text-3)" }}>
@@ -181,7 +181,6 @@ function DonutChart({ title, segments, positionsByKey, sectionTotal, portfolioTo
                 transform="rotate(-90)"
                 style={{ transition: "stroke-width 0.15s ease", cursor: "pointer" }}
                 onMouseEnter={() => setHovered(seg.key)}
-                onMouseLeave={() => setHovered(null)}
               />
             ))}
           </svg>
@@ -208,7 +207,6 @@ function DonutChart({ title, segments, positionsByKey, sectionTotal, portfolioTo
               key={seg.key}
               style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "11.5px", cursor: "default" }}
               onMouseEnter={() => setHovered(seg.key)}
-              onMouseLeave={() => setHovered(null)}
             >
               <span style={{ width: "8px", height: "8px", borderRadius: "2px", backgroundColor: seg.color, flexShrink: 0 }} />
               <span style={{ color: hovered === seg.key ? "var(--color-text)" : "var(--color-text-2)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
