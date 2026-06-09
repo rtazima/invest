@@ -77,9 +77,9 @@ export interface FiiAnalysisResult {
 
 export interface FiiArchetype {
   ticker: string;
-  fii_type: FiiType;
+  archetype: FiiType;
   subsegment: FiiSubsegment | null;
-  renda_garantida_ate: string | null;
+  asset_class: 'fiis';
 }
 
 export interface FiiPageData {

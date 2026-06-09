@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   const [rulesData, archetypesData, fundamentalsData] = await Promise.all([
     db.from('asset_analysis_rules').select('*').eq('asset_class', 'fiis'),
-    db.from('fii_archetypes').select('*').in('ticker', portfolioTickers),
+    db.from('asset_archetypes').select('*').in('ticker', portfolioTickers).eq('asset_class', 'fiis'),
     db.from('fii_fundamentals').select('*').in('ticker', portfolioTickers).order('fetched_at', { ascending: false }),
   ]);
 
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
         manual_overrides: fund.manual_overrides ?? {},
       };
 
-      const result = computeFiiAnalysis(snap, arch.fii_type as FiiType, arch.subsegment as FiiSubsegment | null, rules);
+      const result = computeFiiAnalysis(snap, arch.archetype as FiiType, arch.subsegment as FiiSubsegment | null, rules);
 
       await db.from('fii_analysis_results').insert({
         ticker: result.ticker,

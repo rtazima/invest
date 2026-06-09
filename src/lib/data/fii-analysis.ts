@@ -50,7 +50,7 @@ export async function getFiiAnalyses(): Promise<{ items: FiiPageData[]; holders:
   const holderIds = [...new Set(rawPositions.map(p => p.holder_id))];
   const [holderRows, archetypes, results, fundamentals, rules] = await Promise.all([
     supabase.from('holders').select('id, name').in('id', holderIds),
-    db.from('fii_archetypes').select('*').in('ticker', tickers),
+    db.from('asset_archetypes').select('*').in('ticker', tickers).eq('asset_class', 'fiis'),
     db.from('fii_analysis_results').select('*').in('ticker', tickers).order('analyzed_at', { ascending: false }),
     db.from('fii_fundamentals').select('*').in('ticker', tickers).order('fetched_at', { ascending: false }),
     db.from('asset_analysis_rules').select('*').eq('asset_class', 'fiis'),
@@ -91,7 +91,7 @@ export async function getFiiAnalyses(): Promise<{ items: FiiPageData[]; holders:
 
   const items = tickers.map(ticker => {
     const arch = archetypeMap.get(ticker) ?? null;
-    const fiiType = arch?.fii_type ?? null;
+    const fiiType = arch?.archetype ?? null;
     const subsegment = (arch?.subsegment ?? null) as FiiSubsegment | null;
     const result = resultMap.get(ticker) ?? null;
     const fund = fundMap.get(ticker) ?? null;
@@ -140,10 +140,8 @@ export async function saveFiiArchetype(
   subsegment: FiiSubsegment | null,
 ): Promise<void> {
   const db = await createUntypedServerClient();
-  const { data: existing } = await db.from('fii_archetypes').select('ticker').eq('ticker', ticker).maybeSingle();
-  if (existing) {
-    await db.from('fii_archetypes').update({ fii_type: fiiType, subsegment, updated_at: new Date().toISOString() }).eq('ticker', ticker);
-  } else {
-    await db.from('fii_archetypes').insert({ ticker, fii_type: fiiType, subsegment });
-  }
+  await db.from('asset_archetypes').upsert(
+    { ticker, archetype: fiiType, subsegment, asset_class: 'fiis' },
+    { onConflict: 'ticker' },
+  );
 }
