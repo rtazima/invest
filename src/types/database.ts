@@ -105,6 +105,231 @@ export type Database = {
           },
         ]
       }
+      asset_analysis_results: {
+        Row: {
+          analyzed_at: string
+          archetype: string | null
+          id: string
+          justifications: Json | null
+          missing_metrics: string[] | null
+          quality_score: string | null
+          recommendation: string | null
+          semaphores: Json | null
+          solvency_override: boolean | null
+          status: string
+          ticker: string
+          trend_downgrade: boolean | null
+          valuation: string | null
+        }
+        Insert: {
+          analyzed_at?: string
+          archetype?: string | null
+          id?: string
+          justifications?: Json | null
+          missing_metrics?: string[] | null
+          quality_score?: string | null
+          recommendation?: string | null
+          semaphores?: Json | null
+          solvency_override?: boolean | null
+          status?: string
+          ticker: string
+          trend_downgrade?: boolean | null
+          valuation?: string | null
+        }
+        Update: {
+          analyzed_at?: string
+          archetype?: string | null
+          id?: string
+          justifications?: Json | null
+          missing_metrics?: string[] | null
+          quality_score?: string | null
+          recommendation?: string | null
+          semaphores?: Json | null
+          solvency_override?: boolean | null
+          status?: string
+          ticker?: string
+          trend_downgrade?: boolean | null
+          valuation?: string | null
+        }
+        Relationships: []
+      }
+      asset_analysis_rules: {
+        Row: {
+          archetype: string | null
+          asset_class: string
+          auto_fetch: boolean | null
+          context_notes: string | null
+          direction: string
+          field_name: string
+          id: string
+          label: string
+          metric_id: string
+          structural: boolean | null
+          threshold_critical: string
+          threshold_ok: string
+          threshold_warning: string
+          trend_window_quarters: number | null
+          unit: string | null
+        }
+        Insert: {
+          archetype?: string | null
+          asset_class?: string
+          auto_fetch?: boolean | null
+          context_notes?: string | null
+          direction: string
+          field_name: string
+          id?: string
+          label: string
+          metric_id: string
+          structural?: boolean | null
+          threshold_critical: string
+          threshold_ok: string
+          threshold_warning: string
+          trend_window_quarters?: number | null
+          unit?: string | null
+        }
+        Update: {
+          archetype?: string | null
+          asset_class?: string
+          auto_fetch?: boolean | null
+          context_notes?: string | null
+          direction?: string
+          field_name?: string
+          id?: string
+          label?: string
+          metric_id?: string
+          structural?: boolean | null
+          threshold_critical?: string
+          threshold_ok?: string
+          threshold_warning?: string
+          trend_window_quarters?: number | null
+          unit?: string | null
+        }
+        Relationships: []
+      }
+      asset_archetypes: {
+        Row: {
+          archetype: string
+          asset_class: string
+          classified_at: string | null
+          classified_by: string | null
+          sector_b3: string | null
+          subsegment: string | null
+          ticker: string
+        }
+        Insert: {
+          archetype: string
+          asset_class?: string
+          classified_at?: string | null
+          classified_by?: string | null
+          sector_b3?: string | null
+          subsegment?: string | null
+          ticker: string
+        }
+        Update: {
+          archetype?: string
+          asset_class?: string
+          classified_at?: string | null
+          classified_by?: string | null
+          sector_b3?: string | null
+          subsegment?: string | null
+          ticker?: string
+        }
+        Relationships: []
+      }
+      asset_fundamentals: {
+        Row: {
+          cresc_rec_5a: number | null
+          div_liq_ebitda: number | null
+          div_liq_patrim: number | null
+          dy: number | null
+          ebitda: number | null
+          ev_ebitda: number | null
+          fetched_at: string
+          id: string
+          liquidez_corr: number | null
+          lucro_liquido: number | null
+          manual_overrides: Json | null
+          marg_bruta: number | null
+          marg_ebit: number | null
+          marg_liquida: number | null
+          market_cap: number | null
+          pl: number | null
+          preco_atual: number | null
+          pvp: number | null
+          raw_brapi: Json | null
+          raw_fundamentus: Json | null
+          receita_liquida: number | null
+          roa: number | null
+          roe: number | null
+          roic: number | null
+          sector_b3: string | null
+          source: string | null
+          ticker: string
+          volume_medio: number | null
+        }
+        Insert: {
+          cresc_rec_5a?: number | null
+          div_liq_ebitda?: number | null
+          div_liq_patrim?: number | null
+          dy?: number | null
+          ebitda?: number | null
+          ev_ebitda?: number | null
+          fetched_at?: string
+          id?: string
+          liquidez_corr?: number | null
+          lucro_liquido?: number | null
+          manual_overrides?: Json | null
+          marg_bruta?: number | null
+          marg_ebit?: number | null
+          marg_liquida?: number | null
+          market_cap?: number | null
+          pl?: number | null
+          preco_atual?: number | null
+          pvp?: number | null
+          raw_brapi?: Json | null
+          raw_fundamentus?: Json | null
+          receita_liquida?: number | null
+          roa?: number | null
+          roe?: number | null
+          roic?: number | null
+          sector_b3?: string | null
+          source?: string | null
+          ticker: string
+          volume_medio?: number | null
+        }
+        Update: {
+          cresc_rec_5a?: number | null
+          div_liq_ebitda?: number | null
+          div_liq_patrim?: number | null
+          dy?: number | null
+          ebitda?: number | null
+          ev_ebitda?: number | null
+          fetched_at?: string
+          id?: string
+          liquidez_corr?: number | null
+          lucro_liquido?: number | null
+          manual_overrides?: Json | null
+          marg_bruta?: number | null
+          marg_ebit?: number | null
+          marg_liquida?: number | null
+          market_cap?: number | null
+          pl?: number | null
+          preco_atual?: number | null
+          pvp?: number | null
+          raw_brapi?: Json | null
+          raw_fundamentus?: Json | null
+          receita_liquida?: number | null
+          roa?: number | null
+          roe?: number | null
+          roic?: number | null
+          sector_b3?: string | null
+          source?: string | null
+          ticker?: string
+          volume_medio?: number | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -477,6 +702,153 @@ export type Database = {
           },
         ]
       }
+      fii_analysis_results: {
+        Row: {
+          analyzed_at: string
+          created_at: string | null
+          fii_type: string | null
+          id: string
+          justifications: Json | null
+          missing_metrics: string[] | null
+          quality_score: string | null
+          recommendation: string | null
+          semaphores: Json | null
+          status: string
+          subsegment: string | null
+          sustainability_override: boolean | null
+          ticker: string
+          trend_downgrade: boolean | null
+          valuation: string | null
+        }
+        Insert: {
+          analyzed_at: string
+          created_at?: string | null
+          fii_type?: string | null
+          id?: string
+          justifications?: Json | null
+          missing_metrics?: string[] | null
+          quality_score?: string | null
+          recommendation?: string | null
+          semaphores?: Json | null
+          status: string
+          subsegment?: string | null
+          sustainability_override?: boolean | null
+          ticker: string
+          trend_downgrade?: boolean | null
+          valuation?: string | null
+        }
+        Update: {
+          analyzed_at?: string
+          created_at?: string | null
+          fii_type?: string | null
+          id?: string
+          justifications?: Json | null
+          missing_metrics?: string[] | null
+          quality_score?: string | null
+          recommendation?: string | null
+          semaphores?: Json | null
+          status?: string
+          subsegment?: string | null
+          sustainability_override?: boolean | null
+          ticker?: string
+          trend_downgrade?: boolean | null
+          valuation?: string | null
+        }
+        Relationships: []
+      }
+      fii_fundamentals: {
+        Row: {
+          cap_rate: number | null
+          concentracao_devedor: number | null
+          concentracao_imovel: number | null
+          concentracao_inquilino: number | null
+          contratos_atipicos_pct: number | null
+          contratos_vencendo_24m: number | null
+          created_at: string | null
+          dy_12m: number | null
+          dy_spread: number | null
+          fetched_at: string
+          high_grade_pct: number | null
+          id: string
+          inadimplencia_cri: number | null
+          inadimplencia_inquilinos: number | null
+          ltv_medio: number | null
+          manual_overrides: Json | null
+          prazo_medio_contratos: number | null
+          preco_atual: number | null
+          pvp: number | null
+          raw_brapi: Json | null
+          sustentabilidade_dist: number | null
+          taxa_administracao: number | null
+          taxa_fof: number | null
+          taxa_ntnb: number | null
+          ticker: string
+          vacancia_financeira: number | null
+          vacancia_fisica: number | null
+          volume_medio: number | null
+        }
+        Insert: {
+          cap_rate?: number | null
+          concentracao_devedor?: number | null
+          concentracao_imovel?: number | null
+          concentracao_inquilino?: number | null
+          contratos_atipicos_pct?: number | null
+          contratos_vencendo_24m?: number | null
+          created_at?: string | null
+          dy_12m?: number | null
+          dy_spread?: number | null
+          fetched_at: string
+          high_grade_pct?: number | null
+          id?: string
+          inadimplencia_cri?: number | null
+          inadimplencia_inquilinos?: number | null
+          ltv_medio?: number | null
+          manual_overrides?: Json | null
+          prazo_medio_contratos?: number | null
+          preco_atual?: number | null
+          pvp?: number | null
+          raw_brapi?: Json | null
+          sustentabilidade_dist?: number | null
+          taxa_administracao?: number | null
+          taxa_fof?: number | null
+          taxa_ntnb?: number | null
+          ticker: string
+          vacancia_financeira?: number | null
+          vacancia_fisica?: number | null
+          volume_medio?: number | null
+        }
+        Update: {
+          cap_rate?: number | null
+          concentracao_devedor?: number | null
+          concentracao_imovel?: number | null
+          concentracao_inquilino?: number | null
+          contratos_atipicos_pct?: number | null
+          contratos_vencendo_24m?: number | null
+          created_at?: string | null
+          dy_12m?: number | null
+          dy_spread?: number | null
+          fetched_at?: string
+          high_grade_pct?: number | null
+          id?: string
+          inadimplencia_cri?: number | null
+          inadimplencia_inquilinos?: number | null
+          ltv_medio?: number | null
+          manual_overrides?: Json | null
+          prazo_medio_contratos?: number | null
+          preco_atual?: number | null
+          pvp?: number | null
+          raw_brapi?: Json | null
+          sustentabilidade_dist?: number | null
+          taxa_administracao?: number | null
+          taxa_fof?: number | null
+          taxa_ntnb?: number | null
+          ticker?: string
+          vacancia_financeira?: number | null
+          vacancia_fisica?: number | null
+          volume_medio?: number | null
+        }
+        Relationships: []
+      }
       holders: {
         Row: {
           birth_date: string | null
@@ -621,6 +993,44 @@ export type Database = {
           },
         ]
       }
+      position_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          market_value: number
+          market_value_brl: number
+          position_id: string
+          price: number | null
+          snapshot_date: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          market_value: number
+          market_value_brl: number
+          position_id: string
+          price?: number | null
+          snapshot_date: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          market_value?: number
+          market_value_brl?: number
+          position_id?: string
+          price?: number | null
+          snapshot_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "position_snapshots_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       position_structure_legs: {
         Row: {
           asset_class: string | null
@@ -736,6 +1146,7 @@ export type Database = {
           quota_value: number | null
           raw_data: Json | null
           ticker: string | null
+          updated_at: string | null
         }
         Insert: {
           asset_class: Database["public"]["Enums"]["asset_class"]
@@ -763,6 +1174,7 @@ export type Database = {
           quota_value?: number | null
           raw_data?: Json | null
           ticker?: string | null
+          updated_at?: string | null
         }
         Update: {
           asset_class?: Database["public"]["Enums"]["asset_class"]
@@ -790,6 +1202,7 @@ export type Database = {
           quota_value?: number | null
           raw_data?: Json | null
           ticker?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -1007,6 +1420,7 @@ export type Database = {
 }
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
@@ -1145,20 +1559,3 @@ export const Constants = {
     },
   },
 } as const
-
-// Convenience aliases
-export type DBHolder = Database["public"]["Tables"]["holders"]["Row"]
-export type DBFamily = Database["public"]["Tables"]["families"]["Row"]
-export type DBFamilyCpf = Database["public"]["Tables"]["family_cpfs"]["Row"]
-export type DBStrategy = Database["public"]["Tables"]["strategies"]["Row"]
-export type DBStrategyAllocation = Database["public"]["Tables"]["strategy_allocations"]["Row"]
-export type DBPosition = Database["public"]["Tables"]["positions"]["Row"]
-export type DBImportBatch = Database["public"]["Tables"]["import_batches"]["Row"]
-export type DBAlert = Database["public"]["Tables"]["alerts"]["Row"]
-export type DBExchangeRate = Database["public"]["Tables"]["exchange_rates"]["Row"]
-export type DBPositionStructure = Database["public"]["Tables"]["position_structures"]["Row"]
-export type DBPositionStructureLeg = Database["public"]["Tables"]["position_structure_legs"]["Row"]
-export type DBCouncilSession = Database["public"]["Tables"]["council_sessions"]["Row"]
-export type DBCouncilParticipant = Database["public"]["Tables"]["council_participants"]["Row"]
-export type DBCouncilMessage = Database["public"]["Tables"]["council_messages"]["Row"]
-export type DBPortfolioSnapshot = Database["public"]["Tables"]["portfolio_snapshots"]["Row"]

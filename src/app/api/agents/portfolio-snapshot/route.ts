@@ -10,7 +10,6 @@ function authorized(req: NextRequest): boolean {
 
 type SupabaseClient = ReturnType<typeof createServiceClient>;
 
-// Replica a lógica de dedup de getLatestPositions usando o service client
 async function getActiveBatchIds(supabase: SupabaseClient): Promise<string[]> {
   const { data: batches } = await supabase
     .from("import_batches")
@@ -55,7 +54,6 @@ export async function POST(req: NextRequest) {
     // 1. Atualiza preços antes de calcular o snapshot
     const priceResult = await refreshPositionPrices();
 
-    // 2. Lê posições ativas (pós-atualização) por holder
     const supabase = createServiceClient();
     const batchIds = await getActiveBatchIds(supabase);
 
@@ -63,26 +61,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Nenhum batch ativo encontrado" }, { status: 400 });
     }
 
+    // 2. Lê posições ativas (pós-atualização)
     const { data: positions, error: posErr } = await supabase
       .from("positions")
-      .select("holder_id, institution, asset_class, currency, market_value_brl")
+      .select("id, holder_id, institution, asset_class, currency, current_price, market_value, market_value_brl")
       .in("batch_id", batchIds);
 
     if (posErr) throw new Error(`positions: ${posErr.message}`);
 
-    const { data: holders } = await supabase
-      .from("holders")
-      .select("id");
+    const { data: holders } = await supabase.from("holders").select("id");
 
     const today = new Date().toISOString().split("T")[0]!;
 
-    // Agrupa por titular
+    // 3. Snapshot por titular (portfolio_snapshots)
     const byHolder = new Map<string, { total: number; byClass: Record<string, number>; byInstitution: Record<string, number> }>();
-
     for (const h of holders ?? []) {
       byHolder.set(h.id, { total: 0, byClass: {}, byInstitution: {} });
     }
-
     for (const pos of positions ?? []) {
       const entry = byHolder.get(pos.holder_id);
       if (!entry) continue;
@@ -92,7 +87,7 @@ export async function POST(req: NextRequest) {
       entry.byInstitution[pos.institution] = (entry.byInstitution[pos.institution] ?? 0) + val;
     }
 
-    const snapshots = [...byHolder.entries()]
+    const holderSnapshots = [...byHolder.entries()]
       .filter(([, v]) => v.total > 0)
       .map(([holderId, v]) => ({
         holder_id: holderId,
@@ -102,20 +97,38 @@ export async function POST(req: NextRequest) {
         breakdown: JSON.parse(JSON.stringify({ byClass: v.byClass, byInstitution: v.byInstitution })) as import("@/types/database").Json,
       }));
 
-    if (snapshots.length === 0) {
-      return NextResponse.json({ message: "Nenhum snapshot gerado (sem posições)" });
-    }
+    // 4. Snapshot por posição individual (position_snapshots)
+    const positionSnapshots = (positions ?? []).map((p) => ({
+      position_id: p.id,
+      snapshot_date: today,
+      price: p.current_price !== null ? Number(p.current_price) : null,
+      market_value: Number(p.market_value),
+      market_value_brl: Number(p.market_value_brl ?? p.market_value),
+    }));
 
-    const { error: upsertErr } = await supabase
-      .from("portfolio_snapshots")
-      .upsert(snapshots, { onConflict: "holder_id,date" });
+    // Upsert ambos em paralelo
+    const [holderUpsert, positionUpsert] = await Promise.all([
+      holderSnapshots.length > 0
+        ? supabase
+            .from("portfolio_snapshots")
+            .upsert(holderSnapshots, { onConflict: "holder_id,date" })
+        : Promise.resolve({ error: null }),
+      positionSnapshots.length > 0
+        ? supabase
+            .from("position_snapshots")
+            .upsert(positionSnapshots, { onConflict: "position_id,snapshot_date" })
+        : Promise.resolve({ error: null }),
+    ]);
 
-    if (upsertErr) throw new Error(`upsert snapshots: ${upsertErr.message}`);
+    if (holderUpsert.error) throw new Error(`upsert portfolio_snapshots: ${holderUpsert.error.message}`);
+    if (positionUpsert.error) throw new Error(`upsert position_snapshots: ${positionUpsert.error.message}`);
 
     return NextResponse.json({
       date: today,
-      snapshots: snapshots.length,
+      holderSnapshots: holderSnapshots.length,
+      positionSnapshots: positionSnapshots.length,
       pricesUpdated: priceResult.updated,
+      pricesSkipped: priceResult.skipped,
       fxRate: priceResult.fxRate,
       errors: priceResult.errors,
     });
