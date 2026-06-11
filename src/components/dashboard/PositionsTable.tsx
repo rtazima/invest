@@ -69,6 +69,14 @@ function fmt0(n: number | null): string {
   return n.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+function fmtQty(n: number | null): string {
+  if (n === null) return "—";
+  if (n === 0) return "0";
+  if (Math.abs(n) < 1) return n.toLocaleString("pt-BR", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+  if (Math.abs(n) < 100) return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  return fmt0(n);
+}
+
 interface Props {
   positions: ClientPosition[];
   totalBrl: number;
@@ -403,7 +411,7 @@ export function PositionsTable({ positions, totalBrl }: Props) {
 
                   {/* Qtd */}
                   <td style={{ padding: "8px", textAlign: "right" }}>
-                    <span className="num">{fmt0(pos.quantity)}</span>
+                    <span className="num">{fmtQty(pos.quantity)}</span>
                   </td>
 
                   {/* Preço médio */}

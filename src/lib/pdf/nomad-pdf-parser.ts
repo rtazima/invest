@@ -233,7 +233,15 @@ export async function parseNomadPdf(
 
     const parsed = parseDataLine(dataLine);
     if (!parsed || parsed.marketValue.lte(0)) continue;
-    const { quantity, price, marketValue } = parsed;
+    let { quantity, price, marketValue } = parsed;
+    // Sanity check: if parsed market value diverges >50% from qty×price, recalculate
+    if (price && price.gt(0)) {
+      const expected = quantity.mul(price);
+      const ratio = marketValue.div(expected);
+      if (ratio.lt(0.5) || ratio.gt(2)) {
+        marketValue = expected;
+      }
+    }
 
     // Extract ticker from descLines
     let ticker: string;
