@@ -10,9 +10,7 @@ function authorized(req: NextRequest): boolean {
 
 type SupabaseClient = ReturnType<typeof createServiceClient>;
 
-type ActiveBatch = { id: string; completed_at: string | null };
-
-async function getActiveBatches(supabase: SupabaseClient): Promise<ActiveBatch[]> {
+async function getActiveBatchIds(supabase: SupabaseClient): Promise<string[]> {
   const { data: batches } = await supabase
     .from("import_batches")
     .select("id, holder_id, institution, filename, source, completed_at")
@@ -44,8 +42,7 @@ async function getActiveBatches(supabase: SupabaseClient): Promise<ActiveBatch[]
     }
   }
 
-  const selectedIds = new Set(selected.values());
-  return batches.filter((b) => selectedIds.has(b.id)).map((b) => ({ id: b.id, completed_at: b.completed_at }));
+  return [...selected.values()];
 }
 
 export async function POST(req: NextRequest) {
@@ -58,32 +55,20 @@ export async function POST(req: NextRequest) {
     const priceResult = await refreshPositionPrices();
 
     const supabase = createServiceClient();
-    const activeBatches = await getActiveBatches(supabase);
-    const batchIds = activeBatches.map((b) => b.id);
+    const activeBatches = await getActiveBatchIds(supabase);
+    const batchIds = activeBatches;
 
     if (batchIds.length === 0) {
       return NextResponse.json({ error: "Nenhum batch ativo encontrado" }, { status: 400 });
     }
 
     // 2. Lê posições ativas (pós-atualização)
-    const { data: rawPositions, error: posErr } = await supabase
+    const { data: positions, error: posErr } = await supabase
       .from("positions")
-      .select("id, holder_id, institution, asset_class, currency, current_price, market_value, market_value_brl, batch_id, ticker, name")
+      .select("id, holder_id, institution, asset_class, currency, current_price, market_value, market_value_brl")
       .in("batch_id", batchIds);
 
     if (posErr) throw new Error(`positions: ${posErr.message}`);
-
-    // Dedup: para o mesmo (holder, institution, ticker/name), mantém só o batch mais recente
-    const batchTs = new Map(activeBatches.map((b) => [b.id, new Date(b.completed_at ?? 0).getTime()]));
-    const posDedup = new Map<string, NonNullable<typeof rawPositions>[0]>();
-    for (const p of rawPositions ?? []) {
-      const key = `${p.holder_id}:${p.institution}:${p.ticker ?? p.name}`;
-      const prev = posDedup.get(key);
-      if (!prev || (batchTs.get(p.batch_id) ?? 0) > (batchTs.get(prev.batch_id) ?? 0)) {
-        posDedup.set(key, p);
-      }
-    }
-    const positions = [...posDedup.values()];
 
     const { data: holders } = await supabase.from("holders").select("id");
 

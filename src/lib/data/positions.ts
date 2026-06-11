@@ -195,24 +195,7 @@ export async function getLatestPositions(holderId?: string): Promise<EnrichedPos
 
   if (error) throw new Error(`getLatestPositions/positions: ${error.message}`);
 
-  // Dedup por posição: quando o mesmo (holder, institution, ticker/name) aparece em
-  // múltiplos batches ativos (xlsx com filenames distintos), mantém só o mais recente.
-  const batchTs = new Map(
-    (batches ?? []).map((b) => [b.id, new Date(b.completed_at ?? 0).getTime()])
-  );
-  const posDedup = new Map<string, (typeof data)[0]>();
-  for (const row of data ?? []) {
-    const key = `${row.holder_id}:${row.institution}:${row.ticker ?? row.name}`;
-    const prev = posDedup.get(key);
-    if (!prev || (batchTs.get(row.batch_id) ?? 0) > (batchTs.get(prev.batch_id) ?? 0)) {
-      posDedup.set(key, row);
-    }
-  }
-  const deduped = [...posDedup.values()].sort(
-    (a, b) => Number(b.market_value_brl ?? 0) - Number(a.market_value_brl ?? 0)
-  );
-
-  const rows = applyTransferFilter(deduped, activeTransfers);
+  const rows = applyTransferFilter(data ?? [], activeTransfers);
   return rows.map(enrichPosition);
 }
 
