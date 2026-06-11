@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { ClientPortfolioSummary } from "./types";
 import { useFlash } from "@/hooks/useFlash";
+import type { HistoryPoint, HistoryPeriod } from "@/app/api/portfolio/history/route";
 
-const PERIODS = ["1D", "1S", "1M", "6M", "1A", "MAX"] as const;
-type Period = (typeof PERIODS)[number];
+const PERIODS: HistoryPeriod[] = ["D", "S", "M", "A", "MAX"];
+
+const PERIOD_STAT_LABEL: Record<HistoryPeriod, string> = {
+  D: "Hoje",
+  S: "7 dias",
+  M: "30 dias",
+  A: "12 meses",
+  MAX: "Histórico",
+};
+
+const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 function fmtBrl(n: number): [string, string] {
   const s = n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -13,41 +23,73 @@ function fmtBrl(n: number): [string, string] {
   return [int, `,${dec}`];
 }
 
-function fmt(n: number): string {
-  return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function fmtAbs(n: number): string {
+  return Math.abs(n).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+interface ChartData {
+  main: string;
+  area: string;
+  lastX: number;
+  lastY: number;
+}
 
-function demoPath(total: number): { main: string; cdi: string } {
-  const h = 150;
+function buildPath(
+  points: { totalBrl: number }[],
+  w = 720,
+  h = 150,
+): ChartData | null {
+  if (points.length < 2) return null;
+
+  const values = points.map((p) => p.totalBrl);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+  const range = maxV - minV || 1;
+  const n = points.length;
+
+  const xs = points.map((_, i) => (i / (n - 1)) * w);
+  const ys = values.map((v) => h - ((v - minV) / range) * (h * 0.75) - h * 0.125);
+
+  const main = xs
+    .map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${(ys[i] ?? 0).toFixed(1)}`)
+    .join(" ");
+  const lastX = xs[n - 1] ?? w;
+  const lastY = ys[n - 1] ?? h * 0.5;
+
+  return { main, area: `${main} L${lastX.toFixed(1)},${h} L0,${h} Z`, lastX, lastY };
+}
+
+function buildAxisLabels(
+  points: HistoryPoint[],
+  period: HistoryPeriod,
+): { label: string; x: number }[] {
+  if (points.length < 2) return [];
   const w = 720;
-  const n = 13;
-  const xs = Array.from({ length: n }, (_, i) => (i / (n - 1)) * w);
-
-  const growth = [1, 1.02, 1.045, 1.038, 1.055, 1.04, 1.07, 1.062, 1.083, 1.091, 1.105, 1.118, 1.13];
-  const maxG = Math.max(...growth);
-  const minG = Math.min(...growth);
-  const mainYs = growth.map((g) => h - ((g - minG) / (maxG - minG)) * (h * 0.75) - h * 0.1);
-
-  const cdiG = Array.from({ length: n }, (_, i) => 1 + (i / (n - 1)) * 0.104);
-  const maxC = Math.max(...cdiG);
-  const minC = Math.min(...cdiG);
-  const cdiYs = cdiG.map((g) => h - ((g - minC) / (maxC - minC)) * (h * 0.55) - h * 0.1);
-
-  const toPath = (ys: number[]) =>
-    xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${(ys[i] ?? 0).toFixed(1)}`).join(" ");
-
-  void total;
-  return { main: toPath(mainYs), cdi: toPath(cdiYs) };
-}
-
-function demoAxisLabels(): string[] {
-  const now = new Date();
-  return Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
-    return MONTHS[d.getMonth()] ?? "";
-  });
+  const n = points.length;
+  const count = Math.min(6, n);
+  const indices = Array.from({ length: count }, (_, i) =>
+    Math.round((i / (count - 1)) * (n - 1)),
+  );
+  const seen = new Set<number>();
+  const result: { label: string; x: number }[] = [];
+  for (const idx of indices) {
+    if (seen.has(idx)) continue;
+    seen.add(idx);
+    const pt = points[idx];
+    if (!pt) continue;
+    // Parse as UTC to avoid timezone shift
+    const d = new Date(`${pt.date}T12:00:00Z`);
+    let label: string;
+    if (period === "A" || period === "MAX") {
+      label = `${MONTHS[d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(2)}`;
+    } else if (period === "D") {
+      label = idx === n - 1 ? "Hoje" : `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+    } else {
+      label = `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    }
+    result.push({ label, x: (idx / (n - 1)) * w });
+  }
+  return result;
 }
 
 interface Props {
@@ -58,15 +100,45 @@ interface Props {
 }
 
 export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: Props) {
-  const [period, setPeriod] = useState<Period>("6M");
+  const [period, setPeriod] = useState<HistoryPeriod>("D");
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const displayTotal = liveTotal ?? summary.totalBrl;
   const flash = useFlash(displayTotal);
   const [int, dec] = fmtBrl(displayTotal);
-  const { main, cdi } = demoPath(displayTotal);
-  const axisLabels = demoAxisLabels();
 
   const holderCount = summary.byHolder.length;
   const instCount = Object.keys(summary.byInstitution).length;
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/portfolio/history?period=${period}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.points) setHistory(data.points as HistoryPoint[]);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [period]);
+
+  // Adiciona o valor live de hoje como último ponto
+  const chartPoints = useMemo<HistoryPoint[]>(() => {
+    const todayStr = new Date().toISOString().split("T")[0]!;
+    const pts = history.filter((p) => p.date !== todayStr);
+    if (displayTotal > 0) pts.push({ date: todayStr, totalBrl: displayTotal });
+    return pts;
+  }, [history, displayTotal]);
+
+  const chart = buildPath(chartPoints);
+  const axisLabels = buildAxisLabels(chartPoints, period);
+
+  // Performance do período
+  const firstValue = chartPoints[0]?.totalBrl ?? 0;
+  const absChange = displayTotal - firstValue;
+  const pctChange = firstValue > 0 ? (absChange / firstValue) * 100 : 0;
+  const positive = pctChange >= 0;
+  const hasStats = chartPoints.length >= 2 && firstValue > 0;
 
   return (
     <div
@@ -116,7 +188,7 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
                 transition: "background-color 0.1s, color 0.1s",
               }}
             >
-              {p}
+              {p === "MAX" ? "+" : p}
             </button>
           ))}
         </div>
@@ -145,29 +217,23 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
 
       {/* Sub-linha de performance */}
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", fontSize: "12.5px" }}>
-        <span>
-          <span style={{ color: "var(--color-text-3)" }}>Hoje</span>
-          {" · "}
-          <span className="num" style={{ color: "var(--color-gain)" }}>+R$ 4.812,30</span>
-          {" · "}
-          <span className="num" style={{ color: "var(--color-gain)" }}>+0,41%</span>
-        </span>
-        <span style={{ width: "1px", height: "12px", backgroundColor: "var(--color-line)" }} />
-        <span>
-          <span style={{ color: "var(--color-text-3)" }}>30d</span>
-          {" · "}
-          <span className="num" style={{ color: "var(--color-gain)" }}>+R$ 28.140,12</span>
-          {" · "}
-          <span className="num" style={{ color: "var(--color-gain)" }}>+2,43%</span>
-        </span>
-        <span style={{ width: "1px", height: "12px", backgroundColor: "var(--color-line)" }} />
-        <span>
-          <span style={{ color: "var(--color-text-3)" }}>12m</span>
-          {" · "}
-          <span className="num" style={{ color: "var(--color-gain)" }}>+11,82%</span>
-          {" · "}
-          <span className="num" style={{ color: "var(--color-text-3)" }}>vs CDI {fmt(10.4)}%</span>
-        </span>
+        {hasStats ? (
+          <span>
+            <span style={{ color: "var(--color-text-3)" }}>{PERIOD_STAT_LABEL[period]}</span>
+            {" · "}
+            <span className="num" style={{ color: positive ? "var(--color-gain)" : "var(--color-loss)" }}>
+              {positive ? "+" : "−"}R$ {fmtAbs(absChange)}
+            </span>
+            {" · "}
+            <span className="num" style={{ color: positive ? "var(--color-gain)" : "var(--color-loss)" }}>
+              {positive ? "+" : "−"}{Math.abs(pctChange).toFixed(2)}%
+            </span>
+          </span>
+        ) : (
+          <span style={{ color: "var(--color-text-3)", fontSize: "12px" }}>
+            {loading ? "carregando histórico…" : "sem histórico para o período"}
+          </span>
+        )}
       </div>
 
       {/* Gráfico SVG */}
@@ -177,7 +243,7 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
           width="100%"
           height="170"
           preserveAspectRatio="none"
-          style={{ display: "block", overflow: "visible" }}
+          style={{ display: "block", overflow: "visible", opacity: loading ? 0.4 : 1, transition: "opacity 0.2s" }}
         >
           <defs>
             <pattern id="grid-bg" width="60" height="34" patternUnits="userSpaceOnUse">
@@ -191,26 +257,26 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
 
           <rect width="720" height="170" fill="url(#grid-bg)" />
 
-          {/* CDI benchmark */}
-          <path d={cdi} fill="none" stroke="oklch(0.5 0 0)" strokeWidth="1" strokeDasharray="3 3" />
-
-          {/* Área de preenchimento */}
-          <path d={`${main} L720,170 L0,170 Z`} fill="url(#hero-fill)" />
-
-          {/* Linha principal */}
-          <path d={main} fill="none" stroke="var(--color-gain)" strokeWidth="1.6" />
-
-          {/* Dot final */}
-          <circle cx="720" cy="60" r="6" fill="var(--color-gain)" fillOpacity="0.25" />
-          <circle cx="720" cy="60" r="3" fill="var(--color-gain)" />
+          {chart ? (
+            <>
+              <path d={chart.area} fill="url(#hero-fill)" />
+              <path d={chart.main} fill="none" stroke="var(--color-gain)" strokeWidth="1.6" />
+              <circle cx={chart.lastX} cy={chart.lastY} r="6" fill="var(--color-gain)" fillOpacity="0.25" />
+              <circle cx={chart.lastX} cy={chart.lastY} r="3" fill="var(--color-gain)" />
+            </>
+          ) : (
+            !loading && (
+              <line x1="0" y1="85" x2="720" y2="85" stroke="var(--color-line)" strokeWidth="1" strokeDasharray="4 4" />
+            )
+          )}
 
           {/* Labels eixo X */}
-          {axisLabels.map((label, i) => (
+          {axisLabels.map(({ label, x }, i) => (
             <text
-              key={label}
-              x={(i / (axisLabels.length - 1)) * 720}
+              key={i}
+              x={x}
               y="165"
-              textAnchor={i === 0 ? "start" : i === axisLabels.length - 1 ? "end" : "middle"}
+              textAnchor={x < 20 ? "start" : x > 700 ? "end" : "middle"}
               fontSize="10.5"
               fill="var(--color-text-3)"
               fontFamily="var(--font-mono)"

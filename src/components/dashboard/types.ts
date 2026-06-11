@@ -3,6 +3,7 @@ export interface ClientHolderSummary {
   name: string;
   slug: string;
   role: string;
+  riskProfile: string | null;
   totalBrl: number;
   byInstitution: Record<string, number>;
   byAssetClass: Record<string, number>;

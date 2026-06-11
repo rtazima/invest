@@ -5,6 +5,7 @@ import { getInstitutionSyncStatuses } from "@/lib/data/sync";
 import { getHolders } from "@/lib/data/holders";
 import { getStructuresForAllHolders } from "@/lib/data/structures";
 import { createUntypedServerClient } from "@/lib/supabase/untyped";
+import { createServerClient } from "@/lib/supabase/server";
 import { DashboardView } from "@/components/dashboard/DashboardView";
 import { PriceRefresher } from "@/components/dashboard/PriceRefresher";
 import { LivePriceProvider } from "@/lib/prices/live-context";
@@ -14,13 +15,21 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Dashboard — Invest" };
 
 export default async function DashboardPage() {
-  const [summary, positions, holders, syncStatuses, structureMap] = await Promise.all([
-    getPortfolioSummary(),
-    getLatestPositions(),
-    getHolders(),
-    getInstitutionSyncStatuses(),
-    getStructuresForAllHolders(),
-  ]);
+  const supabase = await createServerClient();
+
+  const [summary, positions, holders, syncStatuses, structureMap, { data: strategies }] =
+    await Promise.all([
+      getPortfolioSummary(),
+      getLatestPositions(),
+      getHolders(),
+      getInstitutionSyncStatuses(),
+      getStructuresForAllHolders(),
+      supabase.from("strategies").select("holder_id, risk_profile"),
+    ]);
+
+  const riskProfileMap = new Map(
+    (strategies ?? []).map((s) => [s.holder_id, s.risk_profile as string]),
+  );
 
   const holderMap = new Map(holders.map((h) => [h.id, h]));
 
@@ -52,6 +61,7 @@ export default async function DashboardPage() {
       name: h.holder.name,
       slug: h.holder.slug,
       role: h.holder.role,
+      riskProfile: riskProfileMap.get(h.holder.id) ?? null,
       totalBrl: h.totalBrl.toNumber(),
       byInstitution: Object.fromEntries(
         Object.entries(h.byInstitution).map(([k, v]) => [k, v.toNumber()]),

@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { ClientHolderSummary } from "./types";
 import { useFlash } from "@/hooks/useFlash";
+import type { HistoryPoint } from "@/app/api/portfolio/history/route";
 
 const HOLDER_COLORS: Record<string, string> = {
   rodrigo: "oklch(0.65 0.10 240)",
@@ -17,31 +19,37 @@ const HOLDER_METAS: Record<string, string> = {
   benicio: "R$12k/mês 18a",
 };
 
+const RISK_LABELS: Record<string, string> = {
+  conservative: "Conservador",
+  moderate: "Moderado",
+  aggressive: "Arrojado",
+};
+
 function fmtBrl(n: number): [string, string] {
   const s = n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const [int = "0", dec = "00"] = s.split(",");
   return [int, `,${dec}`];
 }
 
-function demoSparkPath(): string {
-  const pts = [0, 4, 2, 6, 3, 8, 5, 9, 7, 10, 8, 12];
-  const maxY = Math.max(...pts);
+function buildSparkPath(points: HistoryPoint[], liveTotal: number | undefined): string | null {
+  const pts = points.map((p) => p.totalBrl);
+  if (liveTotal && liveTotal > 0) pts.push(liveTotal);
+  if (pts.length < 2) return null;
+
+  const minV = Math.min(...pts);
+  const maxV = Math.max(...pts);
+  const range = maxV - minV || 1;
   const w = 64;
   const h = 32;
+
   return pts
-    .map((y, i) => {
+    .map((v, i) => {
       const x = (i / (pts.length - 1)) * w;
-      const yy = h - (y / maxY) * (h * 0.8) - h * 0.05;
-      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${yy.toFixed(1)}`;
+      const y = h - ((v - minV) / range) * (h * 0.8) - h * 0.05;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
     })
     .join(" ");
 }
-
-const RISK_LABELS: Record<string, string> = {
-  conservative: "Conservador",
-  moderate: "Moderado",
-  aggressive: "Arrojado",
-};
 
 interface Props {
   holder: ClientHolderSummary;
@@ -55,8 +63,20 @@ export function HolderCard({ holder, liveTotal, todayPct = 0 }: Props) {
   const displayTotal = liveTotal ?? holder.totalBrl;
   const flash = useFlash(displayTotal);
   const [int, dec] = fmtBrl(displayTotal);
-  const spark = demoSparkPath();
   const positive = todayPct >= 0;
+
+  const [sparkPoints, setSparkPoints] = useState<HistoryPoint[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/portfolio/history?period=M&holder=${holder.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.points) setSparkPoints(data.points as HistoryPoint[]);
+      })
+      .catch(() => {});
+  }, [holder.id]);
+
+  const spark = buildSparkPath(sparkPoints, liveTotal);
 
   const initials = holder.name
     .split(" ")
@@ -64,6 +84,8 @@ export function HolderCard({ holder, liveTotal, todayPct = 0 }: Props) {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  const riskLabel = RISK_LABELS[holder.riskProfile ?? ""] ?? null;
 
   return (
     <div
@@ -98,9 +120,11 @@ export function HolderCard({ holder, liveTotal, todayPct = 0 }: Props) {
           {initials}
         </div>
         <span style={{ fontSize: "12.5px", fontWeight: 500 }}>{holder.name}</span>
-        <span style={{ fontSize: "10.5px", color: "var(--color-text-3)", marginLeft: "auto" }}>
-          {RISK_LABELS[holder.role] ?? "Arrojado"}
-        </span>
+        {riskLabel && (
+          <span style={{ fontSize: "10.5px", color: "var(--color-text-3)", marginLeft: "auto" }}>
+            {riskLabel}
+          </span>
+        )}
       </div>
 
       {/* Patrimônio */}
@@ -120,11 +144,17 @@ export function HolderCard({ holder, liveTotal, todayPct = 0 }: Props) {
       {/* Sparkline */}
       <div style={{ margin: "auto -16px -16px", marginTop: "4px" }}>
         <svg viewBox="0 0 64 32" width="100%" height="40" preserveAspectRatio="none">
-          <path
-            d={`${spark} L64,32 L0,32 Z`}
-            fill={`color-mix(in oklch, ${color} 14%, transparent)`}
-          />
-          <path d={spark} fill="none" stroke={color} strokeWidth="1.25" />
+          {spark ? (
+            <>
+              <path
+                d={`${spark} L64,32 L0,32 Z`}
+                fill={`color-mix(in oklch, ${color} 14%, transparent)`}
+              />
+              <path d={spark} fill="none" stroke={color} strokeWidth="1.25" />
+            </>
+          ) : (
+            <line x1="0" y1="16" x2="64" y2="16" stroke={color} strokeWidth="1" strokeOpacity="0.3" />
+          )}
         </svg>
       </div>
     </div>
