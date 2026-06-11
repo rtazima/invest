@@ -233,8 +233,9 @@ export async function parseNomadPdf(
 
     const parsed = parseDataLine(dataLine);
     if (!parsed || parsed.marketValue.lte(0)) continue;
-    let { quantity, price, marketValue } = parsed;
+    const { quantity, price } = parsed;
     // Sanity check: if parsed market value diverges >50% from qty×price, recalculate
+    let { marketValue } = parsed;
     if (price && price.gt(0)) {
       const expected = quantity.mul(price);
       const ratio = marketValue.div(expected);
