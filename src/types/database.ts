@@ -1536,6 +1536,24 @@ export type CompositeTypes<
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
+// Convenience aliases — regenerated file loses these; restore after each supabase gen
+export type DBHolder = Database["public"]["Tables"]["holders"]["Row"]
+export type DBFamily = Database["public"]["Tables"]["families"]["Row"]
+export type DBFamilyCpf = Database["public"]["Tables"]["family_cpfs"]["Row"]
+export type DBStrategy = Database["public"]["Tables"]["strategies"]["Row"]
+export type DBStrategyAllocation = Database["public"]["Tables"]["strategy_allocations"]["Row"]
+export type DBPosition = Database["public"]["Tables"]["positions"]["Row"]
+export type DBImportBatch = Database["public"]["Tables"]["import_batches"]["Row"]
+export type DBAlert = Database["public"]["Tables"]["alerts"]["Row"]
+export type DBExchangeRate = Database["public"]["Tables"]["exchange_rates"]["Row"]
+export type DBPositionStructure = Database["public"]["Tables"]["position_structures"]["Row"]
+export type DBPositionStructureLeg = Database["public"]["Tables"]["position_structure_legs"]["Row"]
+export type DBCouncilSession = Database["public"]["Tables"]["council_sessions"]["Row"]
+export type DBCouncilParticipant = Database["public"]["Tables"]["council_participants"]["Row"]
+export type DBCouncilMessage = Database["public"]["Tables"]["council_messages"]["Row"]
+export type DBPortfolioSnapshot = Database["public"]["Tables"]["portfolio_snapshots"]["Row"]
+export type DBPositionSnapshot = Database["public"]["Tables"]["position_snapshots"]["Row"]
+
 export const Constants = {
   public: {
     Enums: {

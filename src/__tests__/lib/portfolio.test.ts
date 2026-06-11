@@ -55,6 +55,7 @@ const mockPosition = {
   exchange_rate: null,
   raw_data: null,
   created_at: "2024-01-15T00:00:00Z",
+  updated_at: null,
   // EnrichedPosition fields
   marketValueBrl: new Decimal("3500"),
   pnlDecimal: new Decimal("500"),
