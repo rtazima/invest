@@ -59,6 +59,15 @@ function buildPath(
   return { main, area: `${main} L${lastX.toFixed(1)},${h} L0,${h} Z`, lastX, lastY };
 }
 
+function fmtTimeBrt(isoStr: string): string {
+  const d = new Date(isoStr);
+  // BRT = UTC-3
+  const utcH = d.getUTCHours();
+  const utcM = d.getUTCMinutes();
+  const brtH = (utcH - 3 + 24) % 24;
+  return `${String(brtH).padStart(2, "0")}:${String(utcM).padStart(2, "0")}`;
+}
+
 function buildAxisLabels(
   points: HistoryPoint[],
   period: HistoryPeriod,
@@ -66,7 +75,7 @@ function buildAxisLabels(
   if (points.length < 2) return [];
   const w = 720;
   const n = points.length;
-  const count = Math.min(6, n);
+  const count = Math.min(period === "D" ? 8 : 6, n);
   const indices = Array.from({ length: count }, (_, i) =>
     Math.round((i / (count - 1)) * (n - 1)),
   );
@@ -77,15 +86,18 @@ function buildAxisLabels(
     seen.add(idx);
     const pt = points[idx];
     if (!pt) continue;
-    // Parse as UTC to avoid timezone shift
-    const d = new Date(`${pt.date}T12:00:00Z`);
     let label: string;
-    if (period === "A" || period === "MAX") {
-      label = `${MONTHS[d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(2)}`;
-    } else if (period === "D") {
-      label = idx === n - 1 ? "Hoje" : `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+    if (period === "D") {
+      // pt.date é ISO datetime — mostra HH:MM em BRT
+      label = fmtTimeBrt(pt.date);
     } else {
-      label = `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+      // pt.date é YYYY-MM-DD
+      const d = new Date(`${pt.date}T12:00:00Z`);
+      if (period === "A" || period === "MAX") {
+        label = `${MONTHS[d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(2)}`;
+      } else {
+        label = `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+      }
     }
     result.push({ label, x: (idx / (n - 1)) * w });
   }
