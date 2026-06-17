@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import type { ClientPortfolioSummary } from "./types";
 import { useFlash } from "@/hooks/useFlash";
 import type { HistoryPoint, HistoryPeriod } from "@/app/api/portfolio/history/route";
@@ -23,8 +23,26 @@ function fmtBrl(n: number): [string, string] {
   return [int, `,${dec}`];
 }
 
+function fmtN(n: number): string {
+  return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function fmtAbs(n: number): string {
   return Math.abs(n).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtTimeBrt(isoStr: string): string {
+  const d = new Date(isoStr);
+  const brtH = (d.getUTCHours() - 3 + 24) % 24;
+  return `${String(brtH).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+}
+
+function fmtPointLabel(pt: HistoryPoint, period: HistoryPeriod): string {
+  if (period === "D") return fmtTimeBrt(pt.date);
+  const d = new Date(`${pt.date}T12:00:00Z`);
+  if (period === "A" || period === "MAX")
+    return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  return `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 interface ChartData {
@@ -32,53 +50,30 @@ interface ChartData {
   area: string;
   lastX: number;
   lastY: number;
+  ys: number[];
 }
 
-function buildPath(
-  points: { totalBrl: number }[],
-  w = 720,
-  h = 150,
-): ChartData | null {
+function buildPath(points: { totalBrl: number }[], w = 720, h = 150): ChartData | null {
   if (points.length < 2) return null;
-
   const values = points.map((p) => p.totalBrl);
   const minV = Math.min(...values);
   const maxV = Math.max(...values);
   const range = maxV - minV || 1;
   const n = points.length;
-
   const xs = points.map((_, i) => (i / (n - 1)) * w);
   const ys = values.map((v) => h - ((v - minV) / range) * (h * 0.75) - h * 0.125);
-
-  const main = xs
-    .map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${(ys[i] ?? 0).toFixed(1)}`)
-    .join(" ");
+  const main = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${(ys[i] ?? 0).toFixed(1)}`).join(" ");
   const lastX = xs[n - 1] ?? w;
   const lastY = ys[n - 1] ?? h * 0.5;
-
-  return { main, area: `${main} L${lastX.toFixed(1)},${h} L0,${h} Z`, lastX, lastY };
+  return { main, area: `${main} L${lastX.toFixed(1)},${h} L0,${h} Z`, lastX, lastY, ys };
 }
 
-function fmtTimeBrt(isoStr: string): string {
-  const d = new Date(isoStr);
-  // BRT = UTC-3
-  const utcH = d.getUTCHours();
-  const utcM = d.getUTCMinutes();
-  const brtH = (utcH - 3 + 24) % 24;
-  return `${String(brtH).padStart(2, "0")}:${String(utcM).padStart(2, "0")}`;
-}
-
-function buildAxisLabels(
-  points: HistoryPoint[],
-  period: HistoryPeriod,
-): { label: string; x: number }[] {
+function buildAxisLabels(points: HistoryPoint[], period: HistoryPeriod): { label: string; x: number }[] {
   if (points.length < 2) return [];
   const w = 720;
   const n = points.length;
   const count = Math.min(period === "D" ? 8 : 6, n);
-  const indices = Array.from({ length: count }, (_, i) =>
-    Math.round((i / (count - 1)) * (n - 1)),
-  );
+  const indices = Array.from({ length: count }, (_, i) => Math.round((i / (count - 1)) * (n - 1)));
   const seen = new Set<number>();
   const result: { label: string; x: number }[] = [];
   for (const idx of indices) {
@@ -88,16 +83,12 @@ function buildAxisLabels(
     if (!pt) continue;
     let label: string;
     if (period === "D") {
-      // pt.date é ISO datetime — mostra HH:MM em BRT
       label = fmtTimeBrt(pt.date);
     } else {
-      // pt.date é YYYY-MM-DD
       const d = new Date(`${pt.date}T12:00:00Z`);
-      if (period === "A" || period === "MAX") {
-        label = `${MONTHS[d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(2)}`;
-      } else {
-        label = `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-      }
+      label = (period === "A" || period === "MAX")
+        ? `${MONTHS[d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(2)}`
+        : `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
     }
     result.push({ label, x: (idx / (n - 1)) * w });
   }
@@ -115,6 +106,8 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
   const [period, setPeriod] = useState<HistoryPeriod>("D");
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const chartWrapRef = useRef<HTMLDivElement>(null);
 
   const displayTotal = liveTotal ?? summary.totalBrl;
   const flash = useFlash(displayTotal);
@@ -125,32 +118,48 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
 
   useEffect(() => {
     setLoading(true);
+    setHoverIdx(null);
     fetch(`/api/portfolio/history?period=${period}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.points) setHistory(data.points as HistoryPoint[]);
-      })
+      .then((data) => { if (data?.points) setHistory(data.points as HistoryPoint[]); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [period]);
 
-  // Adiciona o valor live de hoje como último ponto
   const chartPoints = useMemo<HistoryPoint[]>(() => {
     const todayStr = new Date().toISOString().split("T")[0]!;
-    const pts = history.filter((p) => p.date !== todayStr);
-    if (displayTotal > 0) pts.push({ date: todayStr, totalBrl: displayTotal });
+    const pts = period === "D"
+      ? history.filter((p) => !p.date.startsWith(todayStr) || p.date.length > 10)
+      : history.filter((p) => p.date !== todayStr);
+    if (displayTotal > 0) pts.push({ date: new Date().toISOString(), totalBrl: displayTotal });
     return pts;
-  }, [history, displayTotal]);
+  }, [history, displayTotal, period]);
 
   const chart = buildPath(chartPoints);
   const axisLabels = buildAxisLabels(chartPoints, period);
+  const n = chartPoints.length;
 
-  // Performance do período
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!chartWrapRef.current || n < 2) return;
+    const rect = chartWrapRef.current.getBoundingClientRect();
+    const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    setHoverIdx(Math.round(relX * (n - 1)));
+  }, [n]);
+
+  const handleMouseLeave = useCallback(() => setHoverIdx(null), []);
+
+  // Stats: usa ponto hover se existir, senão usa período completo
   const firstValue = chartPoints[0]?.totalBrl ?? 0;
-  const absChange = displayTotal - firstValue;
+  const activeIdx = hoverIdx ?? (n > 0 ? n - 1 : null);
+  const activeValue = activeIdx !== null ? (chartPoints[activeIdx]?.totalBrl ?? displayTotal) : displayTotal;
+  const absChange = activeValue - firstValue;
   const pctChange = firstValue > 0 ? (absChange / firstValue) * 100 : 0;
   const positive = pctChange >= 0;
-  const hasStats = chartPoints.length >= 2 && firstValue > 0;
+  const hasStats = n >= 2 && firstValue > 0;
+
+  const hoverX_svg = hoverIdx !== null && n > 1 ? (hoverIdx / (n - 1)) * 720 : null;
+  const hoverY_svg = hoverIdx !== null && chart ? (chart.ys[hoverIdx] ?? chart.lastY) : null;
+  const activePoint = activeIdx !== null ? chartPoints[activeIdx] : null;
 
   return (
     <div
@@ -173,28 +182,14 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
             {holderCount} titular{holderCount !== 1 ? "es" : ""} · {instCount} instituiç{instCount !== 1 ? "ões" : "ão"}
           </span>
         </div>
-
-        {/* Period switcher */}
-        <div
-          style={{
-            display: "flex",
-            border: "1px solid var(--color-line)",
-            borderRadius: "6px",
-            padding: "2px",
-            gap: "1px",
-          }}
-        >
+        <div style={{ display: "flex", border: "1px solid var(--color-line)", borderRadius: "6px", padding: "2px", gap: "1px" }}>
           {PERIODS.map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
               style={{
-                padding: "2px 8px",
-                borderRadius: "4px",
-                fontSize: "11.5px",
-                fontWeight: 500,
-                border: "none",
-                cursor: "pointer",
+                padding: "2px 8px", borderRadius: "4px", fontSize: "11.5px", fontWeight: 500,
+                border: "none", cursor: "pointer",
                 backgroundColor: period === p ? "var(--color-bg-3)" : "transparent",
                 color: period === p ? "var(--color-text)" : "var(--color-text-3)",
                 transition: "background-color 0.1s, color 0.1s",
@@ -210,33 +205,35 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
       <div style={{ marginBottom: "8px" }}>
         <span className={flash ? `flash-${flash}` : ""} style={{ display: "flex", alignItems: "baseline", gap: "2px" }}>
           <span className="num pv" style={{ fontSize: "14px", color: "var(--color-text-3)" }}>R$</span>
-          <span className="num pv" style={{ fontSize: "44px", fontWeight: 500, lineHeight: 1, letterSpacing: "-0.02em" }}>
-            {int}
-          </span>
+          <span className="num pv" style={{ fontSize: "44px", fontWeight: 500, lineHeight: 1, letterSpacing: "-0.02em" }}>{int}</span>
           <span className="num pv" style={{ fontSize: "28px", color: "var(--color-text-3)" }}>{dec}</span>
         </span>
         {totalUsd != null && totalUsd > 0 && (
           <div className="num pv" style={{ fontSize: "14px", color: "var(--color-text-3)", marginTop: "2px", display: "flex", alignItems: "center", gap: "8px" }}>
             <span>USD {totalUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             {liveFxRate != null && (
-              <span style={{ fontSize: "11px" }}>
-                @ {liveFxRate.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-              </span>
+              <span style={{ fontSize: "11px" }}>@ {liveFxRate.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
             )}
           </div>
         )}
       </div>
 
-      {/* Sub-linha de performance */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", fontSize: "12.5px" }}>
+      {/* Sub-linha: stats do período ou do ponto hover */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", fontSize: "12.5px", minHeight: "18px" }}>
         {hasStats ? (
-          <span>
-            <span style={{ color: "var(--color-text-3)" }}>{PERIOD_STAT_LABEL[period]}</span>
-            {" · "}
+          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ color: "var(--color-text-3)" }}>
+              {hoverIdx !== null && activePoint
+                ? fmtPointLabel(activePoint, period)
+                : PERIOD_STAT_LABEL[period]}
+            </span>
+            {hoverIdx !== null && activePoint ? (
+              <span className="num" style={{ color: "var(--color-text)" }}>R$ {fmtN(activePoint.totalBrl)}</span>
+            ) : null}
+            <span style={{ width: "1px", height: "12px", backgroundColor: "var(--color-line)" }} />
             <span className="num" style={{ color: positive ? "var(--color-gain)" : "var(--color-loss)" }}>
               {positive ? "+" : "−"}R$ {fmtAbs(absChange)}
             </span>
-            {" · "}
             <span className="num" style={{ color: positive ? "var(--color-gain)" : "var(--color-loss)" }}>
               {positive ? "+" : "−"}{Math.abs(pctChange).toFixed(2)}%
             </span>
@@ -249,7 +246,12 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
       </div>
 
       {/* Gráfico SVG */}
-      <div style={{ position: "relative" }}>
+      <div
+        ref={chartWrapRef}
+        style={{ position: "relative", cursor: n >= 2 ? "crosshair" : "default" }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
         <svg
           viewBox="0 0 720 170"
           width="100%"
@@ -273,8 +275,23 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
             <>
               <path d={chart.area} fill="url(#hero-fill)" />
               <path d={chart.main} fill="none" stroke="var(--color-gain)" strokeWidth="1.6" />
-              <circle cx={chart.lastX} cy={chart.lastY} r="6" fill="var(--color-gain)" fillOpacity="0.25" />
-              <circle cx={chart.lastX} cy={chart.lastY} r="3" fill="var(--color-gain)" />
+
+              {/* Crosshair no hover */}
+              {hoverX_svg !== null && hoverY_svg !== null ? (
+                <>
+                  <line
+                    x1={hoverX_svg} y1="0" x2={hoverX_svg} y2="150"
+                    stroke="var(--color-text-3)" strokeWidth="1" strokeDasharray="3 3" strokeOpacity="0.6"
+                  />
+                  <circle cx={hoverX_svg} cy={hoverY_svg} r="5" fill="var(--color-gain)" fillOpacity="0.2" />
+                  <circle cx={hoverX_svg} cy={hoverY_svg} r="3" fill="var(--color-gain)" />
+                </>
+              ) : (
+                <>
+                  <circle cx={chart.lastX} cy={chart.lastY} r="6" fill="var(--color-gain)" fillOpacity="0.25" />
+                  <circle cx={chart.lastX} cy={chart.lastY} r="3" fill="var(--color-gain)" />
+                </>
+              )}
             </>
           ) : (
             !loading && (
@@ -285,13 +302,9 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
           {/* Labels eixo X */}
           {axisLabels.map(({ label, x }, i) => (
             <text
-              key={i}
-              x={x}
-              y="165"
+              key={i} x={x} y="165"
               textAnchor={x < 20 ? "start" : x > 700 ? "end" : "middle"}
-              fontSize="10.5"
-              fill="var(--color-text-3)"
-              fontFamily="var(--font-mono)"
+              fontSize="10.5" fill="var(--color-text-3)" fontFamily="var(--font-mono)"
             >
               {label}
             </text>
