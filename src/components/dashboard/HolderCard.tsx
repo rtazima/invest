@@ -189,9 +189,11 @@ export function HolderCard({ holder, liveTotal, todayPct = 0 }: Props) {
             {hoveredDate && (
               <div style={{ color: "var(--color-text-3)" }}>{fmtTimeBrt(hoveredDate)}</div>
             )}
-            <div className="num" style={{ fontWeight: 500 }}>
-              R$ {hoveredValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
+            {firstValue > 0 && (
+              <div className="num" style={{ fontWeight: 500, color: hoverPositive ? "var(--color-gain)" : "var(--color-loss)" }}>
+                {hoverPositive ? "+" : "−"}R$ {Math.abs(hoveredValue - firstValue).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            )}
             {hoverPct !== null && (
               <div className="num" style={{ color: hoverPositive ? "var(--color-gain)" : "var(--color-loss)" }}>
                 {hoverPositive ? "+" : "−"}{Math.abs(hoverPct).toFixed(2)}%
