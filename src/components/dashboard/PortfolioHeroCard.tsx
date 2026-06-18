@@ -100,11 +100,12 @@ interface Props {
   liveTotal?: number;
   totalUsd?: number;
   liveFxRate?: number | null;
+  period: HistoryPeriod;
+  onPeriodChange: (p: HistoryPeriod) => void;
   onHoveredDateChange?: (date: string | null) => void;
 }
 
-export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate, onHoveredDateChange }: Props) {
-  const [period, setPeriod] = useState<HistoryPeriod>("D");
+export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate, period, onPeriodChange, onHoveredDateChange }: Props) {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
@@ -192,7 +193,7 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate, on
           {PERIODS.map((p) => (
             <button
               key={p}
-              onClick={() => setPeriod(p)}
+              onClick={() => onPeriodChange(p)}
               style={{
                 padding: "2px 8px", borderRadius: "4px", fontSize: "11.5px", fontWeight: 500,
                 border: "none", cursor: "pointer",

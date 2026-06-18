@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
+import type { HistoryPeriod } from "@/app/api/portfolio/history/route";
 import { PortfolioHeroCard } from "./PortfolioHeroCard";
 import { HolderCard } from "./HolderCard";
 import { useLivePrices } from "@/lib/prices/live-context";
@@ -38,7 +39,12 @@ interface Props {
 export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("global");
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const [chartPeriod, setChartPeriod] = useState<HistoryPeriod>("D");
   const handleHoveredDateChange = useCallback((d: string | null) => setHoveredDate(d), []);
+  const handlePeriodChange = useCallback((p: HistoryPeriod) => {
+    setChartPeriod(p);
+    setHoveredDate(null);
+  }, []);
   const { live, liveFxRate } = useLivePrices();
   const hasData = summary.totalBrl > 0;
 
@@ -82,6 +88,8 @@ export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Pr
                 liveTotal={liveAdjustedTotal}
                 totalUsd={totalUsd}
                 liveFxRate={liveFxRate}
+                period={chartPeriod}
+                onPeriodChange={handlePeriodChange}
                 onHoveredDateChange={handleHoveredDateChange}
               />
 
@@ -100,6 +108,7 @@ export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Pr
                     holder={h}
                     liveTotal={live?.byHolder.find((lh) => lh.id === h.id)?.totalBrl}
                     externalHoveredDate={hoveredDate}
+                    period={chartPeriod}
                   />
                 ))}
               </div>

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { ClientHolderSummary } from "./types";
 import { useFlash } from "@/hooks/useFlash";
-import type { HistoryPoint } from "@/app/api/portfolio/history/route";
+import type { HistoryPoint, HistoryPeriod } from "@/app/api/portfolio/history/route";
 
 const HOLDER_COLORS: Record<string, string> = {
   rodrigo: "oklch(0.65 0.10 240)",
@@ -67,9 +67,10 @@ interface Props {
   liveTotal?: number;
   todayPct?: number;
   externalHoveredDate?: string | null;
+  period?: HistoryPeriod;
 }
 
-export function HolderCard({ holder, liveTotal, todayPct = 0, externalHoveredDate }: Props) {
+export function HolderCard({ holder, liveTotal, todayPct = 0, externalHoveredDate, period = "D" }: Props) {
   const color = HOLDER_COLORS[holder.slug] ?? "var(--color-brand)";
   const meta = HOLDER_METAS[holder.slug] ?? "";
   const displayTotal = liveTotal ?? holder.totalBrl;
@@ -100,11 +101,13 @@ export function HolderCard({ holder, liveTotal, todayPct = 0, externalHoveredDat
   }, [externalHoveredDate, sparkPoints, liveTotal]);
 
   useEffect(() => {
-    fetch(`/api/portfolio/history?period=D&holder=${holder.id}`)
+    setSparkPoints([]);
+    setHoverIdx(null);
+    fetch(`/api/portfolio/history?period=${period}&holder=${holder.id}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data?.points) setSparkPoints(data.points as HistoryPoint[]); })
       .catch(() => {});
-  }, [holder.id]);
+  }, [holder.id, period]);
 
   // Combina histórico com valor live atual
   const allPoints = [...sparkPoints];
