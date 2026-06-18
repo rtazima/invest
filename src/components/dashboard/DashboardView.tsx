@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { PortfolioHeroCard } from "./PortfolioHeroCard";
 import { HolderCard } from "./HolderCard";
 import { useLivePrices } from "@/lib/prices/live-context";
@@ -37,6 +37,8 @@ interface Props {
 
 export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("global");
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+  const handleHoveredDateChange = useCallback((d: string | null) => setHoveredDate(d), []);
   const { live, liveFxRate } = useLivePrices();
   const hasData = summary.totalBrl > 0;
 
@@ -80,6 +82,7 @@ export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Pr
                 liveTotal={liveAdjustedTotal}
                 totalUsd={totalUsd}
                 liveFxRate={liveFxRate}
+                onHoveredDateChange={handleHoveredDateChange}
               />
 
               {/* Cards de titular */}
@@ -96,6 +99,7 @@ export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Pr
                     key={h.id}
                     holder={h}
                     liveTotal={live?.byHolder.find((lh) => lh.id === h.id)?.totalBrl}
+                    externalHoveredDate={hoveredDate}
                   />
                 ))}
               </div>

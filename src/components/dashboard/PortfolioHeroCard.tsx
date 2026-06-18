@@ -100,9 +100,10 @@ interface Props {
   liveTotal?: number;
   totalUsd?: number;
   liveFxRate?: number | null;
+  onHoveredDateChange?: (date: string | null) => void;
 }
 
-export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: Props) {
+export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate, onHoveredDateChange }: Props) {
   const [period, setPeriod] = useState<HistoryPeriod>("D");
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,10 +144,15 @@ export function PortfolioHeroCard({ summary, liveTotal, totalUsd, liveFxRate }: 
     if (!chartWrapRef.current || n < 2) return;
     const rect = chartWrapRef.current.getBoundingClientRect();
     const relX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    setHoverIdx(Math.round(relX * (n - 1)));
-  }, [n]);
+    const idx = Math.round(relX * (n - 1));
+    setHoverIdx(idx);
+    onHoveredDateChange?.(chartPoints[idx]?.date ?? null);
+  }, [n, chartPoints, onHoveredDateChange]);
 
-  const handleMouseLeave = useCallback(() => setHoverIdx(null), []);
+  const handleMouseLeave = useCallback(() => {
+    setHoverIdx(null);
+    onHoveredDateChange?.(null);
+  }, [onHoveredDateChange]);
 
   // Stats: usa ponto hover se existir, senão usa período completo
   const firstValue = chartPoints[0]?.totalBrl ?? 0;

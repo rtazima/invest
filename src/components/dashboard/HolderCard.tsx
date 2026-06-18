@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type { ClientHolderSummary } from "./types";
 import { useFlash } from "@/hooks/useFlash";
 import type { HistoryPoint } from "@/app/api/portfolio/history/route";
@@ -66,9 +66,10 @@ interface Props {
   holder: ClientHolderSummary;
   liveTotal?: number;
   todayPct?: number;
+  externalHoveredDate?: string | null;
 }
 
-export function HolderCard({ holder, liveTotal, todayPct = 0 }: Props) {
+export function HolderCard({ holder, liveTotal, todayPct = 0, externalHoveredDate }: Props) {
   const color = HOLDER_COLORS[holder.slug] ?? "var(--color-brand)";
   const meta = HOLDER_METAS[holder.slug] ?? "";
   const displayTotal = liveTotal ?? holder.totalBrl;
@@ -79,6 +80,24 @@ export function HolderCard({ holder, liveTotal, todayPct = 0 }: Props) {
   const [sparkPoints, setSparkPoints] = useState<HistoryPoint[]>([]);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const sparkWrapRef = useRef<HTMLDivElement>(null);
+
+  // Índice correspondente ao hover externo (gráfico principal) — busca pelo timestamp mais próximo
+  const externalHoverIdx = useMemo(() => {
+    if (!externalHoveredDate) return null;
+    const pts = [
+      ...sparkPoints,
+      ...(liveTotal && liveTotal > 0 ? [{ date: new Date().toISOString(), totalBrl: liveTotal }] : []),
+    ];
+    if (pts.length < 2) return null;
+    const targetMs = new Date(externalHoveredDate).getTime();
+    let best = 0;
+    let minDiff = Infinity;
+    pts.forEach((pt, i) => {
+      const diff = Math.abs(new Date(pt.date).getTime() - targetMs);
+      if (diff < minDiff) { minDiff = diff; best = i; }
+    });
+    return best;
+  }, [externalHoveredDate, sparkPoints, liveTotal]);
 
   useEffect(() => {
     fetch(`/api/portfolio/history?period=D&holder=${holder.id}`)
@@ -101,18 +120,21 @@ export function HolderCard({ holder, liveTotal, todayPct = 0 }: Props) {
 
   const handleMouseLeave = useCallback(() => setHoverIdx(null), []);
 
+  // Índice ativo: hover direto tem prioridade sobre o externo (do gráfico principal)
+  const activeHoverIdx = hoverIdx ?? externalHoverIdx;
+
   // Valor e % do ponto hover
   const allValues = [...sparkPoints.map((p) => p.totalBrl), ...(liveTotal && liveTotal > 0 ? [liveTotal] : [])];
   const firstValue = allValues[0] ?? 0;
-  const hoveredValue = hoverIdx !== null ? (allValues[hoverIdx] ?? null) : null;
-  const hoveredDate = hoverIdx !== null ? (sparkPoints[hoverIdx]?.date ?? null) : null;
+  const hoveredValue = activeHoverIdx !== null ? (allValues[activeHoverIdx] ?? null) : null;
+  const hoveredDate = activeHoverIdx !== null ? (sparkPoints[activeHoverIdx]?.date ?? null) : null;
   const hoverPct = hoveredValue !== null && firstValue > 0
     ? ((hoveredValue - firstValue) / firstValue) * 100
     : null;
   const hoverPositive = (hoverPct ?? 0) >= 0;
 
-  const hoverX_svg = hoverIdx !== null && sparkN > 1 ? (hoverIdx / (sparkN - 1)) * 64 : null;
-  const hoverY_svg = hoverIdx !== null && spark ? (spark.ys[hoverIdx] ?? null) : null;
+  const hoverX_svg = activeHoverIdx !== null && sparkN > 1 ? (activeHoverIdx / (sparkN - 1)) * 64 : null;
+  const hoverY_svg = activeHoverIdx !== null && spark ? (spark.ys[activeHoverIdx] ?? null) : null;
 
   const initials = holder.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   const riskLabel = RISK_LABELS[holder.riskProfile ?? ""] ?? null;
@@ -169,13 +191,13 @@ export function HolderCard({ holder, liveTotal, todayPct = 0 }: Props) {
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Tooltip hover */}
-        {hoverIdx !== null && hoveredValue !== null && (
+        {/* Tooltip hover — aparece tanto no hover direto quanto quando sincronizado pelo gráfico principal */}
+        {activeHoverIdx !== null && hoveredValue !== null && (
           <div style={{
             position: "absolute",
             bottom: "44px",
-            left: hoverIdx / (sparkN - 1) < 0.4 ? "8px" : "auto",
-            right: hoverIdx / (sparkN - 1) >= 0.4 ? "8px" : "auto",
+            left: activeHoverIdx / (sparkN - 1) < 0.4 ? "8px" : "auto",
+            right: activeHoverIdx / (sparkN - 1) >= 0.4 ? "8px" : "auto",
             backgroundColor: "var(--color-bg-3)",
             border: "1px solid var(--color-line)",
             borderRadius: "4px",
