@@ -13,8 +13,10 @@ import { TabByInstitution } from "./TabByInstitution";
 import { TabByClass } from "./TabByClass";
 import { TabByIndexer } from "./TabByIndexer";
 import { ArchetypeBreakdown } from "./ArchetypeBreakdown";
+import { ScenarioCard } from "./ScenarioCard";
 import type { ClientPortfolioSummary, ClientPosition } from "./types";
 import type { InstitutionSyncStatus } from "@/lib/data/sync";
+import type { ScenarioView } from "@/lib/scenario/data";
 import Link from "next/link";
 
 const TABS = [
@@ -34,9 +36,10 @@ interface Props {
   positions: ClientPosition[];
   syncStatuses: InstitutionSyncStatus[];
   totalUsd?: number;
+  scenario?: ScenarioView | null;
 }
 
-export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Props) {
+export function DashboardView({ summary, positions, syncStatuses, totalUsd, scenario }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("global");
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [chartPeriod, setChartPeriod] = useState<HistoryPeriod>("D");
@@ -70,6 +73,11 @@ export function DashboardView({ summary, positions, syncStatuses, totalUsd }: Pr
   return (
     <div style={{ display: "flex", gap: "0", position: "relative" }}>
       <div style={{ flex: 1, minWidth: 0 }}>
+        {scenario && (
+          <div style={{ marginBottom: "24px" }}>
+            <ScenarioCard scenario={scenario} />
+          </div>
+        )}
         {!hasData ? (
           <EmptyState />
         ) : (
