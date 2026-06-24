@@ -68,20 +68,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/onboarding", request.url));
   }
 
-  // Rotas protegidas: verifica aal2
-  if (!isPublic) {
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-
-    if (aal?.currentLevel !== "aal2") {
-      const { data: factors } = await supabase.auth.mfa.listFactors();
-      const hasTOTP = (factors?.totp?.length ?? 0) > 0;
-
-      if (!hasTOTP) {
-        return NextResponse.redirect(new URL("/mfa/enroll", request.url));
-      }
-      return NextResponse.redirect(new URL("/mfa/verify", request.url));
-    }
-  }
+  // MFA (segundo fator) desativado por enquanto: login é só e-mail + senha.
+  // Para religar, restaurar a verificação de aal2 aqui (TOTP via /mfa/enroll e /mfa/verify).
 
   return supabaseResponse;
 }

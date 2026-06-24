@@ -2,21 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
-import { setAuthRedirectCookie } from "@/app/(auth)/login/actions";
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-
-// Magic links are clicked in a different browser/device than where they were
-// requested — PKCE fails because the code_verifier isn't in that device's storage.
-// Implicit flow delivers tokens in the URL hash, no verifier needed.
-function createOtpClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url) throw new Error("Variável de ambiente ausente: NEXT_PUBLIC_SUPABASE_URL");
-  if (!key) throw new Error("Variável de ambiente ausente: NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  return createBrowserClient(url, key, { auth: { flowType: "implicit" } });
-}
+import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
   const params = useSearchParams();
@@ -25,56 +11,45 @@ export function LoginForm() {
   const next = params.get("next") ?? "";
 
   const [email, setEmail] = useState(prefillEmail);
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState(errorParam ?? "");
   const [pending, startTransition] = useTransition();
 
-  if (sent) {
-    return (
-      <div style={{ textAlign: "center" }}>
-        <div style={{
-          width: "40px", height: "40px", borderRadius: "50%",
-          backgroundColor: "var(--color-gain-subtle)", border: "1px solid var(--color-gain)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          margin: "0 auto 1rem", fontSize: "20px",
-        }}>
-          ✉
-        </div>
-        <p style={{ color: "var(--color-text)", fontWeight: 500, marginBottom: "0.5rem" }}>
-          Link de acesso enviado
-        </p>
-        <p style={{ color: "var(--color-text-muted)", fontSize: "0.875rem" }}>
-          Verifique seu e-mail e clique no link para entrar.
-        </p>
-      </div>
-    );
-  }
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email) { setError("Informe o e-mail."); return; }
+    if (!email || !password) {
+      setError("Informe e-mail e senha.");
+      return;
+    }
     setError("");
 
     startTransition(async () => {
-      const nextPath = next || "/dashboard";
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (nextPath !== "/dashboard") {
-        await setAuthRedirectCookie(nextPath);
+      if (signInError) {
+        setError(signInError.message);
+        return;
       }
-
-      const supabase = createOtpClient();
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: `${SITE_URL}/auth/callback` },
-      });
-
-      if (otpError) {
-        setError(otpError.message);
-      } else {
-        setSent(true);
-      }
+      // Navegação completa para o middleware/SSR enxergar os cookies de sessão.
+      window.location.assign(next || "/dashboard");
     });
   }
+
+  const inputStyle: React.CSSProperties = {
+    padding: "0.5rem 0.75rem",
+    backgroundColor: "var(--color-bg)",
+    border: "1px solid var(--color-border)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--color-text)",
+    fontSize: "0.875rem",
+    outline: "none",
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: "0.8125rem",
+    color: "var(--color-text-muted)",
+    fontWeight: 500,
+  };
 
   return (
     <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -92,9 +67,7 @@ export function LoginForm() {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-        <label htmlFor="email" style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)", fontWeight: 500 }}>
-          E-mail
-        </label>
+        <label htmlFor="email" style={labelStyle}>E-mail</label>
         <input
           id="email"
           type="email"
@@ -103,15 +76,21 @@ export function LoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="seu@email.com"
-          style={{
-            padding: "0.5rem 0.75rem",
-            backgroundColor: "var(--color-bg)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-md)",
-            color: "var(--color-text)",
-            fontSize: "0.875rem",
-            outline: "none",
-          }}
+          style={inputStyle}
+        />
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+        <label htmlFor="password" style={labelStyle}>Senha</label>
+        <input
+          id="password"
+          type="password"
+          required
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
+          style={inputStyle}
         />
       </div>
 
@@ -130,12 +109,8 @@ export function LoginForm() {
           opacity: pending ? 0.7 : 1,
         }}
       >
-        {pending ? "Enviando..." : "Enviar link de acesso"}
+        {pending ? "Entrando..." : "Entrar"}
       </button>
-
-      <p style={{ fontSize: "0.75rem", color: "var(--color-text-faint)", textAlign: "center" }}>
-        Sem senha — acesso via magic link no e-mail.
-      </p>
 
       <p style={{ fontSize: "0.75rem", color: "var(--color-text-faint)", textAlign: "center" }}>
         Primeiro acesso?{" "}
