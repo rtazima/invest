@@ -5,6 +5,7 @@ import { getInstitutionSyncStatuses } from "@/lib/data/sync";
 import { getHolders } from "@/lib/data/holders";
 import { getStructuresForAllHolders } from "@/lib/data/structures";
 import { getLatestScenario } from "@/lib/scenario/data";
+import { getRecentHouseViews } from "@/lib/research/data";
 import { createUntypedServerClient } from "@/lib/supabase/untyped";
 import { createServerClient } from "@/lib/supabase/server";
 import { DashboardView } from "@/components/dashboard/DashboardView";
@@ -18,16 +19,25 @@ export const metadata: Metadata = { title: "Dashboard — Invest" };
 export default async function DashboardPage() {
   const supabase = await createServerClient();
 
-  const [summary, positions, holders, syncStatuses, structureMap, scenario, { data: strategies }] =
-    await Promise.all([
-      getPortfolioSummary(),
-      getLatestPositions(),
-      getHolders(),
-      getInstitutionSyncStatuses(),
-      getStructuresForAllHolders(),
-      getLatestScenario(),
-      supabase.from("strategies").select("holder_id, risk_profile"),
-    ]);
+  const [
+    summary,
+    positions,
+    holders,
+    syncStatuses,
+    structureMap,
+    scenario,
+    houseViews,
+    { data: strategies },
+  ] = await Promise.all([
+    getPortfolioSummary(),
+    getLatestPositions(),
+    getHolders(),
+    getInstitutionSyncStatuses(),
+    getStructuresForAllHolders(),
+    getLatestScenario(),
+    getRecentHouseViews(),
+    supabase.from("strategies").select("holder_id, risk_profile"),
+  ]);
 
   const riskProfileMap = new Map(
     (strategies ?? []).map((s) => [s.holder_id, s.risk_profile as string]),
@@ -125,6 +135,7 @@ export default async function DashboardPage() {
         syncStatuses={syncStatuses}
         totalUsd={totalUsd}
         scenario={scenario}
+        houseViews={houseViews}
       />
     </LivePriceProvider>
   );

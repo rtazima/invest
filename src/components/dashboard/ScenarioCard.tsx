@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties } from "react";
 import type { ScenarioView, ScenarioCaseView, Freshness } from "@/lib/scenario/data";
+import type { HouseView } from "@/lib/research/data";
 
 const CASE_META = [
   { key: "base", label: "Base", color: "var(--color-info)" },
@@ -125,7 +126,13 @@ function CaseBlock({ c, meta }: { c: ScenarioCaseView; meta: (typeof CASE_META)[
   );
 }
 
-export function ScenarioCard({ scenario }: { scenario: ScenarioView | null }) {
+export function ScenarioCard({
+  scenario,
+  houseViews,
+}: {
+  scenario: ScenarioView | null;
+  houseViews?: HouseView[];
+}) {
   if (!scenario) return null;
 
   return (
@@ -169,6 +176,41 @@ export function ScenarioCard({ scenario }: { scenario: ScenarioView | null }) {
             ))}
           </div>
         </>
+      )}
+
+      {houseViews && houseViews.length > 0 && (
+        <div style={{ marginTop: "16px", borderTop: "1px solid var(--color-line-2)", paddingTop: "12px" }}>
+          <p style={{ margin: "0 0 8px", fontSize: "12px", fontWeight: 600, color: "var(--color-text-2)" }}>
+            Visão das casas
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {houseViews.map((h) => (
+              <div key={h.id}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      color: "var(--color-text)",
+                      backgroundColor: "var(--color-bg-3)",
+                      borderRadius: "3px",
+                      padding: "1px 6px",
+                    }}
+                  >
+                    {h.house}
+                  </span>
+                  {h.report_date && (
+                    <span style={{ fontSize: "11px", color: "var(--color-text-3)" }}>
+                      {new Date(h.report_date + "T00:00:00").toLocaleDateString("pt-BR")}
+                    </span>
+                  )}
+                </div>
+                <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--color-text-2)" }}>{h.summary}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </section>
   );
