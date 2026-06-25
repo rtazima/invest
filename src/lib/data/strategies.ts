@@ -1,4 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server";
+import { createUntypedServerClient } from "@/lib/supabase/untyped";
 import type { DBStrategy, DBStrategyAllocation } from "@/types/database";
 
 export interface StrategyWithAllocations extends DBStrategy {
@@ -54,4 +55,26 @@ export async function upsertAllocations(
     .insert(allocations.map((a) => ({ ...a, strategy_id: strategyId })));
 
   if (insError) throw new Error(`upsertAllocations insert: ${insError.message}`);
+}
+
+// Grava um snapshot versionado da política (estratégia + alocações) para auditoria.
+// Chamar após cada alteração salva.
+export async function recordStrategyVersion(holderId: string): Promise<void> {
+  const strategy = await getStrategy(holderId);
+  if (!strategy) return;
+
+  const auth = await createServerClient();
+  const {
+    data: { user },
+  } = await auth.auth.getUser();
+
+  const db = await createUntypedServerClient();
+  const { error } = await db.from("strategy_versions").insert({
+    holder_id: holderId,
+    strategy_id: strategy.id,
+    snapshot: strategy,
+    changed_by: user?.id ?? null,
+  });
+  // auditoria não deve quebrar o salvamento; loga e segue
+  if (error) console.error(`recordStrategyVersion: ${error.message}`);
 }

@@ -2,8 +2,9 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
-import { upsertStrategy, upsertAllocations, getStrategy } from "@/lib/data/strategies";
+import { upsertStrategy, upsertAllocations, getStrategy, recordStrategyVersion } from "@/lib/data/strategies";
 import { getHolder } from "@/lib/data/holders";
+import { validateProposedAllocations } from "@/lib/policy/validate";
 import type { Enums } from "@/types/database";
 
 interface StrategyFormData {
@@ -29,6 +30,7 @@ export async function saveStrategyAction(holderId: string, data: StrategyFormDat
     restricted_assets: null,
     notes: data.notes,
   });
+  await recordStrategyVersion(holderId);
   revalidatePath(`/holders/${holderId}/strategy`);
   revalidatePath("/holders");
 }
@@ -133,9 +135,21 @@ Regras: inclua só classes relevantes para o perfil; tolerance_pct entre 3-10; s
   const parsed = JSON.parse(jsonMatch[0]) as AllocationSuggestion;
   if (!Array.isArray(parsed.allocations)) throw new Error("Formato de resposta inválido.");
 
-  // Ensure sum = 100 (correct rounding errors)
-  const sum = parsed.allocations.reduce((s, a) => s + a.target_pct, 0);
-  if (Math.abs(sum - 100) > 2) throw new Error(`Alocações somam ${sum}% — esperado 100%.`);
+  // Motor determinístico valida a sugestão da IA contra a política. Nenhuma
+  // sugestão com violação crítica (soma, liquidez mínima, classe restrita) passa.
+  const violations = validateProposedAllocations(
+    {
+      liquidity_min_pct: input.liquidity_min_pct,
+      restricted_assets: null,
+      max_loss_pct: null,
+      max_single_asset_pct: null,
+    },
+    parsed.allocations,
+  );
+  const critical = violations.filter((v) => v.severity === "critical");
+  if (critical.length > 0) {
+    throw new Error(`Sugestão viola a política: ${critical.map((v) => v.message).join(" ")}`);
+  }
 
   return parsed;
 }
@@ -161,6 +175,7 @@ export async function saveAllocationsAction(
     })),
   );
 
+  await recordStrategyVersion(holderId);
   revalidatePath(`/holders/${holderId}/strategy`);
   revalidatePath("/dashboard");
 }
