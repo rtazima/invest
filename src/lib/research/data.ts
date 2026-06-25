@@ -81,3 +81,43 @@ export async function getResearchReports(): Promise<ResearchReportView[]> {
     observations: obsByReport.get(r.id) ?? [],
   }));
 }
+
+export interface HouseView {
+  id: string;
+  house: string;
+  report_date: string | null;
+  title: string | null;
+  summary: string;
+}
+
+interface HouseViewRow {
+  id: string;
+  house: string;
+  report_date: string | null;
+  title: string | null;
+  scenario_summary: string | null;
+  ingested_at: string;
+}
+
+// Visão macro das casas, por família. Alimenta o card de cenário ao lado do dado
+// público do BCB/FRED. Per-família: o research de uma família nunca aparece em outra.
+export async function getRecentHouseViews(limit = 4): Promise<HouseView[]> {
+  const db = await createUntypedServerClient();
+  const { data } = await db
+    .from("research_reports")
+    .select("id, house, report_date, title, scenario_summary, ingested_at")
+    .eq("report_type", "macro")
+    .not("scenario_summary", "is", null)
+    .order("ingested_at", { ascending: false })
+    .limit(limit);
+
+  return ((data as HouseViewRow[] | null) ?? [])
+    .filter((r) => r.scenario_summary && r.scenario_summary.trim())
+    .map((r) => ({
+      id: r.id,
+      house: r.house,
+      report_date: r.report_date,
+      title: r.title,
+      summary: r.scenario_summary as string,
+    }));
+}
