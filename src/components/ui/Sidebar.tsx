@@ -54,6 +54,16 @@ const NAV_ITEMS = [
     ],
   },
   {
+    href: "/research",
+    label: "Research",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M3 1.5h7l3 3V14a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V2a.5.5 0 0 1 .5-.5Z" />
+        <path d="M9.5 1.5V5h3.5M5 8h6M5 11h4" />
+      </svg>
+    ),
+  },
+  {
     href: "/positions",
     label: "Ativos",
     icon: (
