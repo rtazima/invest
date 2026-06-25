@@ -1,6 +1,6 @@
 # Runbook — Agentes de monitoramento
 
-Três agentes autônomos rodam via cron na VM GCP (Amaia) e via API REST protegida por `AGENT_SECRET`.
+Agentes autônomos rodam via cron na VM GCP (Amaia) e via API REST protegida por `AGENT_SECRET`.
 
 ---
 
@@ -8,9 +8,11 @@ Três agentes autônomos rodam via cron na VM GCP (Amaia) e via API REST protegi
 
 | Agente | Rota | Frequência | Modelo |
 |---|---|---|---|
-| strategy-check | `POST /api/agents/strategy-check` | 2×/dia (8h e 18h) | Supabase direto |
-| news-monitoring | `POST /api/agents/news-monitoring` | 2×/dia (8h e 18h) | Claude Haiku |
-| fundamental-analysis | `POST /api/agents/fundamental-analysis` | 1×/mês | Claude Opus 4.7 |
+| strategy-check | `POST /api/agents/strategy-check` | diário 7h BRT | Supabase direto |
+| news-monitoring | `POST /api/agents/news-monitoring` | diário 8h BRT | Claude Haiku |
+| fundamental-analysis | `POST /api/agents/fundamental-analysis` | dia 1 do mês, 9h BRT | Claude Opus 4.7 |
+| macro-scenario | `POST /api/agents/macro-scenario` | segundas 9h BRT (após Focus) | Claude Opus 4.7 |
+| research-target-check | `POST /api/agents/research-target-check` | dias úteis 19h30 BRT | Supabase direto |
 
 Todos têm `maxDuration = 300` (segundos). Header obrigatório: `x-agent-secret: $AGENT_SECRET`.
 
@@ -38,13 +40,17 @@ Resposta esperada: `{"analyzed": N, "created": M}` — onde `created` é o núme
 
 ## Cron na VM GCP (Amaia)
 
+Horários em UTC (BRT = UTC−3). Secret hardcoded no crontab. Log em `/home/tazima/amaia-agent/data/invest-agents.log`.
+
 ```
-0 8,18 * * 1-5  curl -s -X POST https://project-cfwnl.vercel.app/api/agents/strategy-check  -H "x-agent-secret: $AGENT_SECRET"
-0 8,18 * * 1-5  curl -s -X POST https://project-cfwnl.vercel.app/api/agents/news-monitoring   -H "x-agent-secret: $AGENT_SECRET"
-0 1   1 * *     curl -s -X POST https://project-cfwnl.vercel.app/api/agents/fundamental-analysis -H "x-agent-secret: $AGENT_SECRET"
+0 10  * * *    curl -s -X POST .../api/agents/strategy-check         -H "x-agent-secret: $AGENT_SECRET"
+0 11  * * *    curl -s -X POST .../api/agents/news-monitoring        -H "x-agent-secret: $AGENT_SECRET"
+0 12  1 * *    curl -s -X POST .../api/agents/fundamental-analysis   -H "x-agent-secret: $AGENT_SECRET"
+0 12  * * 1    curl -s -X POST .../api/agents/macro-scenario         -H "x-agent-secret: $AGENT_SECRET"
+30 22 * * 1-5  curl -s -X POST .../api/agents/research-target-check  -H "x-agent-secret: $AGENT_SECRET"
 ```
 
-Para editar: `crontab -e` na Amaia. O `$AGENT_SECRET` deve estar no ambiente ou hardcoded no crontab.
+Para editar: `crontab -e` na Amaia (host `amaia-bot...amaia-agent`, projeto `amaia-agent`). Backups do crontab ficam em `data/crontab.bak.*`. `macro-scenario` tem idempotência semanal (responde `skipped` se o cenário da semana já existe). `research-target-check` roda após o snapshot EOD para usar preços de fechamento.
 
 ---
 
@@ -70,6 +76,19 @@ Para editar: `crontab -e` na Amaia. O `$AGENT_SECRET` deve estar no ambiente ou 
 - Claude Opus 4.7 analisa e devolve `{verdict, severity, qualitative, quantitative, valuation, summary}`
 - Description inclui `"NomeTitular · R$ valor"` da posição e link de gráfico como `sources[0]`
 - Janela de deduplicação: 25 dias (600h)
+
+### macro-scenario
+- Gera o cenário macro global (BCB Focus/SGS + FRED EUA) com Claude Opus, saída validada por schema
+- Grava em `scenario_definitions` (global) e registra a execução em `agent_runs`
+- Idempotência por semana ISO: não recria o cenário da semana (responde `skipped`)
+- Não usa dado de família; alimenta o card de cenário do dashboard
+
+### research-target-check
+- Cruza o preço-alvo das `research_observations` da família com as posições (ações/ETF)
+- Alerta quando o papel está acima do alvo (esticado) ou tem recomendação de venda
+- Régua de poucas casas (visão da casa / consenso), validade de 120 dias, moeda e materialidade mínima (R$ 5k)
+- Janela de deduplicação: 7 dias
+- Depende de research com preço-alvo importado em `/research`
 
 ---
 
