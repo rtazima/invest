@@ -2,7 +2,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
-import { upsertStrategy, upsertAllocations, getStrategy, recordStrategyVersion } from "@/lib/data/strategies";
+import { upsertStrategy, upsertAllocations, getStrategy, recordStrategyVersion, updatePolicyLimits } from "@/lib/data/strategies";
 import { getHolder } from "@/lib/data/holders";
 import { validateProposedAllocations } from "@/lib/policy/validate";
 import type { Enums } from "@/types/database";
@@ -15,6 +15,9 @@ interface StrategyFormData {
   goal_target_age: number | null;
   liquidity_min_pct: number;
   deviation_threshold_pct: number;
+  max_loss_pct: number | null;
+  max_single_asset_pct: number | null;
+  restricted_assets: string[] | null;
   notes: string | null;
 }
 
@@ -27,9 +30,10 @@ export async function saveStrategyAction(holderId: string, data: StrategyFormDat
     goal_target_age: data.goal_target_age,
     liquidity_min_pct: data.liquidity_min_pct,
     deviation_threshold_pct: data.deviation_threshold_pct,
-    restricted_assets: null,
+    restricted_assets: data.restricted_assets,
     notes: data.notes,
   });
+  await updatePolicyLimits(holderId, data.max_loss_pct, data.max_single_asset_pct);
   await recordStrategyVersion(holderId);
   revalidatePath(`/holders/${holderId}/strategy`);
   revalidatePath("/holders");
