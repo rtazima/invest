@@ -4,6 +4,9 @@ import type { DBStrategy, DBStrategyAllocation } from "@/types/database";
 
 export interface StrategyWithAllocations extends DBStrategy {
   allocations: DBStrategyAllocation[];
+  // colunas novas (migration 0045) ainda fora dos tipos gerados
+  max_loss_pct?: number | null;
+  max_single_asset_pct?: number | null;
 }
 
 export async function getStrategy(holderId: string): Promise<StrategyWithAllocations | null> {
@@ -55,6 +58,21 @@ export async function upsertAllocations(
     .insert(allocations.map((a) => ({ ...a, strategy_id: strategyId })));
 
   if (insError) throw new Error(`upsertAllocations insert: ${insError.message}`);
+}
+
+// Atualiza os limites de política que ainda não estão nos tipos gerados
+// (perda máxima e concentração). Usa client untyped.
+export async function updatePolicyLimits(
+  holderId: string,
+  maxLossPct: number | null,
+  maxSingleAssetPct: number | null,
+): Promise<void> {
+  const db = await createUntypedServerClient();
+  const { error } = await db
+    .from("strategies")
+    .update({ max_loss_pct: maxLossPct, max_single_asset_pct: maxSingleAssetPct })
+    .eq("holder_id", holderId);
+  if (error) throw new Error(`updatePolicyLimits: ${error.message}`);
 }
 
 // Grava um snapshot versionado da política (estratégia + alocações) para auditoria.

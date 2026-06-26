@@ -57,6 +57,13 @@ export function StrategyPanel({ holder, strategy }: Props) {
     ((strategy?.deviation_threshold_pct ?? 0.05) * 100).toFixed(0),
   );
   const [notes, setNotes] = useState(strategy?.notes ?? "");
+  const [maxLoss, setMaxLoss] = useState(
+    strategy?.max_loss_pct != null ? (strategy.max_loss_pct * 100).toFixed(0) : "",
+  );
+  const [maxConc, setMaxConc] = useState(
+    strategy?.max_single_asset_pct != null ? (strategy.max_single_asset_pct * 100).toFixed(0) : "",
+  );
+  const [restricted, setRestricted] = useState((strategy?.restricted_assets ?? []).join(", "));
 
   function handleSaveProfile() {
     startTransition(async () => {
@@ -68,6 +75,12 @@ export function StrategyPanel({ holder, strategy }: Props) {
         goal_target_age: goalAge ? parseInt(goalAge) : null,
         liquidity_min_pct: parseFloat(liqMin) / 100,
         deviation_threshold_pct: parseFloat(threshold) / 100,
+        max_loss_pct: maxLoss ? parseFloat(maxLoss) / 100 : null,
+        max_single_asset_pct: maxConc ? parseFloat(maxConc) / 100 : null,
+        restricted_assets: restricted
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
         notes: notes || null,
       });
       setEditing(false);
@@ -119,7 +132,7 @@ export function StrategyPanel({ holder, strategy }: Props) {
                 {strategy.goal_description}
               </p>
             )}
-            <div style={{ display: "flex", gap: "24px", fontSize: "12.5px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "16px 24px", fontSize: "12.5px" }}>
               <span>
                 <span style={{ color: "var(--color-text-3)" }}>Liquidez mín.: </span>
                 <span className="num">{(strategy.liquidity_min_pct * 100).toFixed(0)}%</span>
@@ -128,7 +141,24 @@ export function StrategyPanel({ holder, strategy }: Props) {
                 <span style={{ color: "var(--color-text-3)" }}>Threshold: </span>
                 <span className="num">{(strategy.deviation_threshold_pct * 100).toFixed(0)}%</span>
               </span>
+              {strategy.max_loss_pct != null && (
+                <span>
+                  <span style={{ color: "var(--color-text-3)" }}>Perda máx.: </span>
+                  <span className="num">{(strategy.max_loss_pct * 100).toFixed(0)}%</span>
+                </span>
+              )}
+              {strategy.max_single_asset_pct != null && (
+                <span>
+                  <span style={{ color: "var(--color-text-3)" }}>Concentração máx.: </span>
+                  <span className="num">{(strategy.max_single_asset_pct * 100).toFixed(0)}%</span>
+                </span>
+              )}
             </div>
+            {strategy.restricted_assets && strategy.restricted_assets.length > 0 && (
+              <p style={{ margin: 0, fontSize: "12.5px", color: "var(--color-text-3)" }}>
+                Restritos: <span style={{ color: "var(--color-text-2)" }}>{strategy.restricted_assets.join(", ")}</span>
+              </p>
+            )}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -210,6 +240,30 @@ export function StrategyPanel({ holder, strategy }: Props) {
                   style={inputStyle}
                 />
               </div>
+              <div>
+                <label style={labelStyle}>Perda máxima tolerada (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={maxLoss}
+                  onChange={(e) => setMaxLoss(e.target.value)}
+                  placeholder="Ex: 20"
+                  style={inputStyle}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Concentração máx. por ativo (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={maxConc}
+                  onChange={(e) => setMaxConc(e.target.value)}
+                  placeholder="Ex: 10"
+                  style={inputStyle}
+                />
+              </div>
             </div>
 
             <div>
@@ -219,6 +273,17 @@ export function StrategyPanel({ holder, strategy }: Props) {
                 value={goalDesc}
                 onChange={(e) => setGoalDesc(e.target.value)}
                 placeholder="Ex: Renda passiva para complementar gastos"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Classes/ativos restritos (separe por vírgula)</label>
+              <input
+                type="text"
+                value={restricted}
+                onChange={(e) => setRestricted(e.target.value)}
+                placeholder="Ex: stocks_intl, etf_intl"
                 style={inputStyle}
               />
             </div>
