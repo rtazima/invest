@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { createAlertDeduped } from "@/lib/data/alerts";
+import { validatePortfolioState } from "@/lib/policy/validate";
 import type { Database } from "@/types/database";
 import Decimal from "decimal.js";
 
@@ -45,16 +46,23 @@ export async function runStrategyAlignmentCheck(): Promise<{ created: number }> 
 
   const { data: positions } = await supabase
     .from("positions")
-    .select("holder_id, asset_class, market_value_brl")
+    .select("holder_id, ticker, asset_class, market_value_brl")
     .in("batch_id", batchIds);
 
-  // Totaliza por (holder, asset_class)
+  // Totaliza por (holder, asset_class) e por (holder, ticker)
   const byHolder = new Map<string, Map<string, Decimal>>();
+  const byHolderTicker = new Map<string, Map<string, Decimal>>();
   for (const p of positions ?? []) {
     if (!byHolder.has(p.holder_id)) byHolder.set(p.holder_id, new Map());
     const map = byHolder.get(p.holder_id)!;
     const cur = map.get(p.asset_class) ?? new Decimal(0);
     map.set(p.asset_class, cur.plus(p.market_value_brl ?? 0));
+
+    if (p.ticker) {
+      if (!byHolderTicker.has(p.holder_id)) byHolderTicker.set(p.holder_id, new Map());
+      const tmap = byHolderTicker.get(p.holder_id)!;
+      tmap.set(p.ticker, (tmap.get(p.ticker) ?? new Decimal(0)).plus(p.market_value_brl ?? 0));
+    }
   }
 
   const { data: strategies } = await supabase
@@ -106,6 +114,52 @@ export async function runStrategyAlignmentCheck(): Promise<{ created: number }> 
         supabase,
       );
 
+      if (wasCreated) created++;
+    }
+
+    // Política além das bandas: concentração por ativo, classe restrita, liquidez mínima
+    const byAssetClassPct: Record<string, number> = {};
+    for (const [cls, v] of classMap) byAssetClassPct[cls] = v.div(total).times(100).toNumber();
+    const tickerMap = byHolderTicker.get(holder.id) ?? new Map<string, Decimal>();
+    const holdings = Array.from(tickerMap.entries()).map(([ticker, v]) => ({
+      ticker,
+      pct: v.div(total).times(100).toNumber(),
+    }));
+    const maxConc = (strategy as unknown as { max_single_asset_pct: number | null }).max_single_asset_pct ?? null;
+
+    const policyViolations = validatePortfolioState(
+      {
+        liquidity_min_pct: strategy.liquidity_min_pct,
+        restricted_assets: strategy.restricted_assets,
+        max_loss_pct: null,
+        max_single_asset_pct: maxConc,
+      },
+      [],
+      { byAssetClassPct, holdings, liquidityPct: byAssetClassPct["liquidity"] ?? 0, unrealizedPnlPct: null },
+    )
+      // bandas já são cobertas pelo check acima; liquidez precisa de definição
+      // por liquidity_days (refinamento), então aqui só concentração e restritos
+      .filter((v) => v.kind === "concentration" || v.kind === "restricted");
+
+    for (const v of policyViolations) {
+      const label = v.asset_class ? (ASSET_CLASS_LABELS[v.asset_class] ?? v.asset_class) : null;
+      const title =
+        v.kind === "concentration"
+          ? `${v.ticker} — concentração acima do limite — ${holder.name}`
+          : `${label} — classe restrita na carteira — ${holder.name}`;
+      const wasCreated = await createAlertDeduped(
+        {
+          holder_id: holder.id,
+          ticker: v.ticker ?? v.asset_class ?? undefined,
+          severity: v.severity,
+          title,
+          description: v.message,
+          recommendation: `Revise a alocação de ${holder.name} para reenquadrar à política.`,
+          generated_by: "policy-limit",
+        },
+        48,
+        supabase,
+      );
       if (wasCreated) created++;
     }
   }
