@@ -60,6 +60,24 @@ export async function upsertAllocations(
   if (insError) throw new Error(`upsertAllocations insert: ${insError.message}`);
 }
 
+export interface StrategyVersion {
+  id: string;
+  created_at: string;
+  changed_by: string | null;
+  snapshot: StrategyWithAllocations;
+}
+
+export async function getStrategyVersions(holderId: string): Promise<StrategyVersion[]> {
+  const db = await createUntypedServerClient();
+  const { data } = await db
+    .from("strategy_versions")
+    .select("id, created_at, changed_by, snapshot")
+    .eq("holder_id", holderId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  return (data as StrategyVersion[] | null) ?? [];
+}
+
 // Atualiza os limites de política que ainda não estão nos tipos gerados
 // (perda máxima e concentração). Usa client untyped.
 export async function updatePolicyLimits(

@@ -2,8 +2,16 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { revalidatePath } from "next/cache";
-import { upsertStrategy, upsertAllocations, getStrategy, recordStrategyVersion, updatePolicyLimits } from "@/lib/data/strategies";
+import {
+  upsertStrategy,
+  upsertAllocations,
+  getStrategy,
+  recordStrategyVersion,
+  updatePolicyLimits,
+  getStrategyVersions,
+} from "@/lib/data/strategies";
 import { getHolder } from "@/lib/data/holders";
+import { getLatestScenario } from "@/lib/scenario/data";
 import { validateProposedAllocations } from "@/lib/policy/validate";
 import type { Enums } from "@/types/database";
 
@@ -104,12 +112,18 @@ export async function suggestAllocationsAction(
     .map(([v, l]) => `- ${v}: ${l}`)
     .join("\n");
 
+  const scenario = await getLatestScenario();
+  const scenarioBlock =
+    scenario && scenario.freshness !== "unavailable"
+      ? `\n\nCENÁRIO MACRO ATUAL (use para calibrar a alocação tática dentro do perfil, sem fugir dele):\n${scenario.summary}\nImplicações no cenário base — pré: ${scenario.base.by_class.fixed_income_pre} IPCA+: ${scenario.base.by_class.fixed_income_ipca} pós: ${scenario.base.by_class.fixed_income_pos} FIIs: ${scenario.base.by_class.fiis} bolsa BR: ${scenario.base.by_class.stocks_br} bolsa intl: ${scenario.base.by_class.stocks_intl} dólar: ${scenario.base.by_class.usd}`
+      : "";
+
   const prompt = `Você é um consultor de investimentos brasileiro especializado em gestão de patrimônio familiar.
 
 Dados do investidor:
-${contextLines}
+${contextLines}${scenarioBlock}
 
-Sugira uma alocação estratégica de longo prazo. Use apenas as classes listadas. Os target_pct devem somar exatamente 100. Respeite a liquidez mínima de ${(input.liquidity_min_pct * 100).toFixed(0)}%.
+Sugira uma alocação estratégica de longo prazo coerente com o perfil e com o cenário macro acima. Use apenas as classes listadas. Os target_pct devem somar exatamente 100. Respeite a liquidez mínima de ${(input.liquidity_min_pct * 100).toFixed(0)}%.
 
 Classes disponíveis:
 ${classesList}
@@ -178,6 +192,44 @@ export async function saveAllocationsAction(
       rationale: null,
     })),
   );
+
+  await recordStrategyVersion(holderId);
+  revalidatePath(`/holders/${holderId}/strategy`);
+  revalidatePath("/dashboard");
+}
+
+// Reverte a política para uma versão anterior (rollback auditável).
+export async function revertStrategyAction(holderId: string, versionId: string) {
+  const versions = await getStrategyVersions(holderId);
+  const version = versions.find((v) => v.id === versionId);
+  if (!version) throw new Error("Versão não encontrada.");
+  const s = version.snapshot;
+
+  await upsertStrategy(holderId, {
+    risk_profile: s.risk_profile,
+    investment_horizon_years: s.investment_horizon_years,
+    goal_description: s.goal_description,
+    goal_monthly_income: s.goal_monthly_income,
+    goal_target_age: s.goal_target_age,
+    liquidity_min_pct: s.liquidity_min_pct,
+    deviation_threshold_pct: s.deviation_threshold_pct,
+    restricted_assets: s.restricted_assets,
+    notes: s.notes,
+  });
+  await updatePolicyLimits(holderId, s.max_loss_pct ?? null, s.max_single_asset_pct ?? null);
+
+  const strategy = await getStrategy(holderId);
+  if (strategy && Array.isArray(s.allocations)) {
+    await upsertAllocations(
+      strategy.id,
+      s.allocations.map((a) => ({
+        asset_class: a.asset_class,
+        target_pct: a.target_pct,
+        tolerance_pct: a.tolerance_pct,
+        rationale: a.rationale ?? null,
+      })),
+    );
+  }
 
   await recordStrategyVersion(holderId);
   revalidatePath(`/holders/${holderId}/strategy`);

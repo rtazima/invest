@@ -2,11 +2,12 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getHolder } from "@/lib/data/holders";
-import { getStrategy } from "@/lib/data/strategies";
+import { getStrategy, getStrategyVersions } from "@/lib/data/strategies";
 import { getHolderSummary } from "@/lib/data/portfolio";
 import { RiskProfileBadge } from "@/components/strategy/RiskProfileBadge";
 import { StrategyPanel } from "@/components/strategy/StrategyPanel";
 import { AllocationComparison, type AllocationTarget } from "@/components/strategy/AllocationComparison";
+import { StrategyHistory, type VersionSummary } from "@/components/strategy/StrategyHistory";
 
 interface Props {
   params: Promise<{ holderId: string }>;
@@ -20,11 +21,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function StrategyPage({ params }: Props) {
   const { holderId } = await params;
-  const [holder, strategy, summary] = await Promise.all([
+  const [holder, strategy, summary, versions] = await Promise.all([
     getHolder(holderId),
     getStrategy(holderId),
     getHolderSummary(holderId),
+    getStrategyVersions(holderId),
   ]);
+
+  const versionSummaries: VersionSummary[] = versions.map((v) => ({
+    id: v.id,
+    created_at: v.created_at,
+    risk: v.snapshot?.risk_profile ?? "—",
+    allocCount: Array.isArray(v.snapshot?.allocations) ? v.snapshot.allocations.length : 0,
+  }));
 
   const actualByClass: Record<string, number> = {};
   const actualBrlByClass: Record<string, number> = {};
@@ -98,6 +107,8 @@ export default async function StrategyPage({ params }: Props) {
           />
         </div>
       )}
+
+      <StrategyHistory holderId={holderId} versions={versionSummaries} />
     </div>
   );
 }
