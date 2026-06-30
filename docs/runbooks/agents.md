@@ -13,6 +13,7 @@ Agentes autônomos rodam via cron na VM GCP (Amaia) e via API REST protegida por
 | fundamental-analysis | `POST /api/agents/fundamental-analysis` | dia 1 do mês, 9h BRT | Claude Opus 4.7 |
 | macro-scenario | `POST /api/agents/macro-scenario` | segundas 9h BRT (após Focus) | Claude Opus 4.7 |
 | research-target-check | `POST /api/agents/research-target-check` | dias úteis 19h30 BRT | Supabase direto |
+| weekly-report | `POST /api/agents/weekly-report` | segundas 9h30 BRT (após cenário) | Claude Opus 4.7 |
 
 Todos têm `maxDuration = 300` (segundos). Header obrigatório: `x-agent-secret: $AGENT_SECRET`.
 
@@ -48,6 +49,7 @@ Horários em UTC (BRT = UTC−3). Secret hardcoded no crontab. Log em `/home/taz
 0 12  1 * *    curl -s -X POST .../api/agents/fundamental-analysis   -H "x-agent-secret: $AGENT_SECRET"
 0 12  * * 1    curl -s -X POST .../api/agents/macro-scenario         -H "x-agent-secret: $AGENT_SECRET"
 30 22 * * 1-5  curl -s -X POST .../api/agents/research-target-check  -H "x-agent-secret: $AGENT_SECRET"
+30 12 * * 1    curl -s -X POST .../api/agents/weekly-report          -H "x-agent-secret: $AGENT_SECRET"
 ```
 
 Para editar: `crontab -e` na Amaia (host `amaia-bot...amaia-agent`, projeto `amaia-agent`). Backups do crontab ficam em `data/crontab.bak.*`. `macro-scenario` tem idempotência semanal (responde `skipped` se o cenário da semana já existe). `research-target-check` roda após o snapshot EOD para usar preços de fechamento.
@@ -89,6 +91,12 @@ Para editar: `crontab -e` na Amaia (host `amaia-bot...amaia-agent`, projeto `ama
 - Régua de poucas casas (visão da casa / consenso), validade de 120 dias, moeda e materialidade mínima (R$ 5k)
 - Janela de deduplicação: 7 dias
 - Depende de research com preço-alvo importado em `/research`
+
+### weekly-report
+- Consolida por família: cenário macro + visão das casas + posições em atenção (alertas dos últimos 10 dias) por titular
+- Claude Opus escreve a narrativa por titular e o resumo da família (saída validada por schema)
+- Grava em `weekly_reports` (um por família por semana), idempotente por semana ISO
+- Exibido no card do dashboard (mais recente) e em `/relatorios` (histórico)
 
 ---
 

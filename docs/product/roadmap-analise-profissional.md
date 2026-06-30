@@ -18,14 +18,14 @@ Estado de cada frente do PRD: o que está em produção e o que falta.
 | Campos de política no editor (perda máx, concentração, restritos) + versionamento | `StrategyPanel`, `strategy_versions` | #8 |
 | Alertas de concentração e classe restrita no strategy-check | `src/lib/alerts/strategy.ts` | #9 |
 | Login por e-mail e senha (substitui magic link), MFA desativado por ora | `LoginForm`, `middleware.ts` | — |
+| Fase 4 (parcial) — relatório semanal consolidado (card + `/relatorios`) | `src/lib/reports/`, agente `weekly-report` | #11 |
 
-Tabelas criadas: `scenario_definitions`, `agent_runs`, `research_reports`, `research_observations`, `strategy_versions`. Campos novos em `strategies`: `max_loss_pct`, `max_single_asset_pct`.
+Tabelas criadas: `scenario_definitions`, `agent_runs`, `research_reports`, `research_observations`, `strategy_versions`, `weekly_reports`. Campos novos em `strategies`: `max_loss_pct`, `max_single_asset_pct`.
 
 ## Pendente — próximas frentes
 
-### Fase 4 — sugestões táticas e relatório semanal
-- Relatório semanal consolidado por família e titular (agente `weekly-report`): cenário atual, o que mudou, posições em atenção, ação sugerida. É a unidade de consumo que tira do ruído de alerta avulso.
-- Sugestão de ajuste de meta dentro das bandas, com tela de antes/depois, aprovação versionada e rollback. Usa o motor `validatePortfolioState` que já existe.
+### Fase 4 — sugestões táticas (relatório semanal já entregue, ver acima)
+- Falta: sugestão de ajuste de meta dentro das bandas, com tela de antes/depois, aprovação versionada e rollback. Usa o motor `validatePortfolioState` que já existe.
 - Não depende de parecer jurídico enquanto for só a primeira família.
 
 ### Fase 5 — e-mail automático
