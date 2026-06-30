@@ -29,6 +29,16 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/relatorios",
+    label: "Relatórios",
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="2.5" y="1.5" width="11" height="13" rx="1.5" />
+        <path d="M5 5h6M5 8h6M5 11h4" />
+      </svg>
+    ),
+  },
+  {
     href: "/holders",
     label: "Estratégia",
     icon: (

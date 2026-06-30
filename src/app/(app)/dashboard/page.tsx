@@ -6,6 +6,7 @@ import { getHolders } from "@/lib/data/holders";
 import { getStructuresForAllHolders } from "@/lib/data/structures";
 import { getLatestScenario } from "@/lib/scenario/data";
 import { getRecentHouseViews } from "@/lib/research/data";
+import { getLatestWeeklyReport } from "@/lib/reports/data";
 import { createUntypedServerClient } from "@/lib/supabase/untyped";
 import { createServerClient } from "@/lib/supabase/server";
 import { DashboardView } from "@/components/dashboard/DashboardView";
@@ -27,6 +28,7 @@ export default async function DashboardPage() {
     structureMap,
     scenario,
     houseViews,
+    weeklyReport,
     { data: strategies },
   ] = await Promise.all([
     getPortfolioSummary(),
@@ -36,6 +38,7 @@ export default async function DashboardPage() {
     getStructuresForAllHolders(),
     getLatestScenario(),
     getRecentHouseViews(),
+    getLatestWeeklyReport(),
     supabase.from("strategies").select("holder_id, risk_profile"),
   ]);
 
@@ -136,6 +139,7 @@ export default async function DashboardPage() {
         totalUsd={totalUsd}
         scenario={scenario}
         houseViews={houseViews}
+        weeklyReport={weeklyReport}
       />
     </LivePriceProvider>
   );

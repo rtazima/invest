@@ -14,10 +14,12 @@ import { TabByClass } from "./TabByClass";
 import { TabByIndexer } from "./TabByIndexer";
 import { ArchetypeBreakdown } from "./ArchetypeBreakdown";
 import { ScenarioCard } from "./ScenarioCard";
+import { WeeklyReportCard } from "./WeeklyReportCard";
 import type { ClientPortfolioSummary, ClientPosition } from "./types";
 import type { InstitutionSyncStatus } from "@/lib/data/sync";
 import type { ScenarioView } from "@/lib/scenario/data";
 import type { HouseView } from "@/lib/research/data";
+import type { WeeklyReportView } from "@/lib/reports/data";
 import Link from "next/link";
 
 const TABS = [
@@ -39,9 +41,18 @@ interface Props {
   totalUsd?: number;
   scenario?: ScenarioView | null;
   houseViews?: HouseView[];
+  weeklyReport?: WeeklyReportView | null;
 }
 
-export function DashboardView({ summary, positions, syncStatuses, totalUsd, scenario, houseViews }: Props) {
+export function DashboardView({
+  summary,
+  positions,
+  syncStatuses,
+  totalUsd,
+  scenario,
+  houseViews,
+  weeklyReport,
+}: Props) {
   const [activeTab, setActiveTab] = useState<TabId>("global");
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [chartPeriod, setChartPeriod] = useState<HistoryPeriod>("D");
@@ -78,6 +89,11 @@ export function DashboardView({ summary, positions, syncStatuses, totalUsd, scen
         {scenario && (
           <div style={{ marginBottom: "24px" }}>
             <ScenarioCard scenario={scenario} houseViews={houseViews} />
+          </div>
+        )}
+        {weeklyReport && (
+          <div style={{ marginBottom: "24px" }}>
+            <WeeklyReportCard report={weeklyReport} />
           </div>
         )}
         {!hasData ? (
