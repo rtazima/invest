@@ -15,6 +15,22 @@ const SOURCE_LABEL: Record<string, string> = {
   "news-monitoring": "notícia",
 };
 
+const CLASS_LABELS: Record<string, string> = {
+  fixed_income: "Renda Fixa",
+  stocks_br: "Ações BR",
+  stocks_intl: "Ações Intl.",
+  fiis: "FIIs",
+  etf_br: "ETF BR",
+  etf_intl: "ETF Intl.",
+  funds: "Fundos",
+  liquidity: "Liquidez",
+};
+
+function leadLabel(item: WeeklyAttentionItem): string {
+  if (item.ticker) return CLASS_LABELS[item.ticker] ?? item.ticker;
+  return item.title;
+}
+
 const card: CSSProperties = {
   borderRadius: "8px",
   border: "1px solid var(--color-line-2)",
@@ -30,7 +46,7 @@ function AttentionRow({ item }: { item: WeeklyAttentionItem }) {
   return (
     <li style={{ fontSize: "12.5px", color: "var(--color-text-2)", marginBottom: "4px" }}>
       <span style={{ color: SEV_COLOR[item.severity] ?? "var(--color-text-2)", fontWeight: 500 }}>
-        {item.ticker ?? item.title}
+        {leadLabel(item)}
       </span>{" "}
       <span style={{ color: "var(--color-text-3)" }}>
         ({SOURCE_LABEL[item.generated_by] ?? item.generated_by})
