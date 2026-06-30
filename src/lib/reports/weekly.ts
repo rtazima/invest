@@ -28,6 +28,21 @@ interface HouseView {
   summary: string;
 }
 
+// Colapsa alertas repetidos (o mesmo desenquadramento é recriado a cada ~48h;
+// o relatório olha 10 dias, então junta as cópias). Ordena por severidade.
+function dedupeAttention(items: AttentionItem[]): AttentionItem[] {
+  const seen = new Set<string>();
+  const out: AttentionItem[] = [];
+  for (const it of items) {
+    const key = `${it.generated_by}|${it.title}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(it);
+  }
+  const rank: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+  return out.sort((a, b) => (rank[a.severity] ?? 3) - (rank[b.severity] ?? 3));
+}
+
 // segunda-feira (ISO) da semana de uma data
 function mondayOf(d: Date): string {
   const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
@@ -178,15 +193,17 @@ export async function runWeeklyReport(force = false): Promise<WeeklyRunResult[]>
     const perHolder: HolderBlock[] = holders.map((h) => ({
       holder_id: h.id,
       name: h.name as string,
-      attention: (alerts ?? [])
-        .filter((a) => a.holder_id === h.id)
-        .map((a) => ({
-          severity: a.severity,
-          title: a.title,
-          description: a.description,
-          generated_by: a.generated_by,
-          ticker: a.ticker,
-        })),
+      attention: dedupeAttention(
+        (alerts ?? [])
+          .filter((a) => a.holder_id === h.id)
+          .map((a) => ({
+            severity: a.severity,
+            title: a.title,
+            description: a.description,
+            generated_by: a.generated_by,
+            ticker: a.ticker,
+          })),
+      ),
     }));
 
     const synth = await synthesize(scenario?.summary ?? null, houseViews, perHolder);
@@ -206,13 +223,17 @@ export async function runWeeklyReport(force = false): Promise<WeeklyRunResult[]>
       by_holder: perHolder,
     };
 
-    const { error } = await u.from("weekly_reports").insert({
-      family_id: family.id,
-      scenario_id: scenario?.id ?? null,
-      week_start,
-      body,
-      model: MODEL,
-    });
+    const { error } = await u.from("weekly_reports").upsert(
+      {
+        family_id: family.id,
+        scenario_id: scenario?.id ?? null,
+        week_start,
+        body,
+        model: MODEL,
+        generated_at: new Date().toISOString(),
+      },
+      { onConflict: "family_id,week_start" },
+    );
     if (error) {
       console.error(`[weekly-report] insert falhou família ${family.id}: ${error.message}`);
       continue;
