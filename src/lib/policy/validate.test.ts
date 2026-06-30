@@ -72,6 +72,20 @@ describe("validatePortfolioState", () => {
     expect(v.some((x) => x.kind === "band" && x.asset_class === "stocks_br" && x.severity === "critical")).toBe(true);
   });
 
+  it("detecta classe restrita presente na carteira", () => {
+    const v = validatePortfolioState(
+      { ...basePolicy, restricted_assets: ["stocks_intl"] },
+      bands,
+      {
+        byAssetClassPct: { fixed_income: 50, stocks_br: 35, stocks_intl: 5, liquidity: 10 },
+        holdings: [],
+        liquidityPct: 10,
+        unrealizedPnlPct: null,
+      },
+    );
+    expect(v.some((x) => x.kind === "restricted" && x.asset_class === "stocks_intl")).toBe(true);
+  });
+
   it("detecta concentração e perda máxima", () => {
     const v = validatePortfolioState(
       { ...basePolicy, max_single_asset_pct: 0.1, max_loss_pct: 0.15 },

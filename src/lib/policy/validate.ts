@@ -125,6 +125,20 @@ export function validatePortfolioState(
     });
   }
 
+  const restricted = new Set((policy.restricted_assets ?? []).map((s) => s.toLowerCase()));
+  if (restricted.size > 0) {
+    for (const [cls, pct] of Object.entries(state.byAssetClassPct)) {
+      if (pct > EPS && restricted.has(cls.toLowerCase())) {
+        violations.push({
+          kind: "restricted",
+          severity: "warning",
+          asset_class: cls,
+          message: `Classe restrita ${cls} com ${pct.toFixed(1)}% na carteira.`,
+        });
+      }
+    }
+  }
+
   if (policy.max_single_asset_pct != null) {
     const cap = policy.max_single_asset_pct * 100;
     for (const h of state.holdings) {
