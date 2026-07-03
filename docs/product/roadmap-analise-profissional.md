@@ -41,7 +41,7 @@ Tabelas criadas: `scenario_definitions`, `agent_runs`, `research_reports`, `rese
 
 ## Refinamentos deferidos (conscientemente)
 
-- Liquidez mínima como alerta: o check ingênuo (só a classe `liquidity`) dá falso positivo (ex: Grasi com liquidez em renda fixa curta). Precisa de definição por `liquidity_days`. Hoje só a banda da classe cobre.
+- Liquidez mínima como alerta: o check agora usa a definição correta (ilíquido = `liquidity_days` > 30 dias) no `strategy-check`. Porém os parsers de import NÃO preenchem `liquidity_days` na renda fixa (0 de 28 posições), então o check fica inerte (tudo conta como líquido). O gargalo real é de dado, não de lógica. Próximo passo: preencher `liquidity_days` nos parsers CSV/XLSX (usar `maturity_date` + tipo de instrumento como fallback, tratando Tesouro Selic/CDB de liquidez diária como líquido apesar do vencimento longo).
 - Perda máxima da carteira como alerta: precisa de P&L agregado confiável em BRL (o dado hoje mistura moedas). O motor já tem a checagem pronta.
 - Consenso completo (mediana/dispersão por instrumento canônico) quando houver 3+ casas. Hoje a régua de poucas casas está no alerta de preço-alvo, sem snapshot histórico (`consensus_snapshots`).
 - `conclusion_evidence`: ligar cada conclusão às fontes (clicável até PDF/página). Fecha a auditoria.

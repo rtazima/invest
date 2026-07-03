@@ -46,12 +46,16 @@ export async function runStrategyAlignmentCheck(): Promise<{ created: number }> 
 
   const { data: positions } = await supabase
     .from("positions")
-    .select("holder_id, ticker, asset_class, market_value_brl")
+    .select("holder_id, ticker, asset_class, market_value_brl, liquidity_days")
     .in("batch_id", batchIds);
 
-  // Totaliza por (holder, asset_class) e por (holder, ticker)
+  // Ativo é "ilíquido" para a política se o resgate leva mais que este prazo.
+  const LIQUIDITY_HORIZON_DAYS = 30;
+
+  // Totaliza por (holder, asset_class), por (holder, ticker) e o ilíquido por holder
   const byHolder = new Map<string, Map<string, Decimal>>();
   const byHolderTicker = new Map<string, Map<string, Decimal>>();
+  const byHolderIlliquid = new Map<string, Decimal>();
   for (const p of positions ?? []) {
     if (!byHolder.has(p.holder_id)) byHolder.set(p.holder_id, new Map());
     const map = byHolder.get(p.holder_id)!;
@@ -62,6 +66,15 @@ export async function runStrategyAlignmentCheck(): Promise<{ created: number }> 
       if (!byHolderTicker.has(p.holder_id)) byHolderTicker.set(p.holder_id, new Map());
       const tmap = byHolderTicker.get(p.holder_id)!;
       tmap.set(p.ticker, (tmap.get(p.ticker) ?? new Decimal(0)).plus(p.market_value_brl ?? 0));
+    }
+
+    // liquidity_days > 30 = travado além do horizonte; posições sem prazo
+    // (ações, FIIs, caixa) são consideradas líquidas (venda em bolsa D+2)
+    if (p.liquidity_days != null && p.liquidity_days > LIQUIDITY_HORIZON_DAYS) {
+      byHolderIlliquid.set(
+        p.holder_id,
+        (byHolderIlliquid.get(p.holder_id) ?? new Decimal(0)).plus(p.market_value_brl ?? 0),
+      );
     }
   }
 
@@ -127,6 +140,10 @@ export async function runStrategyAlignmentCheck(): Promise<{ created: number }> 
     }));
     const maxConc = (strategy as unknown as { max_single_asset_pct: number | null }).max_single_asset_pct ?? null;
 
+    // liquidez = fração resgatável dentro do horizonte (total menos o ilíquido)
+    const illiquid = byHolderIlliquid.get(holder.id) ?? new Decimal(0);
+    const liquidityPct = total.minus(illiquid).div(total).times(100).toNumber();
+
     const policyViolations = validatePortfolioState(
       {
         liquidity_min_pct: strategy.liquidity_min_pct,
@@ -135,18 +152,19 @@ export async function runStrategyAlignmentCheck(): Promise<{ created: number }> 
         max_single_asset_pct: maxConc,
       },
       [],
-      { byAssetClassPct, holdings, liquidityPct: byAssetClassPct["liquidity"] ?? 0, unrealizedPnlPct: null },
+      { byAssetClassPct, holdings, liquidityPct, unrealizedPnlPct: null },
     )
-      // bandas já são cobertas pelo check acima; liquidez precisa de definição
-      // por liquidity_days (refinamento), então aqui só concentração e restritos
-      .filter((v) => v.kind === "concentration" || v.kind === "restricted");
+      // bandas já são cobertas pelo check acima
+      .filter((v) => v.kind === "concentration" || v.kind === "restricted" || v.kind === "liquidity");
 
     for (const v of policyViolations) {
       const label = v.asset_class ? (ASSET_CLASS_LABELS[v.asset_class] ?? v.asset_class) : null;
       const title =
         v.kind === "concentration"
           ? `${v.ticker} — concentração acima do limite — ${holder.name}`
-          : `${label} — classe restrita na carteira — ${holder.name}`;
+          : v.kind === "liquidity"
+            ? `Liquidez abaixo do mínimo — ${holder.name}`
+            : `${label} — classe restrita na carteira — ${holder.name}`;
       const wasCreated = await createAlertDeduped(
         {
           holder_id: holder.id,
