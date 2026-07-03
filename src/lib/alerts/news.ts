@@ -7,6 +7,36 @@ const claude = new Anthropic();
 
 const VARIABLE_INCOME_CLASSES = new Set(["stocks_br", "stocks_intl", "fiis", "etf_br", "etf_intl"]);
 
+// Fontes financeiras de qualidade, priorizadas sobre a busca geral.
+const PREFERRED_SITES =
+  "(site:valor.globo.com OR site:infomoney.com.br OR site:braziljournal.com OR site:content.btgpactual.com OR site:exame.com)";
+
+async function safeSearch(query: string): Promise<BraveResult[]> {
+  try {
+    return await braveSearch(query, { count: 5, freshness: "pd" });
+  } catch (e) {
+    console.warn(`[news-monitoring] busca falhou: ${e instanceof Error ? e.message : e}`);
+    return [];
+  }
+}
+
+// Busca notícia do ticker priorizando fontes de qualidade e completando com a
+// busca geral. Dedup por URL, resiliente a falha de uma das buscas.
+async function fetchTickerNews(ticker: string): Promise<BraveResult[]> {
+  const preferred = await safeSearch(`${ticker} ${PREFERRED_SITES}`);
+  await new Promise((r) => setTimeout(r, 300));
+  const general = await safeSearch(`${ticker} B3 ação FII notícia`);
+
+  const seen = new Set<string>();
+  const merged: BraveResult[] = [];
+  for (const r of [...preferred, ...general]) {
+    if (seen.has(r.url)) continue;
+    seen.add(r.url);
+    merged.push(r);
+  }
+  return merged.slice(0, 6);
+}
+
 async function filterRelevantNews(
   ticker: string,
   results: BraveResult[],
@@ -97,7 +127,7 @@ export async function runNewsMonitoring(): Promise<{ checked: number; created: n
     ];
 
     for (const ticker of tickers) {
-      const results = await braveSearch(`${ticker} B3 ação FII notícia`, { count: 5, freshness: "pd" });
+      const results = await fetchTickerNews(ticker);
       checked++;
 
       const analysis = await filterRelevantNews(ticker, results);

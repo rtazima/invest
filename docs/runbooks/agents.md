@@ -66,7 +66,7 @@ Para editar: `crontab -e` na Amaia (host `amaia-bot...amaia-agent`, projeto `ama
 
 ### news-monitoring
 - Filtra posições de renda variável (stocks_br, stocks_intl, fiis, etf_br, etf_intl)
-- Busca 5 notícias por ticker via Brave Search (`freshness=pd`, último dia)
+- Busca notícia por ticker via Brave Search (`freshness=pd`), priorizando fontes de qualidade (Valor, InfoMoney, Brazil Journal, BTG, Exame) e completando com busca geral; dedup por URL, resiliente a falha de busca
 - Claude Haiku avalia relevância e retorna `{relevant: bool, severity, summary}` — alerta criado se `relevant=true` e `summary` não vazio
 - Janela de deduplicação: 24h
 
