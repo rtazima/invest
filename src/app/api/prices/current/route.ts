@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { applyTransferFilter } from "@/lib/data/positions";
+import { getActiveTransfers } from "@/lib/data/transfers";
+import type { DBPosition } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -52,15 +55,26 @@ export async function GET(_req: NextRequest) {
       return NextResponse.json({ byHolder: [], totalBrl: 0, fxRate: null, updatedAt: new Date().toISOString() });
     }
 
-    const { data: positions } = await svc
-      .from("positions")
-      .select("holder_id, market_value_brl, exchange_rate, currency")
-      .in("batch_id", batchIds);
+    // Mesmas colunas que applyTransferFilter precisa para casar transferências (ticker/name/quantity).
+    const [{ data: positions }, activeTransfers] = await Promise.all([
+      svc
+        .from("positions")
+        .select("holder_id, institution, ticker, name, quantity, market_value, market_value_brl, exchange_rate, currency, pnl, cost_basis")
+        .in("batch_id", batchIds),
+      getActiveTransfers(),
+    ]);
+
+    // Aplica o mesmo filtro de transferências que getLatestPositions, para que
+    // o total ao vivo (cards) nunca divirja da tabela de posições.
+    const filtered = applyTransferFilter(
+      (positions ?? []) as unknown as DBPosition[],
+      activeTransfers,
+    );
 
     const byHolder = new Map<string, number>();
     let fxRate: number | null = null;
 
-    for (const p of positions ?? []) {
+    for (const p of filtered) {
       const val = Number(p.market_value_brl ?? 0);
       byHolder.set(p.holder_id, (byHolder.get(p.holder_id) ?? 0) + val);
       if (p.currency === "USD" && p.exchange_rate) fxRate = Number(p.exchange_rate);
