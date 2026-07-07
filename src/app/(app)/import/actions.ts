@@ -92,6 +92,12 @@ export async function syncPluggy(
   holderId: string,
   institution: PluggyInstitution,
 ): Promise<PluggySyncResult> {
+  // Pluggy desativado — não fechamos com o Pluggy. Mantido atrás de flag para
+  // reversão: definir PLUGGY_ENABLED=true no ambiente reabilita o sync.
+  if (process.env.PLUGGY_ENABLED !== "true") {
+    return { success: false, errorMessage: "Integração Pluggy desativada." };
+  }
+
   const supabase = await createServerClient();
   const {
     data: { user },

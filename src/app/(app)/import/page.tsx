@@ -5,7 +5,9 @@ import { getHolders } from "@/lib/data/holders";
 import { getImportBatches } from "@/lib/data/positions";
 import { ImportWizard } from "@/components/import/ImportWizard";
 import { ImportHistoryList } from "@/components/import/ImportHistoryList";
-import { PluggySyncSection } from "@/components/import/PluggySyncSection";
+// Pluggy desativado — não fechamos com o Pluggy. Componente e cliente mantidos
+// dormentes (ver PluggySyncSection.tsx e src/lib/pluggy/client.ts) para reversão fácil.
+// import { PluggySyncSection } from "@/components/import/PluggySyncSection";
 import { MercadoPagoForm } from "@/components/import/MercadoPagoForm";
 
 export const metadata: Metadata = { title: "Importar — Invest" };
@@ -19,31 +21,8 @@ export default async function ImportPage() {
 
   const [holders, batches] = await Promise.all([getHolders(), getImportBatches()]);
 
-  // Última sync Pluggy por instituição
-  const lastPluggySync = (inst: string) => {
-    const b = batches
-      .filter((x) => x.source === "pluggy" && x.institution === inst && x.status === "completed")
-      .sort((a, b) => new Date(b.completed_at ?? 0).getTime() - new Date(a.completed_at ?? 0).getTime())[0];
-    return {
-      lastSyncAt: b?.completed_at ?? null,
-      lastSyncCount: b?.row_count ?? null,
-    };
-  };
-
-  const pluggyConnections = [
-    {
-      institution: "btg",
-      label: "BTG Pactual Investimentos",
-      connected: !!process.env.PLUGGY_ITEM_ID_BTG,
-      ...lastPluggySync("btg"),
-    },
-    {
-      institution: "xp",
-      label: "XP Investimentos",
-      connected: !!process.env.PLUGGY_ITEM_ID_XP,
-      ...lastPluggySync("xp"),
-    },
-  ];
+  // Pluggy desativado — sync via Pluggy removido da plataforma. Importação
+  // passa a ser só por relatório (xlsx/csv/pdf).
 
   return (
     <div style={{ maxWidth: "700px" }}>
@@ -52,11 +31,9 @@ export default async function ImportPage() {
           Importar portfólio
         </h1>
         <p style={{ margin: 0, fontSize: "13px", color: "var(--color-text-3)" }}>
-          Sincronize via Pluggy ou importe o extrato manual das corretoras.
+          Importe o extrato das corretoras (XP, BTG, Nomad) e os cofrinhos do Mercado Pago.
         </p>
       </div>
-
-      <PluggySyncSection holders={holders} connections={pluggyConnections} />
 
       <div
         style={{
