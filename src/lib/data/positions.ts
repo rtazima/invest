@@ -245,7 +245,7 @@ export async function getLatestBatchByInstitution(
   return data;
 }
 
-function applyTransferFilter(
+export function applyTransferFilter(
   rows: DBPosition[],
   transfers: Awaited<ReturnType<typeof getActiveTransfers>>,
 ): DBPosition[] {
