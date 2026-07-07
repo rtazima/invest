@@ -56,7 +56,17 @@ const HOLDER_COLORS: Record<string, string> = {
   benicio: "oklch(0.70 0.13 160)",
 };
 
-type SortKey = "name" | "market_value_brl" | "pnl" | "pnl_pct";
+type SortKey =
+  | "name"
+  | "holder_name"
+  | "institution"
+  | "quantity"
+  | "avg_price"
+  | "current_price"
+  | "market_value_brl"
+  | "pnl"
+  | "pnl_pct"
+  | "port_pct";
 type SortDir = "asc" | "desc";
 
 function fmt(n: number | null): string {
@@ -131,9 +141,12 @@ export function PositionsTable({ positions, totalBrl }: Props) {
       return true;
     });
 
+    // % Port. é proporcional ao valor de mercado, então ordena pelo mesmo campo.
+    const field = sortKey === "port_pct" ? "market_value_brl" : sortKey;
+
     rows.sort((a, b) => {
-      const av = a[sortKey] ?? 0;
-      const bv = b[sortKey] ?? 0;
+      const av = a[field] ?? 0;
+      const bv = b[field] ?? 0;
       if (typeof av === "string" && typeof bv === "string") {
         return sortDir === "asc" ? av.localeCompare(bv, "pt-BR") : bv.localeCompare(av, "pt-BR");
       }
@@ -150,6 +163,11 @@ export function PositionsTable({ positions, totalBrl }: Props) {
       setSortKey(key);
       setSortDir("desc");
     }
+  }
+
+  function sortArrow(key: SortKey) {
+    if (sortKey !== key) return "";
+    return sortDir === "desc" ? " ↓" : " ↑";
   }
 
   const thStyle = (key?: SortKey): React.CSSProperties => ({
@@ -312,27 +330,39 @@ export function PositionsTable({ positions, totalBrl }: Props) {
         <table style={{ width: "100%", fontSize: "12.5px", borderCollapse: "collapse" }}>
           <thead>
             <tr className="hairline" style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              <th style={{ ...thStyle(), textAlign: "left", paddingLeft: "16px" }} onClick={() => toggleSort("name")}>
-                Ativo
+              <th style={{ ...thStyle("name"), textAlign: "left", paddingLeft: "16px" }} onClick={() => toggleSort("name")}>
+                Ativo{sortArrow("name")}
               </th>
-              <th style={{ ...thStyle(), textAlign: "left" }}>Titular</th>
-              <th style={{ ...thStyle(), textAlign: "left" }}>Inst.</th>
-              <th style={thStyle()}>Qtd</th>
-              <th style={thStyle()}>Preço médio</th>
-              <th style={thStyle()}>Preço atual</th>
+              <th style={{ ...thStyle("holder_name"), textAlign: "left" }} onClick={() => toggleSort("holder_name")}>
+                Titular{sortArrow("holder_name")}
+              </th>
+              <th style={{ ...thStyle("institution"), textAlign: "left" }} onClick={() => toggleSort("institution")}>
+                Inst.{sortArrow("institution")}
+              </th>
+              <th style={thStyle("quantity")} onClick={() => toggleSort("quantity")}>
+                Qtd{sortArrow("quantity")}
+              </th>
+              <th style={thStyle("avg_price")} onClick={() => toggleSort("avg_price")}>
+                Preço médio{sortArrow("avg_price")}
+              </th>
+              <th style={thStyle("current_price")} onClick={() => toggleSort("current_price")}>
+                Preço atual{sortArrow("current_price")}
+              </th>
               <th
                 style={{ ...thStyle("market_value_brl"), paddingRight: "8px" }}
                 onClick={() => toggleSort("market_value_brl")}
               >
-                Valor {sortKey === "market_value_brl" ? (sortDir === "desc" ? "↓" : "↑") : ""}
+                Valor{sortArrow("market_value_brl")}
               </th>
               <th style={thStyle("pnl")} onClick={() => toggleSort("pnl")}>
-                P&L {sortKey === "pnl" ? (sortDir === "desc" ? "↓" : "↑") : ""}
+                P&L{sortArrow("pnl")}
               </th>
               <th style={thStyle("pnl_pct")} onClick={() => toggleSort("pnl_pct")}>
-                P&L % {sortKey === "pnl_pct" ? (sortDir === "desc" ? "↓" : "↑") : ""}
+                P&L %{sortArrow("pnl_pct")}
               </th>
-              <th style={{ ...thStyle(), paddingRight: "16px" }}>% Port.</th>
+              <th style={{ ...thStyle("port_pct"), paddingRight: "16px" }} onClick={() => toggleSort("port_pct")}>
+                % Port.{sortArrow("port_pct")}
+              </th>
             </tr>
           </thead>
           <tbody>
