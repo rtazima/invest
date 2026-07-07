@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { DBHolder } from "@/types/database";
+import type { DBHolder, DBImportBatch } from "@/types/database";
 import { processCSVImport, processFotoImport, type ImportResult } from "@/app/(app)/import/actions";
 
 const INSTITUTIONS = [
@@ -16,6 +16,7 @@ type Step = "titular" | "instituicao" | "arquivo" | "confirmar" | "resultado";
 
 interface Props {
   holders: DBHolder[];
+  batches: DBImportBatch[];
 }
 
 const inputStyle: React.CSSProperties = {
@@ -37,11 +38,12 @@ const labelStyle: React.CSSProperties = {
   marginBottom: "6px",
 };
 
-export function ImportWizard({ holders }: Props) {
+export function ImportWizard({ holders, batches }: Props) {
   const [step, setStep] = useState<Step>("titular");
   const [holderId, setHolderId] = useState(holders[0]?.id ?? "");
   const [institution, setInstitution] = useState<InstitutionOption>("xp");
   const [file, setFile] = useState<File | null>(null);
+  const [replaceBatchId, setReplaceBatchId] = useState<string>("");
   const [exchangeRate, setExchangeRate] = useState("");
   const todayStr = new Date().toISOString().slice(0, 10);
   const [exchangeRateDate, setExchangeRateDate] = useState<string>(todayStr);
@@ -55,6 +57,16 @@ export function ImportWizard({ holders }: Props) {
   const isFoto = institution === "foto";
   const isUsd = isNomad || isFoto;
   const selectedHolder = holders.find((h) => h.id === holderId);
+
+  // Imports já existentes desta conta (titular + instituição), candidatos a
+  // substituição. Suplementos (Tesouro) se auto-dedupam, ficam de fora.
+  const existingBatches = batches.filter(
+    (b) =>
+      b.holder_id === holderId &&
+      b.institution === institution &&
+      b.status === "completed" &&
+      b.source !== "csv_supplement",
+  );
 
   const acceptedExtensions =
     isNomad ? [".pdf"] : isFoto ? [".csv"] : [".xlsx", ".csv"];
@@ -84,6 +96,7 @@ export function ImportWizard({ holders }: Props) {
     if (!isFoto) {
       fd.set("institution", institution);
       if (tesouoOnly) fd.set("tesouro_only", "true");
+      if (replaceBatchId && !tesouoOnly) fd.set("replace_batch_id", replaceBatchId);
     }
 
     const res = isFoto ? await processFotoImport(fd) : await processCSVImport(fd);
@@ -383,7 +396,12 @@ export function ImportWizard({ holders }: Props) {
               Voltar
             </button>
             <button
-              onClick={() => setStep("confirmar")}
+              onClick={() => {
+                // Um import anterior desta conta → pré-seleciona substituir (caso
+                // comum de reimport). Vários (sub-contas) → "nova conta" por segurança.
+                setReplaceBatchId(existingBatches.length === 1 ? (existingBatches[0]?.id ?? "") : "");
+                setStep("confirmar");
+              }}
               disabled={!file || (isUsd && !exchangeRate)}
               style={{
                 padding: "8px 20px",
@@ -437,6 +455,52 @@ export function ImportWizard({ holders }: Props) {
               </div>
             ))}
           </div>
+
+          {/* Substituir dados anteriores desta conta (evita double-count no reimport) */}
+          {!isFoto && !tesouoOnly && existingBatches.length > 0 && (
+            <div style={{ marginBottom: "20px" }}>
+              <label style={labelStyle}>Já existem imports para esta conta</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {[{ id: "", filename: "Nova conta/carteira (adicionar, não substitui nada)", row_count: null as number | null } , ...existingBatches].map((b) => {
+                  const active = replaceBatchId === b.id;
+                  return (
+                    <label
+                      key={b.id || "__new__"}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px",
+                        borderRadius: "8px",
+                        border: `1px solid ${active ? "var(--color-text)" : "var(--color-line)"}`,
+                        backgroundColor: active ? "var(--color-bg-3)" : "var(--color-bg-2)",
+                        cursor: "pointer", fontSize: "12.5px",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="replaceBatch"
+                        checked={active}
+                        onChange={() => setReplaceBatchId(b.id)}
+                        style={{ display: "none" }}
+                      />
+                      <div style={{
+                        width: "14px", height: "14px", borderRadius: "50%", flexShrink: 0,
+                        border: `2px solid ${active ? "var(--color-text)" : "var(--color-line)"}`,
+                        backgroundColor: active ? "var(--color-text)" : "transparent",
+                      }} />
+                      <span>
+                        {b.id ? `Substituir: ${b.filename}` : b.filename}
+                        {b.row_count != null && (
+                          <span style={{ color: "var(--color-text-3)" }}> · {b.row_count} ativos</span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: "11px", color: "var(--color-text-3)", margin: "8px 0 0" }}>
+                Escolha o import que este arquivo atualiza. Sub-contas distintas da mesma corretora ficam como &quot;nova conta&quot;.
+              </p>
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={() => setStep("arquivo")} style={{ ...inputStyle, width: "auto", cursor: "pointer" }}>

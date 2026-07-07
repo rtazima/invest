@@ -446,8 +446,25 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
       .update({ status: "completed", row_count: positions.length, completed_at: new Date().toISOString() })
       .eq("id", batch.id);
 
+    // Substituição escolhida no wizard: remove o batch anterior desta conta
+    // (mesma dupla titular+instituição), evitando double-count por reimport com
+    // nome de arquivo diferente. Só roda após o novo import concluir com sucesso.
+    const replaceBatchId = formData.get("replace_batch_id") as string | null;
+    if (replaceBatchId && replaceBatchId !== batch.id) {
+      const { data: target } = await supabase
+        .from("import_batches")
+        .select("id, holder_id, institution")
+        .eq("id", replaceBatchId)
+        .single();
+      if (target && target.holder_id === holderId && target.institution === institution) {
+        await supabase.from("positions").delete().eq("batch_id", replaceBatchId);
+        await supabase.from("import_batches").delete().eq("id", replaceBatchId);
+      }
+    }
+
     revalidatePath("/dashboard");
     revalidatePath("/holders");
+    revalidatePath("/import");
 
     return { success: true, batchId: batch.id, rowCount: positions.length, errors };
   } catch (err) {

@@ -52,7 +52,7 @@ export default async function ImportPage() {
             CSV/XLSX para XP e BTG, PDF para Nomad. Necessário para Tesouro Direto e posições BTG.
           </p>
         </div>
-        <ImportWizard holders={holders} />
+        <ImportWizard holders={holders} batches={batches} />
       </div>
 
       <div
