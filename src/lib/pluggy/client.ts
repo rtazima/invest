@@ -20,7 +20,9 @@ export interface PluggyInvestment {
   annualRate: number | null;
   cdRate: number | null;
   issuer: string | null;
-  date: string | null;           // vencimento (ISO 8601)
+  date: string | null;           // data de referência da posição (NÃO é o vencimento)
+  dueDate: string | null;        // vencimento / expiração (ISO 8601)
+  issueDate: string | null;      // data de emissão (ISO 8601)
   lastUpdatedAt: string | null;
   currencyCode: string;
 }
@@ -105,9 +107,11 @@ export function pluggyInvestmentToPosition(
   let marketValue = new Decimal(inv.amount ?? 0);
   let currentPrice = inv.value != null ? new Decimal(inv.value) : null;
 
+  // Vencimento vem de dueDate. inv.date é a data de referência da posição
+  // (mesma para todos os ativos do snapshot), não serve como vencimento.
   let maturityDate: Date | null = null;
-  if (inv.date) {
-    const d = new Date(inv.date);
+  if (inv.dueDate) {
+    const d = new Date(inv.dueDate);
     if (!isNaN(d.getTime())) maturityDate = d;
   }
 

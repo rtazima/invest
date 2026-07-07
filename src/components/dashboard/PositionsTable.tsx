@@ -87,6 +87,14 @@ function fmtQty(n: number | null): string {
   return fmt0(n);
 }
 
+// "2033-09-22" → "22/09/2033" sem passar por Date (evita shift de fuso).
+function fmtDateBR(iso: string | null): string | null {
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-");
+  if (!y || !m || !d) return null;
+  return `${d}/${m}/${y}`;
+}
+
 interface Props {
   positions: ClientPosition[];
   totalBrl: number;
@@ -369,6 +377,7 @@ export function PositionsTable({ positions, totalBrl }: Props) {
             {sorted.map((pos) => {
               const holderColor = HOLDER_COLORS[pos.holder_slug] ?? "var(--color-brand)";
               const portPct = totalBrl > 0 ? (pos.market_value_brl / totalBrl) * 100 : 0;
+              const venc = fmtDateBR(pos.maturity_date);
 
               return (
                 <tr
@@ -383,12 +392,31 @@ export function PositionsTable({ positions, totalBrl }: Props) {
                   }}
                 >
                   {/* Ativo */}
-                  <td style={{ padding: "8px", paddingLeft: "16px", whiteSpace: "nowrap" }}>
+                  <td style={{ padding: "8px", paddingLeft: "16px", whiteSpace: "nowrap", maxWidth: "300px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span className="num" style={{ fontWeight: 500 }}>
-                        {pos.ticker ?? pos.name.split(" ").slice(0, 2).join(" ")}
+                      <span
+                        className="num"
+                        title={[
+                          pos.name,
+                          venc ? `Vencimento: ${venc}` : null,
+                          pos.indexer ? pos.indexer.toUpperCase() : null,
+                        ].filter(Boolean).join(" · ")}
+                        style={{
+                          fontWeight: 500,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          maxWidth: "240px",
+                        }}
+                      >
+                        {pos.ticker ?? pos.name}
                       </span>
                       <span className="pill">{ASSET_CLASS_LABELS[pos.asset_class] ?? pos.asset_class}</span>
+                      {venc && (
+                        <span className="pill" title={`Vencimento: ${venc}`} style={{ color: "var(--color-text-3)" }}>
+                          {venc.slice(6)}
+                        </span>
+                      )}
                       {pos.is_stale_quota && (
                         <span className="pill" style={{ color: "var(--color-warn)" }}>
                           D+1
