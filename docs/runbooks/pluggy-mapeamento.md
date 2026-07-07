@@ -1,5 +1,12 @@
 # Pluggy — mapeamento de campos e gotchas
 
+> **Descartado (jul/2026).** Não fechamos contrato com o Pluggy. A integração
+> foi desativada na plataforma: a seção de sync saiu da página de import e a
+> action `syncPluggy` está atrás da flag `PLUGGY_ENABLED` (default off). O
+> cliente (`src/lib/pluggy/client.ts`) e o componente `PluggySyncSection.tsx`
+> ficam dormentes para reversão. Import de XP/BTG passa a ser por relatório
+> XLSX. Este doc fica como referência caso o Pluggy volte.
+
 Referência do cliente: `src/lib/pluggy/client.ts` (`pluggyInvestmentToPosition`).
 Doc oficial do objeto Investment: https://docs.pluggy.ai/docs/investments
 

@@ -2,7 +2,7 @@
 
 ## Projeto
 
-Plataforma de gestão de investimentos multi-conta e multi-titular (Rodrigo, esposa e filhos), com sincronização automática de portfólio via Pluggy (XP, BTG) e Plaid/CSV (Nomad), agente de monitoramento 2x/dia, recomendações de alocação via Claude e dashboard de acompanhamento patrimonial.
+Plataforma de gestão de investimentos multi-conta e multi-titular (Rodrigo, esposa e filhos), com importação de portfólio por relatório das corretoras (XLSX da XP/BTG, PDF do Nomad, CSV), agente de monitoramento 2x/dia, recomendações de alocação via Claude e dashboard de acompanhamento patrimonial.
 
 Ver `docs/product/vision.md` para a visão completa.
 Ver `docs/product/prd-invest.md` para o PRD principal.
@@ -25,7 +25,7 @@ Estratégias detalhadas em `docs/product/estrategias-por-titular.md`.
 - Banco de dados: Supabase PostgreSQL
 - Auth: Supabase Auth (magic link + MFA)
 - AI: Claude API (Anthropic) — modelos por agente definidos abaixo
-- Sync bancário: Pluggy API (XP, BTG) + Plaid API (Nomad direto) + CSV import (fallback)
+- Importação de portfólio: relatórios das corretoras (XLSX da XP/BTG, PDF do Nomad, CSV). Pluggy foi descartado (não fechamos contrato) — cliente e UI ficam dormentes atrás da flag `PLUGGY_ENABLED`. Plaid (Nomad) permanece previsto.
 - Notificações: Evolution API (WhatsApp, self-hosted na VM GCP) + email como fallback
 - Câmbio USD/BRL: inserção manual pelo usuário (cotação Nomad/Avenue)
 - Scheduler: cron na VM GCP (Amaia) — 2x/dia para o agente de monitoramento
@@ -178,7 +178,7 @@ Usados durante o desenvolvimento via Claude Code. Não são agentes de produçã
 | Decisão | ANR | Status |
 |---|---|---|
 | Hosting: Vercel + GCP VM + Supabase | ANR-001 | aprovado |
-| Sync bancário via Pluggy + Plaid (Nomad direto) | ANR-002 | aprovado |
+| Sync bancário via Pluggy + Plaid (Nomad direto) | ANR-002 | Pluggy descartado (não fechamos contrato); import por relatório é a fonte |
 | Tech stack Next.js 15 + Supabase | ANR-003 | aprovado |
 | Dados financeiros isolados por tenant | ANR-004 | aprovado |
 | Agente de monitoramento 2x/dia via cron GCP | ANR-005 | aprovado |
@@ -187,8 +187,7 @@ Usados durante o desenvolvimento via Claude Code. Não são agentes de produçã
 
 ## Gotchas
 
-- Pluggy tem rate limit de 1 req/seg por item. Sync de múltiplas contas precisa de fila.
-- XP e BTG às vezes exigem re-autenticação MFA — tratar expiração de consent graciosamente.
+- Pluggy foi descartado (não fechamos contrato). Import de XP/BTG é por relatório (XLSX). Código do Pluggy fica dormente atrás da flag `PLUGGY_ENABLED` — ver `docs/runbooks/pluggy-mapeamento.md`.
 - Nomad é banco americano — valores em USD. Câmbio inserido manualmente pelo usuário (cotação Nomad/Avenue). Sem API de câmbio automática.
 - Dados de menores (filhos) exigem atenção extra de LGPD — consentimento parental documentado.
 - Tesouro Direto: preços intraday variam, valor de mercado diverge do valor investido — deixar claro no UI.
