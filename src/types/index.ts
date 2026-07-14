@@ -19,7 +19,7 @@ export type AssetClass =
 
 export type Indexer = "cdi" | "ipca" | "igpm" | "selic" | "prefixado" | "usd" | "none";
 
-export type Institution = "xp" | "btg" | "nomad" | "mercadopago";
+export type Institution = "xp" | "xp_global" | "btg" | "nomad" | "mercadopago";
 
 export type ImportStatus = "pending" | "processing" | "completed" | "failed";
 

@@ -6,6 +6,17 @@ function fmt(n: number): string {
   return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const INST_LABELS: Record<string, string> = {
+  xp: "XP",
+  xp_global: "XP Global",
+  btg: "BTG",
+  nomad: "Nomad",
+  mercadopago: "Mercado Pago",
+};
+
+// Corretoras/bancos em USD nos EUA vs. no Brasil.
+const US_INSTITUTIONS = new Set(["nomad", "xp_global"]);
+
 interface Props {
   summary: ClientPortfolioSummary;
   syncStatuses: InstitutionSyncStatus[];
@@ -69,11 +80,11 @@ export function TabByInstitution({ summary, syncStatuses }: Props) {
                           : "var(--color-warn)",
                     }}
                   />
-                  <span style={{ fontWeight: 500 }}>{inst.toUpperCase()}</span>
+                  <span style={{ fontWeight: 500 }}>{INST_LABELS[inst] ?? inst.toUpperCase()}</span>
                 </div>
               </td>
               <td style={{ padding: "8px", color: "var(--color-text-2)" }}>
-                {inst === "nomad" ? "Banco EUA" : "Corretora BR"}
+                {US_INSTITUTIONS.has(inst) ? "Corretora EUA" : "Corretora BR"}
               </td>
               <td style={{ padding: "8px" }}>
                 <span

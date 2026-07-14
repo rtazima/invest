@@ -189,6 +189,8 @@ Usados durante o desenvolvimento via Claude Code. Não são agentes de produçã
 
 - Pluggy foi descartado (não fechamos contrato). Import de XP/BTG é por relatório (XLSX). Código do Pluggy fica dormente atrás da flag `PLUGGY_ENABLED` — ver `docs/runbooks/pluggy-mapeamento.md`.
 - Nomad é banco americano — valores em USD. Câmbio inserido manualmente pelo usuário (cotação Nomad/Avenue). Sem API de câmbio automática.
+- XP Global (XP Investments US LLC, Miami) é conta em USD, instituição própria `xp_global` (separada da XP BR em BRL). Import por PDF (Account Statement), mesmo fluxo do Nomad (cotação manual). Parser em `src/lib/pdf/xpglobal-pdf-parser.ts` reconstrói colunas por coordenadas do pdfjs. Ver `docs/runbooks/import-e-dedup.md`.
+- Extratos reais (PDF) nunca vão pro git — têm nome/endereço/conta (LGPD). `*.pdf` está no `.gitignore`.
 - Dados de menores (filhos) exigem atenção extra de LGPD — consentimento parental documentado.
 - Tesouro Direto: preços intraday variam, valor de mercado diverge do valor investido — deixar claro no UI.
 - Fundos de investimento têm cota D+1 ou D+2 — não mostrar valor de hoje como definitivo.

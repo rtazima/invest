@@ -59,7 +59,7 @@ function initials(name: string): string {
 }
 
 const INST_LABELS: Record<string, string> = {
-  xp: 'XP', btg: 'BTG', nomad: 'Nomad', mercadopago: 'Mercado Pago',
+  xp: 'XP', xp_global: 'XP Global', btg: 'BTG', nomad: 'Nomad', mercadopago: 'Mercado Pago',
   nubank: 'Nu', inter: 'Inter', clear: 'Clear', rico: 'Rico',
 };
 function instLabel(i: string) { return INST_LABELS[i] ?? i.toUpperCase(); }

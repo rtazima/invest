@@ -9,6 +9,7 @@ import { parseFoto, detectFoto } from "@/lib/csv/foto-parser";
 import { parseXPXlsx, extractXPXlsxOwner } from "@/lib/xlsx/xp-xlsx-parser";
 import { parseBTGXlsx, extractBTGXlsxOwner } from "@/lib/xlsx/btg-xlsx-parser";
 import { parseNomadPdf, extractNomadPdfOwner } from "@/lib/pdf/nomad-pdf-parser";
+import { parseXpGlobalPdf, extractXpGlobalPdfOwner } from "@/lib/pdf/xpglobal-pdf-parser";
 import { validateDocumentOwner } from "@/lib/import/owner-validator";
 import { fetchPositionsFromPluggy } from "@/lib/pluggy/client";
 import { detectTesouroBondType, fetchTesouroPrices, lookupPU } from "@/lib/tesouro/client";
@@ -281,8 +282,12 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
   const isXlsx = fileName.endsWith(".xlsx");
   const isPdf = fileName.endsWith(".pdf");
 
-  if (institution === "nomad" && !exchangeRateStr) {
-    return { success: false, errorMessage: "Informe a cotação USD/BRL para importar o Nomad." };
+  // Instituições em USD que exigem cotação manual (sem API de câmbio automática).
+  const isUsdInstitution = institution === "nomad" || institution === "xp_global";
+
+  if (isUsdInstitution && !exchangeRateStr) {
+    const label = institution === "xp_global" ? "a XP Global" : "o Nomad";
+    return { success: false, errorMessage: `Informe a cotação USD/BRL para importar ${label}.` };
   }
 
   const exchangeRate = exchangeRateStr ? toDecimal(exchangeRateStr.replace(",", ".")) : new Decimal(1);
@@ -313,8 +318,8 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
       source: batchSource,
       filename: file.name,
       imported_by: user.id,
-      exchange_rate: institution === "nomad" ? exchangeRate.toNumber() : null,
-      exchange_rate_date: institution === "nomad" ? (exchangeRateDateStr ?? new Date().toISOString().split("T")[0]) : null,
+      exchange_rate: isUsdInstitution ? exchangeRate.toNumber() : null,
+      exchange_rate_date: isUsdInstitution ? (exchangeRateDateStr ?? new Date().toISOString().split("T")[0]) : null,
     })
     .select()
     .single();
@@ -344,14 +349,18 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
 
       positions = institution === "btg" ? parseBTGXlsx(buffer) : parseXPXlsx(buffer);
     } else if (isPdf) {
-      if (institution !== "nomad") {
-        return { success: false, errorMessage: "Formato PDF é suportado apenas para Nomad." };
+      if (institution !== "nomad" && institution !== "xp_global") {
+        return { success: false, errorMessage: "Formato PDF é suportado para Nomad e XP Global." };
       }
       const buffer = await file.arrayBuffer();
+      const isXpGlobal = institution === "xp_global";
 
-      const docOwner = await extractNomadPdfOwner(buffer);
+      const docOwner = isXpGlobal
+        ? await extractXpGlobalPdfOwner(buffer)
+        : await extractNomadPdfOwner(buffer);
       if (!docOwner.name && !docOwner.cpf) {
-        const msg = "Não foi possível identificar o titular no documento. Confirme que o arquivo é um extrato Nomad do titular selecionado.";
+        const origem = isXpGlobal ? "XP Global" : "Nomad";
+        const msg = `Não foi possível identificar o titular no documento. Confirme que o arquivo é um extrato ${origem} do titular selecionado.`;
         await supabase.from("import_batches").update({ status: "failed", error_message: msg }).eq("id", batch.id);
         return { success: false, errorMessage: msg };
       }
@@ -361,7 +370,9 @@ export async function processCSVImport(formData: FormData): Promise<ImportResult
         return { success: false, errorMessage: ownerErr };
       }
 
-      positions = await parseNomadPdf(buffer, exchangeRate);
+      positions = isXpGlobal
+        ? await parseXpGlobalPdf(buffer, exchangeRate)
+        : await parseNomadPdf(buffer, exchangeRate);
     } else {
       const csvText = await file.text();
       const format = detectFormat(csvText);

@@ -9,6 +9,7 @@ const HOLDER_COLORS: Record<string, string> = {
 
 const INST_LABELS: Record<string, string> = {
   xp: "XP",
+  xp_global: "XP Global",
   btg: "BTG",
   nomad: "Nomad",
   mercadopago: "Mercado Pago",

@@ -1410,7 +1410,7 @@ export type Database = {
       currency: "BRL" | "USD"
       import_status: "pending" | "processing" | "completed" | "failed"
       indexer: "cdi" | "ipca" | "igpm" | "selic" | "prefixado" | "usd" | "none"
-      institution: "xp" | "btg" | "nomad" | "mercadopago"
+      institution: "xp" | "xp_global" | "btg" | "nomad" | "mercadopago"
       risk_profile: "conservative" | "moderate" | "aggressive"
     }
     CompositeTypes: {
@@ -1572,7 +1572,7 @@ export const Constants = {
       currency: ["BRL", "USD"],
       import_status: ["pending", "processing", "completed", "failed"],
       indexer: ["cdi", "ipca", "igpm", "selic", "prefixado", "usd", "none"],
-      institution: ["xp", "btg", "nomad", "mercadopago"],
+      institution: ["xp", "xp_global", "btg", "nomad", "mercadopago"],
       risk_profile: ["conservative", "moderate", "aggressive"],
     },
   },

@@ -6,12 +6,13 @@ import { processCSVImport, processFotoImport, type ImportResult } from "@/app/(a
 
 const INSTITUTIONS = [
   { value: "xp", label: "XP Investimentos" },
+  { value: "xp_global", label: "XP Global (USD)" },
   { value: "btg", label: "BTG Pactual" },
   { value: "nomad", label: "Nomad (USD)" },
   { value: "foto", label: "Foto — Nomad + XP Global (USD)" },
 ] as const;
 
-type InstitutionOption = "xp" | "btg" | "nomad" | "foto";
+type InstitutionOption = "xp" | "xp_global" | "btg" | "nomad" | "foto";
 type Step = "titular" | "instituicao" | "arquivo" | "confirmar" | "resultado";
 
 interface Props {
@@ -54,8 +55,9 @@ export function ImportWizard({ holders, batches }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isNomad = institution === "nomad";
+  const isXpGlobal = institution === "xp_global";
   const isFoto = institution === "foto";
-  const isUsd = isNomad || isFoto;
+  const isUsd = isNomad || isXpGlobal || isFoto;
   const selectedHolder = holders.find((h) => h.id === holderId);
 
   // Imports já existentes desta conta (titular + instituição), candidatos a
@@ -69,7 +71,7 @@ export function ImportWizard({ holders, batches }: Props) {
   );
 
   const acceptedExtensions =
-    isNomad ? [".pdf"] : isFoto ? [".csv"] : [".xlsx", ".csv"];
+    isNomad || isXpGlobal ? [".pdf"] : isFoto ? [".csv"] : [".xlsx", ".csv"];
 
   function isValidFile(f: File): boolean {
     return acceptedExtensions.some((ext) => f.name.toLowerCase().endsWith(ext));
@@ -334,6 +336,8 @@ export function ImportWizard({ holders, batches }: Props) {
                 <p style={{ margin: 0, fontSize: "11.5px", color: "var(--color-text-3)" }}>
                   {institution === "xp"
                     ? "XP: arquivo XLSX (Posição Detalhada) ou CSV"
+                    : institution === "xp_global"
+                    ? "XP Global: arquivo PDF (Account Statement da XP Investments US)"
                     : institution === "btg"
                     ? "BTG: arquivo XLSX (Extrato da Conta Investimento) ou CSV"
                     : institution === "nomad"

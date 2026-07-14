@@ -10,7 +10,7 @@ export interface InstitutionSyncStatus {
 export async function getInstitutionSyncStatuses(): Promise<InstitutionSyncStatus[]> {
   const supabase = await createServerClient();
 
-  const institutions: Enums<"institution">[] = ["xp", "btg", "nomad"];
+  const institutions: Enums<"institution">[] = ["xp", "xp_global", "btg", "nomad"];
 
   const { data } = await supabase
     .from("import_batches")
