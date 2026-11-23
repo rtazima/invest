@@ -4,6 +4,9 @@
  * - Chama /api/prices/refresh a cada PRICE_INTERVAL (10s)
  * - Chama /api/portfolio/intraday-snapshot a cada INTRADAY_INTERVAL (15min)
  *   para popular o gráfico intraday do dashboard.
+ * - Só chama em dias úteis, das 10:00 às 18:30 de America/Sao_Paulo (cobre o
+ *   after-market da B3 e o fechamento de NY). Fora disso fica pausado, para não
+ *   gastar função da Vercel com mercado fechado. Feriados não são tratados.
  *
  * Uso:
  *   pnpm tsx scripts/price-daemon.ts
@@ -18,6 +21,26 @@ config({ path: ".env.local" });
 
 const PRICE_INTERVAL = 10_000;
 const INTRADAY_INTERVAL = 15 * 60 * 1000;
+const IDLE_INTERVAL = 60_000;
+
+const MARKET_TZ = "America/Sao_Paulo";
+const MARKET_OPEN_MIN = 10 * 60;
+const MARKET_CLOSE_MIN = 18 * 60 + 30;
+
+const marketClock = new Intl.DateTimeFormat("en-US", {
+  timeZone: MARKET_TZ,
+  weekday: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+function isMarketOpen(now: Date = new Date()): boolean {
+  const parts = Object.fromEntries(marketClock.formatToParts(now).map((p) => [p.type, p.value]));
+  if (parts.weekday === "Sat" || parts.weekday === "Sun") return false;
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  return minutes >= MARKET_OPEN_MIN && minutes < MARKET_CLOSE_MIN;
+}
 
 const BASE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const AGENT_SECRET = process.env.AGENT_SECRET ?? "";
@@ -100,8 +123,19 @@ async function main() {
   console.log(`Price daemon iniciado — prices ${PRICE_INTERVAL / 1000}s · intraday ${INTRADAY_INTERVAL / 60000}min → ${BASE_URL}`);
 
   let lastIntraday = 0;
+  let wasOpen: boolean | null = null;
 
   while (true) {
+    const open = isMarketOpen();
+    if (open !== wasOpen) {
+      console.log(`[${ts()}] mercado ${open ? "aberto — chamando" : "fechado — pausado"}`);
+      wasOpen = open;
+    }
+    if (!open) {
+      await sleep(IDLE_INTERVAL);
+      continue;
+    }
+
     const start = Date.now();
 
     await tickPrices();
