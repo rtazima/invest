@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
 
 test("diagnóstico: liveAdjustedTotal muda com liveFxRate", async ({ page }) => {
   const responses: { url: string; rate?: number; totalBrl?: number }[] = [];
